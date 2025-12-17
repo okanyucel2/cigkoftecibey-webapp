@@ -13,7 +13,11 @@ from app.api.deps import get_password_hash
 
 
 def seed_database():
-    engine = create_engine(settings.DATABASE_URL)
+    # Fix DATABASE_URL for psycopg3 compatibility
+    database_url = settings.DATABASE_URL
+    if database_url.startswith("postgresql://"):
+        database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    engine = create_engine(database_url)
     Base.metadata.create_all(bind=engine)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     db = SessionLocal()
