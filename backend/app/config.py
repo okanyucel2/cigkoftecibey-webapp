@@ -19,7 +19,11 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
 
     # CORS
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    CORS_ORIGINS: list[str] = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "https://genesis-cigkofteci-bey-frontend.onrender.com"
+    ]
 
     class Config:
         env_file = ".env"
