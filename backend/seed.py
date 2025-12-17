@@ -6,9 +6,49 @@ from app.config import settings
 from app.database import Base
 from app.models import (
     Organization, Branch, User, Supplier, ExpenseCategory,
-    OnlinePlatform, PurchaseProductGroup
+    OnlinePlatform, PurchaseProductGroup, PurchaseProduct
 )
 from app.api.deps import get_password_hash
+
+
+def add_missing_data(db):
+    """Add missing products and categories to existing database"""
+    groups_with_products = {
+        "Manav": ["Marul", "Nane", "Maydanoz", "Roka", "Turp", "Limon", "Domates", "Biber"],
+        "Lavas": ["Cinar Lavas", "Normal Lavas", "Durum Lavas", "Tombik Ekmek"],
+        "Kuru Gida": ["Bulgur", "Isot", "Pul Biber", "Tuz", "Kimyon", "Sumak"],
+        "Baharat": ["Karabiber", "Yenibahar", "Tarçın", "Zencefil"],
+    }
+
+    added_count = 0
+    for idx, (group_name, products) in enumerate(groups_with_products.items(), 1):
+        # Check if group exists
+        grp = db.query(PurchaseProductGroup).filter(PurchaseProductGroup.name == group_name).first()
+        if not grp:
+            grp = PurchaseProductGroup(name=group_name, display_order=idx, is_active=True)
+            db.add(grp)
+            db.flush()
+            print(f"  Created group: {group_name}")
+
+        # Add products for this group
+        for prod_idx, prod_name in enumerate(products, 1):
+            existing_prod = db.query(PurchaseProduct).filter(
+                PurchaseProduct.group_id == grp.id,
+                PurchaseProduct.name == prod_name
+            ).first()
+            if not existing_prod:
+                prod = PurchaseProduct(
+                    group_id=grp.id,
+                    name=prod_name,
+                    default_unit="kg",
+                    display_order=prod_idx,
+                    is_active=True
+                )
+                db.add(prod)
+                added_count += 1
+
+    db.commit()
+    print(f"Added {added_count} missing products")
 
 
 def seed_database():
@@ -22,10 +62,13 @@ def seed_database():
     db = SessionLocal()
 
     try:
-        # Check if already seeded - look for actual user data
+        # Check if admin user exists
         existing_user = db.query(User).filter(User.email == "admin@cigkofte.com").first()
+
         if existing_user:
-            print("Database already seeded. Skipping...")
+            print("Admin user exists, checking for missing data...")
+            # Still run to add any missing products/categories
+            add_missing_data(db)
             return
 
         # If no admin user, seed the database (clean slate or partial data)
@@ -92,17 +135,42 @@ def seed_database():
             db.add(sup)
         print(f"Created {len(suppliers)} suppliers")
 
-        # Purchase Product Groups
-        groups = [
-            {"name": "Manav", "display_order": 1},
-            {"name": "Lavas", "display_order": 2},
-            {"name": "Kuru Gida", "display_order": 3},
-            {"name": "Baharat", "display_order": 4},
-        ]
-        for grp_data in groups:
-            grp = PurchaseProductGroup(**grp_data, is_active=True)
-            db.add(grp)
-        print(f"Created {len(groups)} purchase product groups")
+        # Purchase Product Groups and Products
+        groups_with_products = {
+            "Manav": ["Marul", "Nane", "Maydanoz", "Roka", "Turp", "Limon", "Domates", "Biber"],
+            "Lavas": ["Cinar Lavas", "Normal Lavas", "Durum Lavas", "Tombik Ekmek"],
+            "Kuru Gida": ["Bulgur", "Isot", "Pul Biber", "Tuz", "Kimyon", "Sumak"],
+            "Baharat": ["Karabiber", "Yenibahar", "Tarçın", "Zencefil"],
+        }
+
+        group_map = {}
+        for idx, (group_name, products) in enumerate(groups_with_products.items(), 1):
+            # Check if group exists
+            grp = db.query(PurchaseProductGroup).filter(PurchaseProductGroup.name == group_name).first()
+            if not grp:
+                grp = PurchaseProductGroup(name=group_name, display_order=idx, is_active=True)
+                db.add(grp)
+                db.flush()
+            group_map[group_name] = grp.id
+
+            # Add products for this group
+            for prod_idx, prod_name in enumerate(products, 1):
+                existing_prod = db.query(PurchaseProduct).filter(
+                    PurchaseProduct.group_id == grp.id,
+                    PurchaseProduct.name == prod_name
+                ).first()
+                if not existing_prod:
+                    prod = PurchaseProduct(
+                        group_id=grp.id,
+                        name=prod_name,
+                        default_unit="kg",
+                        display_order=prod_idx,
+                        is_active=True
+                    )
+                    db.add(prod)
+
+        db.flush()
+        print(f"Created {len(groups_with_products)} purchase product groups with products")
 
         # Expense Categories
         expense_categories = [
