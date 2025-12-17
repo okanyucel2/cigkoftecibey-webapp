@@ -11,8 +11,36 @@ from app.models import (
 from app.api.deps import get_password_hash
 
 
+def cleanup_duplicates(db):
+    """Remove duplicate platforms keeping the lowest ID"""
+    from sqlalchemy import func
+
+    # Find duplicate platform names
+    subquery = db.query(
+        OnlinePlatform.name,
+        func.min(OnlinePlatform.id).label('min_id')
+    ).group_by(OnlinePlatform.name).subquery()
+
+    # Delete all platforms that are not the minimum ID for their name
+    duplicates = db.query(OnlinePlatform).filter(
+        ~OnlinePlatform.id.in_(
+            db.query(subquery.c.min_id)
+        )
+    ).all()
+
+    if duplicates:
+        for dup in duplicates:
+            db.delete(dup)
+        db.commit()
+        print(f"Removed {len(duplicates)} duplicate platforms")
+    else:
+        print("No duplicate platforms found")
+
+
 def add_missing_data(db):
     """Add missing products and categories to existing database"""
+    # First cleanup any duplicates
+    cleanup_duplicates(db)
     groups_with_products = {
         "Manav": [
             "Marul", "Nane", "Maydanoz", "Roka", "Tere", "Kivircik", "Aysberk",
@@ -191,7 +219,7 @@ def seed_database():
             db.add(cat)
         print(f"Created {len(expense_categories)} expense categories")
 
-        # Online Platforms (with system channels)
+        # Online Platforms (with system channels) - check for duplicates
         online_platforms = [
             {"name": "Salon", "channel_type": "pos_salon", "is_system": True, "display_order": 1},
             {"name": "Telefon Paket", "channel_type": "pos_telefon", "is_system": True, "display_order": 2},
@@ -199,10 +227,16 @@ def seed_database():
             {"name": "Getir", "channel_type": "online", "is_system": False, "display_order": 4},
             {"name": "Yemek Sepeti", "channel_type": "online", "is_system": False, "display_order": 5},
         ]
+        created_count = 0
         for platform_data in online_platforms:
-            platform = OnlinePlatform(**platform_data, is_active=True)
-            db.add(platform)
-        print(f"Created {len(online_platforms)} online platforms")
+            existing = db.query(OnlinePlatform).filter(
+                OnlinePlatform.name == platform_data["name"]
+            ).first()
+            if not existing:
+                platform = OnlinePlatform(**platform_data, is_active=True)
+                db.add(platform)
+                created_count += 1
+        print(f"Created {created_count} online platforms (skipped existing)")
 
         db.commit()
         print("\nSeed completed successfully!")
