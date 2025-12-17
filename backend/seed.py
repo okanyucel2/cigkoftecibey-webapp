@@ -14,10 +14,47 @@ from app.api.deps import get_password_hash
 def add_missing_data(db):
     """Add missing products and categories to existing database"""
     groups_with_products = {
-        "Manav": ["Marul", "Nane", "Maydanoz", "Roka", "Turp", "Limon", "Domates", "Biber"],
-        "Lavas": ["Cinar Lavas", "Normal Lavas", "Durum Lavas", "Tombik Ekmek"],
-        "Kuru Gida": ["Bulgur", "Isot", "Pul Biber", "Tuz", "Kimyon", "Sumak"],
-        "Baharat": ["Karabiber", "Yenibahar", "Tarçın", "Zencefil"],
+        "Manav": [
+            "Marul", "Nane", "Maydanoz", "Roka", "Tere", "Kivircik", "Aysberk",
+            "Mor Lahana", "Havuc", "Turp", "Limon", "Reyhan", "Karpuz", "Patates",
+            "Salatalik", "Yesil Sogan", "Soyulmus Sogan", "Sarimsak"
+        ],
+        "Lavas": ["Fabrika Lavas", "Muhammet Lavas", "Cinar Lavas"],
+        "Kuru Gida": [
+            "Esmer Bulgur", "Yemeklik Bulgur", "Pirinc", "Nohut", "Mercimek",
+            "Makarna", "Kuru Fasulye", "Mor Isot", "Siyah Isot", "Cavusoglu",
+            "Sos Isot", "Sos Baharati", "Baharat", "Tuz Mix", "Tat Salca",
+            "Biber Salca", "Tuz", "Seker", "Nar Eksisi", "Zeytin Yag",
+            "Aycicek Yag", "Cips", "Karanfil", "Cay", "Ketcap"
+        ],
+        "Tursu": ["Biber Tursusu", "Karisik Tursu"],
+        "Icecek": [
+            "Salgam", "Soda", "Su 330", "Damacana Su", "Eker Ayran",
+            "Gazoz", "Yogurt", "Markasiz Su"
+        ],
+        "Ambalaj": [
+            "Durum Kagit", "Durum Poset", "Plastik Catal", "Plastik Bardak",
+            "Plastik Bicak", "Strec Buyuk", "Strec Kucuk", "Termal Rulo",
+            "Pos Rulo", "Kurdan", "Kolonya", "Seffaf Eldiven", "Pudrali Eldiven",
+            "Islak Mendil", "Baskili Poset", "Pipet", "Cop Poseti", "Catal Kilifi",
+            "Cop Sitik", "Masa Pecetesi", "Et", "Kagit Havlu", "Tuvalet Kagit",
+            "Z Pecete", "250 Gr Vakum Torbasi", "5 Kg Vakum Torbasi", "Terazi Etiketi"
+        ],
+        "Sizdirmazlar": [
+            "250 Gr Susi", "250 Gr Yesillik", "500 Gr Kofte", "500 Gr Yesillik",
+            "1 Kg Yesil Kap", "Tursu Kabi", "330 Pet Sise", "50 Gr Sos"
+        ],
+        "Temizlik": [
+            "Domestos", "Yuzey Temizleyici", "Cif", "Sari Guc", "Kopuk Sabun",
+            "Sivi Bulasik Elde", "Sivi Bulasik Makina", "Genel Temizlik", "Kirec Coz"
+        ],
+        "Tasinmazlar": [
+            "Buyuk Boy Tepsi", "Kucuk Boy Tepsi", "Sosluk", "Kayik Tabak Genis",
+            "Kayik Tabak Dar", "Su Bardagi", "Metal Catal", "Metal Bicak",
+            "Sos Bidonu", "Plastik Kuvet", "Koli Bant", "Vilada Ucu", "Mop Ucu",
+            "Mob", "Cam Bezi", "3 Lu Set", "Siyah Eldiven", "Cam Sil",
+            "Koftelik Et", "Gurler Temizlik", "Saklama Kabi", "Etiket", "Sarf Malzeme"
+        ],
     }
 
     added_count = 0
@@ -135,42 +172,9 @@ def seed_database():
             db.add(sup)
         print(f"Created {len(suppliers)} suppliers")
 
-        # Purchase Product Groups and Products
-        groups_with_products = {
-            "Manav": ["Marul", "Nane", "Maydanoz", "Roka", "Turp", "Limon", "Domates", "Biber"],
-            "Lavas": ["Cinar Lavas", "Normal Lavas", "Durum Lavas", "Tombik Ekmek"],
-            "Kuru Gida": ["Bulgur", "Isot", "Pul Biber", "Tuz", "Kimyon", "Sumak"],
-            "Baharat": ["Karabiber", "Yenibahar", "Tarçın", "Zencefil"],
-        }
-
-        group_map = {}
-        for idx, (group_name, products) in enumerate(groups_with_products.items(), 1):
-            # Check if group exists
-            grp = db.query(PurchaseProductGroup).filter(PurchaseProductGroup.name == group_name).first()
-            if not grp:
-                grp = PurchaseProductGroup(name=group_name, display_order=idx, is_active=True)
-                db.add(grp)
-                db.flush()
-            group_map[group_name] = grp.id
-
-            # Add products for this group
-            for prod_idx, prod_name in enumerate(products, 1):
-                existing_prod = db.query(PurchaseProduct).filter(
-                    PurchaseProduct.group_id == grp.id,
-                    PurchaseProduct.name == prod_name
-                ).first()
-                if not existing_prod:
-                    prod = PurchaseProduct(
-                        group_id=grp.id,
-                        name=prod_name,
-                        default_unit="kg",
-                        display_order=prod_idx,
-                        is_active=True
-                    )
-                    db.add(prod)
-
-        db.flush()
-        print(f"Created {len(groups_with_products)} purchase product groups with products")
+        # Purchase Product Groups and Products - use same data as add_missing_data
+        add_missing_data(db)
+        print("Created purchase product groups with products")
 
         # Expense Categories
         expense_categories = [
