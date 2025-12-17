@@ -688,3 +688,59 @@ class TodaySalesResponse(BaseModel):
     pos_total: Decimal = Decimal("0")
     online_total: Decimal = Decimal("0")
     grand_total: Decimal = Decimal("0")
+
+
+# Courier Expense (Kurye Giderleri)
+class CourierExpenseBase(BaseModel):
+    expense_date: date
+    package_count: int  # Günlük paket sayısı
+    amount: Decimal  # KDV hariç tutar
+    vat_rate: Decimal = Decimal("20")  # KDV oranı (%)
+    notes: Optional[str] = None
+
+
+class CourierExpenseCreate(CourierExpenseBase):
+    pass
+
+
+class CourierExpenseUpdate(BaseModel):
+    expense_date: Optional[date] = None
+    package_count: Optional[int] = None
+    amount: Optional[Decimal] = None
+    vat_rate: Optional[Decimal] = None
+    notes: Optional[str] = None
+
+
+class CourierExpenseResponse(CourierExpenseBase):
+    id: int
+    branch_id: int
+    vat_amount: Decimal  # Hesaplanan KDV tutarı
+    total_with_vat: Decimal  # KDV dahil toplam
+    created_by: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class CourierExpenseSummary(BaseModel):
+    """Aylık kurye gideri özeti"""
+    total_packages: int
+    total_amount: Decimal  # KDV hariç toplam
+    total_vat: Decimal  # Toplam KDV
+    total_with_vat: Decimal  # KDV dahil genel toplam
+    days_count: int
+    avg_daily_packages: Decimal
+    avg_package_cost: Decimal  # Paket başına ortalama maliyet
+
+
+# Toplu kurye gideri girişi için
+class CourierExpenseBulkEntry(BaseModel):
+    expense_date: date
+    package_count: int
+    amount: Decimal
+    vat_rate: Decimal = Decimal("20")
+
+
+class CourierExpenseBulkCreate(BaseModel):
+    entries: list[CourierExpenseBulkEntry]

@@ -73,6 +73,11 @@ const router = createRouter({
           component: () => import('@/views/Personnel.vue')
         },
         {
+          path: 'courier-expenses',
+          name: 'courier-expenses',
+          component: () => import('@/views/CourierExpenses.vue')
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/Settings.vue'),

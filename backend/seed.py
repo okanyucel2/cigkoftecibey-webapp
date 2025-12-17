@@ -212,7 +212,8 @@ def seed_database():
             {"name": "Dogalgaz", "is_fixed": False, "display_order": 4},
             {"name": "Internet", "is_fixed": True, "display_order": 5},
             {"name": "Personel Yemek", "is_fixed": False, "display_order": 6},
-            {"name": "Diger", "is_fixed": False, "display_order": 7},
+            {"name": "Online Platform Komisyonlari", "is_fixed": False, "display_order": 7},
+            {"name": "Diger", "is_fixed": False, "display_order": 8},
         ]
         for cat_data in expense_categories:
             cat = ExpenseCategory(**cat_data)

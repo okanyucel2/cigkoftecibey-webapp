@@ -6,11 +6,18 @@ import type {
   StaffMeal, StaffMealSummary,
   Employee, MonthlyPayroll, PayrollSummary, PartTimeCost, PartTimeCostSummary,
   OnlinePlatform, OnlineSale, DailySalesEntry, DailySalesResponse, OnlineSalesSummary,
-  InvitationCode, InvitationCodeValidation, GoogleAuthResponse
+  InvitationCode, InvitationCodeValidation, GoogleAuthResponse,
+  CourierExpense, CourierExpenseSummary
 } from '@/types'
 
-// Railway: Use VITE_API_URL for production, /api for local (nginx proxy)
-const baseURL = import.meta.env.VITE_API_URL || '/api'
+// Render production URL - fallback for when env var isn't set at build time
+const RENDER_BACKEND_URL = 'https://genesis-cigkofteci-bey-backend.onrender.com/api'
+
+// Use VITE_API_URL if set, otherwise detect production by hostname
+const baseURL = import.meta.env.VITE_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname.includes('onrender.com')
+    ? RENDER_BACKEND_URL
+    : '/api')
 
 const api = axios.create({
   baseURL,
@@ -416,6 +423,54 @@ export const onlineSalesApi = {
   // Summary
   getSummary: (params?: { month?: number; year?: number; start_date?: string; end_date?: string }) =>
     api.get<OnlineSalesSummary>('/online-sales/summary', { params })
+}
+
+// Courier Expenses (Kurye Giderleri)
+export const courierExpensesApi = {
+  create: (data: {
+    expense_date: string
+    package_count: number
+    amount: number
+    vat_rate?: number
+    notes?: string
+  }) => api.post<CourierExpense>('/courier-expenses', data),
+
+  createBulk: (data: {
+    entries: Array<{
+      expense_date: string
+      package_count: number
+      amount: number
+      vat_rate?: number
+    }>
+  }) => api.post<CourierExpense[]>('/courier-expenses/bulk', data),
+
+  getAll: (params?: {
+    start_date?: string
+    end_date?: string
+    year?: number
+    month?: number
+  }) => api.get<CourierExpense[]>('/courier-expenses', { params }),
+
+  getById: (id: number) => api.get<CourierExpense>(`/courier-expenses/${id}`),
+
+  getToday: () => api.get<CourierExpense | null>('/courier-expenses/today'),
+
+  getSummary: (params?: {
+    year?: number
+    month?: number
+    start_date?: string
+    end_date?: string
+  }) => api.get<CourierExpenseSummary>('/courier-expenses/summary', { params }),
+
+  update: (id: number, data: {
+    expense_date?: string
+    package_count?: number
+    amount?: number
+    vat_rate?: number
+    notes?: string
+  }) => api.put<CourierExpense>(`/courier-expenses/${id}`, data),
+
+  delete: (id: number) => api.delete(`/courier-expenses/${id}`)
 }
 
 // Invitation Codes

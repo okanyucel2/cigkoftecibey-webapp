@@ -320,3 +320,28 @@ export interface GoogleAuthResponse {
   requires_onboarding: boolean
   user?: User
 }
+
+// Courier Expense Types
+export interface CourierExpense {
+  id: number
+  branch_id: number
+  expense_date: string
+  package_count: number
+  amount: number  // KDV haric
+  vat_rate: number  // KDV orani (%)
+  vat_amount: number  // KDV tutari
+  total_with_vat: number  // KDV dahil toplam
+  notes?: string
+  created_by: number
+  created_at: string
+}
+
+export interface CourierExpenseSummary {
+  total_packages: number
+  total_amount: number  // KDV haric toplam
+  total_vat: number  // Toplam KDV
+  total_with_vat: number  // KDV dahil genel toplam
+  days_count: number
+  avg_daily_packages: number
+  avg_package_cost: number  // Paket basina ortalama maliyet
+}

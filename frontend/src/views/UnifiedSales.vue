@@ -19,6 +19,7 @@ const selectedYear = ref(currentDate.getFullYear())
 const showModal = ref(false)
 const showPlatformModal = ref(false)
 const showPlatformForm = ref(false)
+const showBulkModal = ref(false) // Toplu giris modali
 const editingPlatformId = ref<number | null>(null)
 const submitting = ref(false)
 
@@ -32,6 +33,29 @@ const saleForm = ref({
 const platformForm = ref({
   name: '',
   display_order: 0
+})
+
+// Toplu giris modu (daily = gunluk detay, period = donem toplami)
+const bulkMode = ref<'daily' | 'period'>('period')
+
+// Gunluk detayli giris formu
+const bulkDailyForm = ref({
+  start_date: '',
+  end_date: '',
+  entries: [] as Array<{
+    date: string,
+    channels: Record<number, number>
+  }>
+})
+
+// Donemsel toplam giris formu
+const bulkPeriodForm = ref({
+  period_type: 'weekly' as 'weekly' | 'monthly' | 'custom',
+  week_number: 1,
+  custom_start: '',
+  custom_end: '',
+  channels: {} as Record<number, number>,
+  notes: ''
 })
 
 const months = [
@@ -300,6 +324,231 @@ async function deletePlatform(id: number) {
   }
 }
 
+// Toplu giris fonksiyonlari
+function openBulkModal() {
+  // Haftalar listesini hesapla
+  calculateWeeks()
+
+  // Gunluk detay formunu hazirla
+  const startDate = new Date(selectedYear.value, selectedMonth.value - 1, 1)
+  const endDate = new Date(selectedYear.value, selectedMonth.value, 0)
+  bulkDailyForm.value = {
+    start_date: startDate.toISOString().split('T')[0],
+    end_date: endDate.toISOString().split('T')[0],
+    entries: []
+  }
+  generateBulkDailyEntries()
+
+  // Donemsel toplam formunu hazirla
+  bulkPeriodForm.value = {
+    period_type: 'weekly',
+    week_number: currentWeekNumber.value,
+    custom_start: '',
+    custom_end: '',
+    channels: {},
+    notes: ''
+  }
+  allChannels.value.forEach(ch => {
+    bulkPeriodForm.value.channels[ch.id] = 0
+  })
+
+  showBulkModal.value = true
+}
+
+// ===== GUNLUK DETAY GIRIS FONKSIYONLARI =====
+function generateBulkDailyEntries() {
+  const start = new Date(bulkDailyForm.value.start_date)
+  const end = new Date(bulkDailyForm.value.end_date)
+  const entries = []
+
+  const current = new Date(start)
+  while (current <= end) {
+    const dateStr = current.toISOString().split('T')[0]
+    const channelsData: Record<number, number> = {}
+
+    const existingDay = salesByDate.value.find(d => d.date === dateStr)
+    allChannels.value.forEach(ch => {
+      if (existingDay && existingDay.sales[ch.id]) {
+        channelsData[ch.id] = Number(existingDay.sales[ch.id].amount)
+      } else {
+        channelsData[ch.id] = 0
+      }
+    })
+
+    entries.push({ date: dateStr, channels: channelsData })
+    current.setDate(current.getDate() + 1)
+  }
+
+  bulkDailyForm.value.entries = entries
+}
+
+function getBulkDayTotal(entry: { date: string, channels: Record<number, number> }): number {
+  return Object.values(entry.channels).reduce((sum, val) => sum + (val || 0), 0)
+}
+
+const bulkDailyGrandTotal = computed(() => {
+  return bulkDailyForm.value.entries.reduce((sum, entry) => sum + getBulkDayTotal(entry), 0)
+})
+
+async function submitBulkDailyForm() {
+  submitting.value = true
+  error.value = ''
+
+  try {
+    for (const entry of bulkDailyForm.value.entries) {
+      const filteredEntries = Object.entries(entry.channels)
+        .filter(([_, amount]) => amount > 0)
+        .map(([channelId, amount]) => ({
+          platform_id: Number(channelId),
+          amount: Number(amount)
+        }))
+
+      if (filteredEntries.length > 0) {
+        await unifiedSalesApi.saveDailySales({
+          sale_date: entry.date,
+          entries: filteredEntries
+        })
+      }
+    }
+
+    showBulkModal.value = false
+    await loadData()
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || 'Toplu kayit basarisiz'
+  } finally {
+    submitting.value = false
+  }
+}
+
+// ===== DONEMSEL TOPLAM GIRIS FONKSIYONLARI =====
+const weeksInMonth = ref<Array<{ number: number, start: string, end: string, label: string }>>([])
+const currentWeekNumber = ref(1)
+
+function calculateWeeks() {
+  const weeks: Array<{ number: number, start: string, end: string, label: string }> = []
+  const firstDay = new Date(selectedYear.value, selectedMonth.value - 1, 1)
+  const lastDay = new Date(selectedYear.value, selectedMonth.value, 0)
+
+  let weekStart = new Date(firstDay)
+  let weekNum = 1
+
+  while (weekStart <= lastDay) {
+    const weekEnd = new Date(weekStart)
+    const daysUntilSunday = (7 - weekStart.getDay()) % 7
+    weekEnd.setDate(weekEnd.getDate() + daysUntilSunday)
+
+    if (weekEnd > lastDay) {
+      weekEnd.setTime(lastDay.getTime())
+    }
+
+    weeks.push({
+      number: weekNum,
+      start: weekStart.toISOString().split('T')[0],
+      end: weekEnd.toISOString().split('T')[0],
+      label: `${weekNum}. Hafta (${weekStart.getDate()}-${weekEnd.getDate()} ${months[selectedMonth.value - 1].label})`
+    })
+
+    weekStart = new Date(weekEnd)
+    weekStart.setDate(weekStart.getDate() + 1)
+    weekNum++
+  }
+
+  weeksInMonth.value = weeks
+
+  const today = new Date()
+  if (today.getMonth() + 1 === selectedMonth.value && today.getFullYear() === selectedYear.value) {
+    const todayStr = today.toISOString().split('T')[0]
+    const currentWeek = weeks.find(w => todayStr >= w.start && todayStr <= w.end)
+    currentWeekNumber.value = currentWeek?.number || 1
+  } else {
+    currentWeekNumber.value = 1
+  }
+}
+
+const bulkPeriodEndDate = computed(() => {
+  if (bulkPeriodForm.value.period_type === 'monthly') {
+    const lastDay = new Date(selectedYear.value, selectedMonth.value, 0)
+    return lastDay.toISOString().split('T')[0]
+  } else if (bulkPeriodForm.value.period_type === 'weekly') {
+    const week = weeksInMonth.value.find(w => w.number === bulkPeriodForm.value.week_number)
+    return week?.end || ''
+  } else {
+    return bulkPeriodForm.value.custom_end
+  }
+})
+
+const bulkPeriodLabel = computed(() => {
+  if (bulkPeriodForm.value.period_type === 'monthly') {
+    return `${months[selectedMonth.value - 1].label} ${selectedYear.value} (Ay Toplami)`
+  } else if (bulkPeriodForm.value.period_type === 'weekly') {
+    const week = weeksInMonth.value.find(w => w.number === bulkPeriodForm.value.week_number)
+    return week?.label || ''
+  } else {
+    if (bulkPeriodForm.value.custom_start && bulkPeriodForm.value.custom_end) {
+      return `${formatDate(bulkPeriodForm.value.custom_start)} - ${formatDate(bulkPeriodForm.value.custom_end)}`
+    }
+    return 'Tarih secin'
+  }
+})
+
+const bulkPeriodGrandTotal = computed(() => {
+  return Object.values(bulkPeriodForm.value.channels).reduce((sum, val) => sum + (val || 0), 0)
+})
+
+const bulkPeriodPosTotal = computed(() => {
+  let total = 0
+  for (const ch of channels.value.pos) {
+    total += bulkPeriodForm.value.channels[ch.id] || 0
+  }
+  return total
+})
+
+const bulkPeriodOnlineTotal = computed(() => {
+  let total = 0
+  for (const ch of channels.value.online) {
+    total += bulkPeriodForm.value.channels[ch.id] || 0
+  }
+  return total
+})
+
+async function submitBulkPeriodForm() {
+  const endDate = bulkPeriodEndDate.value
+  if (!endDate) {
+    error.value = 'Gecerli bir donem secin'
+    return
+  }
+
+  const entries = Object.entries(bulkPeriodForm.value.channels)
+    .filter(([_, amount]) => amount > 0)
+    .map(([channelId, amount]) => ({
+      platform_id: Number(channelId),
+      amount: Number(amount)
+    }))
+
+  if (entries.length === 0) {
+    error.value = 'En az bir kanal icin tutar girin'
+    return
+  }
+
+  submitting.value = true
+  error.value = ''
+
+  try {
+    await unifiedSalesApi.saveDailySales({
+      sale_date: endDate,
+      entries,
+      notes: bulkPeriodForm.value.notes || `${bulkPeriodLabel.value} toplami`
+    })
+
+    showBulkModal.value = false
+    await loadData()
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || 'Toplu kayit basarisiz'
+  } finally {
+    submitting.value = false
+  }
+}
+
 // Format helpers
 function formatCurrency(value: number) {
   return new Intl.NumberFormat('tr-TR', {
@@ -373,9 +622,14 @@ function getChannelTextColor(channel: any): string {
           <span class="text-sm">Platformlar</span>
         </button>
       </div>
-      <button @click="openAddModal" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
-        + Satis Ekle
-      </button>
+      <div class="flex gap-2">
+        <button @click="openBulkModal" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
+          Toplu Giris
+        </button>
+        <button @click="openAddModal" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+          + Satis Ekle
+        </button>
+      </div>
     </div>
 
     <!-- Ozet Kartlari -->
@@ -751,6 +1005,350 @@ function getChannelTextColor(channel: any): string {
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- ==================== TOPLU GIRIS MODAL ==================== -->
+    <div v-if="showBulkModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-6xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
+        <!-- Header -->
+        <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
+          <div>
+            <h2 class="text-lg font-semibold">Toplu Satis Girisi</h2>
+            <p class="text-sm text-gray-500">Haftalik/Aylik toplam veya gunluk detay girebilirsiniz</p>
+          </div>
+          <button @click="showBulkModal = false" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        </div>
+
+        <!-- Tab Secimi -->
+        <div class="flex border-b bg-gray-50">
+          <button
+            @click="bulkMode = 'period'"
+            :class="[
+              'flex-1 py-3 text-center font-medium transition-colors',
+              bulkMode === 'period'
+                ? 'bg-white text-red-600 border-b-2 border-red-600'
+                : 'text-gray-500 hover:text-gray-700'
+            ]"
+          >
+            Donem Toplami
+          </button>
+          <button
+            @click="bulkMode = 'daily'"
+            :class="[
+              'flex-1 py-3 text-center font-medium transition-colors',
+              bulkMode === 'daily'
+                ? 'bg-white text-red-600 border-b-2 border-red-600'
+                : 'text-gray-500 hover:text-gray-700'
+            ]"
+          >
+            Gunluk Detay
+          </button>
+        </div>
+
+        <!-- ========== DONEM TOPLAMI TAB ========== -->
+        <form v-if="bulkMode === 'period'" @submit.prevent="submitBulkPeriodForm" class="flex-1 overflow-hidden flex flex-col">
+          <!-- Donem Secimi -->
+          <div class="p-4 border-b bg-gray-50">
+            <div class="flex gap-4 items-center flex-wrap">
+              <!-- Donem Tipi -->
+              <div class="flex gap-2">
+                <button
+                  type="button"
+                  @click="bulkPeriodForm.period_type = 'weekly'"
+                  :class="[
+                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    bulkPeriodForm.period_type === 'weekly'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-white border text-gray-700 hover:bg-gray-100'
+                  ]"
+                >
+                  Haftalik
+                </button>
+                <button
+                  type="button"
+                  @click="bulkPeriodForm.period_type = 'monthly'"
+                  :class="[
+                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    bulkPeriodForm.period_type === 'monthly'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-white border text-gray-700 hover:bg-gray-100'
+                  ]"
+                >
+                  Aylik
+                </button>
+                <button
+                  type="button"
+                  @click="bulkPeriodForm.period_type = 'custom'"
+                  :class="[
+                    'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                    bulkPeriodForm.period_type === 'custom'
+                      ? 'bg-red-600 text-white'
+                      : 'bg-white border text-gray-700 hover:bg-gray-100'
+                  ]"
+                >
+                  Ozel Aralik
+                </button>
+              </div>
+
+              <!-- Hafta Secimi -->
+              <select
+                v-if="bulkPeriodForm.period_type === 'weekly'"
+                v-model="bulkPeriodForm.week_number"
+                class="border rounded-lg px-3 py-2 text-sm"
+              >
+                <option v-for="week in weeksInMonth" :key="week.number" :value="week.number">
+                  {{ week.label }}
+                </option>
+              </select>
+
+              <!-- Custom Tarih -->
+              <div v-if="bulkPeriodForm.period_type === 'custom'" class="flex gap-2 items-center">
+                <input
+                  v-model="bulkPeriodForm.custom_start"
+                  type="date"
+                  class="border rounded-lg px-3 py-1.5 text-sm"
+                />
+                <span class="text-gray-400">-</span>
+                <input
+                  v-model="bulkPeriodForm.custom_end"
+                  type="date"
+                  class="border rounded-lg px-3 py-1.5 text-sm"
+                />
+              </div>
+
+              <div class="flex-1 text-right">
+                <span class="text-sm text-gray-600">{{ bulkPeriodLabel }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kanal Girisleri -->
+          <div class="flex-1 overflow-auto p-4">
+            <div class="max-w-2xl mx-auto space-y-6">
+              <!-- POS Kanallari -->
+              <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-3">POS Satislari</h3>
+                <div class="space-y-3">
+                  <div
+                    v-for="channel in channels.pos"
+                    :key="channel.id"
+                    class="flex items-center gap-4 bg-gray-50 rounded-lg p-3"
+                  >
+                    <div class="flex items-center gap-2 min-w-[120px]">
+                      <div :class="['w-3 h-3 rounded-full', getChannelColor(channel)]"></div>
+                      <span class="font-medium">{{ channel.name }}</span>
+                    </div>
+                    <div class="flex-1">
+                      <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">TL</span>
+                        <input
+                          v-model.number="bulkPeriodForm.channels[channel.id]"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          class="w-full border rounded-lg pl-10 pr-3 py-2 text-right"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="mt-2 text-right text-sm">
+                  <span class="text-gray-500">POS Toplam: </span>
+                  <span class="font-bold text-blue-600">{{ formatCurrency(bulkPeriodPosTotal) }}</span>
+                </div>
+              </div>
+
+              <!-- Online Kanallari -->
+              <div>
+                <h3 class="text-sm font-medium text-gray-500 mb-3">Online Platform Satislari</h3>
+                <div class="space-y-3">
+                  <div
+                    v-for="channel in channels.online"
+                    :key="channel.id"
+                    class="flex items-center gap-4 bg-gray-50 rounded-lg p-3"
+                  >
+                    <div class="flex items-center gap-2 min-w-[120px]">
+                      <div :class="['w-3 h-3 rounded-full', getChannelColor(channel)]"></div>
+                      <span class="font-medium">{{ channel.name }}</span>
+                    </div>
+                    <div class="flex-1">
+                      <div class="relative">
+                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">TL</span>
+                        <input
+                          v-model.number="bulkPeriodForm.channels[channel.id]"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          class="w-full border rounded-lg pl-10 pr-3 py-2 text-right"
+                          placeholder="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="channels.online.length > 0" class="mt-2 text-right text-sm">
+                  <span class="text-gray-500">Online Toplam: </span>
+                  <span class="font-bold text-purple-600">{{ formatCurrency(bulkPeriodOnlineTotal) }}</span>
+                </div>
+              </div>
+
+              <!-- Genel Toplam -->
+              <div class="border-t pt-4">
+                <div class="flex justify-between items-center text-lg">
+                  <span class="font-medium text-gray-700">Genel Toplam</span>
+                  <span class="font-bold text-green-600 text-2xl">{{ formatCurrency(bulkPeriodGrandTotal) }}</span>
+                </div>
+              </div>
+
+              <!-- Not -->
+              <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Not (opsiyonel)</label>
+                <input
+                  v-model="bulkPeriodForm.notes"
+                  type="text"
+                  class="w-full border rounded-lg px-3 py-2"
+                  :placeholder="`${bulkPeriodLabel} toplami`"
+                />
+              </div>
+            </div>
+          </div>
+
+          <!-- Butonlar -->
+          <div class="p-4 border-t bg-gray-50 flex gap-3 justify-between items-center">
+            <div class="text-sm text-gray-500">
+              Kayit tarihi: <strong>{{ bulkPeriodEndDate }}</strong> (donem sonu)
+            </div>
+            <div class="flex gap-3">
+              <button
+                type="button"
+                @click="showBulkModal = false"
+                class="px-6 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+              >
+                Iptal
+              </button>
+              <button
+                type="submit"
+                :disabled="submitting || bulkPeriodGrandTotal === 0"
+                class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+              >
+                {{ submitting ? 'Kaydediliyor...' : 'Kaydet' }}
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <!-- ========== GUNLUK DETAY TAB ========== -->
+        <form v-else @submit.prevent="submitBulkDailyForm" class="flex-1 overflow-hidden flex flex-col">
+          <!-- Tarih Araligi -->
+          <div class="p-4 border-b bg-gray-50">
+            <div class="flex gap-4 items-center flex-wrap">
+              <div class="flex items-center gap-2">
+                <label class="text-sm font-medium text-gray-700">Baslangic:</label>
+                <input
+                  v-model="bulkDailyForm.start_date"
+                  @change="generateBulkDailyEntries"
+                  type="date"
+                  class="border rounded-lg px-3 py-1.5 text-sm"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <label class="text-sm font-medium text-gray-700">Bitis:</label>
+                <input
+                  v-model="bulkDailyForm.end_date"
+                  @change="generateBulkDailyEntries"
+                  type="date"
+                  class="border rounded-lg px-3 py-1.5 text-sm"
+                />
+              </div>
+              <div class="flex-1 text-right">
+                <span class="text-sm text-gray-500">{{ bulkDailyForm.entries.length }} gun</span>
+                <span class="mx-2">|</span>
+                <span class="font-bold text-green-600">Toplam: {{ formatCurrency(bulkDailyGrandTotal) }}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tablo -->
+          <div class="flex-1 overflow-auto">
+            <table class="w-full text-sm">
+              <thead class="bg-gray-100 sticky top-0">
+                <tr>
+                  <th class="px-3 py-2 text-left font-medium text-gray-600 whitespace-nowrap">Tarih</th>
+                  <th
+                    v-for="channel in allChannels"
+                    :key="channel.id"
+                    class="px-2 py-2 text-center font-medium text-gray-600 whitespace-nowrap min-w-[100px]"
+                  >
+                    <div class="flex items-center justify-center gap-1">
+                      <div :class="['w-2 h-2 rounded-full', getChannelColor(channel)]"></div>
+                      <span class="truncate max-w-[80px]">{{ channel.name }}</span>
+                    </div>
+                  </th>
+                  <th class="px-3 py-2 text-right font-medium text-gray-600 whitespace-nowrap">Gun Toplam</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y">
+                <tr v-for="(entry, idx) in bulkDailyForm.entries" :key="entry.date" :class="idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'">
+                  <td class="px-3 py-2 font-medium text-gray-700 whitespace-nowrap">
+                    {{ formatDate(entry.date) }}
+                  </td>
+                  <td
+                    v-for="channel in allChannels"
+                    :key="channel.id"
+                    class="px-1 py-1"
+                  >
+                    <input
+                      v-model.number="entry.channels[channel.id]"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      class="w-full border rounded px-2 py-1 text-right text-sm"
+                      placeholder="0"
+                    />
+                  </td>
+                  <td class="px-3 py-2 text-right font-bold text-gray-900 whitespace-nowrap">
+                    {{ formatCurrency(getBulkDayTotal(entry)) }}
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot class="bg-gray-100 font-bold sticky bottom-0">
+                <tr>
+                  <td class="px-3 py-2 text-gray-700">TOPLAM</td>
+                  <td
+                    v-for="channel in allChannels"
+                    :key="channel.id"
+                    class="px-2 py-2 text-center text-gray-900"
+                  >
+                    {{ formatCurrency(bulkDailyForm.entries.reduce((sum, e) => sum + (e.channels[channel.id] || 0), 0)) }}
+                  </td>
+                  <td class="px-3 py-2 text-right text-green-600">
+                    {{ formatCurrency(bulkDailyGrandTotal) }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Butonlar -->
+          <div class="p-4 border-t bg-gray-50 flex gap-3 justify-end">
+            <button
+              type="button"
+              @click="showBulkModal = false"
+              class="px-6 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+            >
+              Iptal
+            </button>
+            <button
+              type="submit"
+              :disabled="submitting"
+              class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              {{ submitting ? 'Kaydediliyor...' : 'Tumu Kaydet' }}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

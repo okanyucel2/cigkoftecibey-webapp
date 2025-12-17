@@ -18,8 +18,14 @@ const menuItems = [
   { path: '/purchases', name: 'Mal Alimi', icon: '📦' },
   { path: '/staff-meals', name: 'Personel Yemek', icon: '🍽️' },
   { path: '/personnel', name: 'Personel Yonetimi', icon: '👥' },
+  { path: '/courier-expenses', name: 'Kurye Giderleri', icon: '🛵' },
   { path: '/expenses', name: 'Isletme Giderleri', icon: '💸' },
 ]
+
+// Versiyon bilgileri (build sirasinda enjekte edilir)
+const appVersion = __APP_VERSION__
+const gitCommit = __GIT_COMMIT__
+const gitDate = __GIT_DATE__
 
 const adminMenuItems = [
   { path: '/settings', name: 'Sistem Ayarlari', icon: '⚙️' },
@@ -190,6 +196,15 @@ async function handleBranchSwitch(branchId: number) {
           >
             🚪
           </button>
+        </div>
+        <!-- Versiyon Bilgisi -->
+        <div class="mt-3 pt-3 border-t border-gray-700 text-center">
+          <p class="text-xs text-gray-500">
+            v{{ appVersion }} ({{ gitCommit }})
+          </p>
+          <p class="text-xs text-gray-600">
+            {{ gitDate }}
+          </p>
         </div>
       </div>
     </aside>

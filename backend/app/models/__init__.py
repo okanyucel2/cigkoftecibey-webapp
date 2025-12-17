@@ -414,3 +414,28 @@ class InvitationCodeUse(Base):
     user: Mapped["User"] = relationship()
 
 
+class CourierExpense(Base):
+    """Kurye firması hakedişleri - günlük teslimat giderleri"""
+    __tablename__ = "courier_expenses"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
+    expense_date: Mapped[date] = mapped_column(Date, index=True)
+    package_count: Mapped[int] = mapped_column(Integer)  # Günlük atılan paket sayısı
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))  # TL değeri (KDV hariç)
+    vat_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=20)  # KDV oranı (%)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    @property
+    def vat_amount(self) -> Decimal:
+        """KDV tutarı"""
+        return self.amount * (self.vat_rate / 100)
+
+    @property
+    def total_with_vat(self) -> Decimal:
+        """KDV dahil toplam"""
+        return self.amount + self.vat_amount
+
+
