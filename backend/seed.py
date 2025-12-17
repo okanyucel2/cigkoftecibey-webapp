@@ -22,36 +22,47 @@ def seed_database():
     db = SessionLocal()
 
     try:
-        # Check if already seeded
-        existing_org = db.query(Organization).first()
-        if existing_org:
+        # Check if already seeded - look for actual user data
+        existing_user = db.query(User).filter(User.email == "admin@cigkofte.com").first()
+        if existing_user:
             print("Database already seeded. Skipping...")
             return
 
-        # Organization
-        org = Organization(
-            name="Cigkofteci Bey",
-            code="CKB",
-            is_active=True,
-            created_at=datetime.utcnow()
-        )
-        db.add(org)
-        db.flush()
-        print(f"Created organization: {org.name}")
+        # If no admin user, seed the database (clean slate or partial data)
+        print("No admin user found, seeding database...")
 
-        # Branch
-        branch = Branch(
-            organization_id=org.id,
-            name="Kadikoy Subesi",
-            code="KDK",
-            address="Kadikoy, Istanbul",
-            phone="0216 555 1234",
-            is_active=True,
-            created_at=datetime.utcnow()
-        )
-        db.add(branch)
-        db.flush()
-        print(f"Created branch: {branch.name}")
+        # Organization - check if exists
+        org = db.query(Organization).filter(Organization.code == "CKB").first()
+        if not org:
+            org = Organization(
+                name="Cigkofteci Bey",
+                code="CKB",
+                is_active=True,
+                created_at=datetime.utcnow()
+            )
+            db.add(org)
+            db.flush()
+            print(f"Created organization: {org.name}")
+        else:
+            print(f"Using existing organization: {org.name}")
+
+        # Branch - check if exists
+        branch = db.query(Branch).filter(Branch.code == "KDK").first()
+        if not branch:
+            branch = Branch(
+                organization_id=org.id,
+                name="Kadikoy Subesi",
+                code="KDK",
+                address="Kadikoy, Istanbul",
+                phone="0216 555 1234",
+                is_active=True,
+                created_at=datetime.utcnow()
+            )
+            db.add(branch)
+            db.flush()
+            print(f"Created branch: {branch.name}")
+        else:
+            print(f"Using existing branch: {branch.name}")
 
         # User (admin)
         admin_user = User(
