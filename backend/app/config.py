@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     # Google OAuth
     GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_API_KEY: str = ""
 
     # CORS
     CORS_ORIGINS: list[str] = [

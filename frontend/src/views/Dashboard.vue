@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { DashboardStats } from '@/types'
 import { reportsApi } from '@/services/api'
+import SmartInsightCard from '@/components/dashboard/SmartInsightCard.vue'
 
 const router = useRouter()
 
@@ -44,6 +45,11 @@ function toNum(value: number | string | null | undefined): number {
   <div v-else class="space-y-6">
     <!-- KPI Cards - 6 kart (2 satir x 3 kolon) -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- AI Insight Card (Spans full width on mobile, 2 cols on desktop if desired, but here we keep it simple) -->
+      <div class="col-span-1 md:col-span-2 lg:col-span-3">
+        <SmartInsightCard />
+      </div>
+
       <!-- Row 1 -->
       <!-- Salon Satis -->
       <div class="kpi-card border-l-4 border-blue-500">

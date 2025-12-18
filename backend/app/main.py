@@ -1,7 +1,21 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+import bcrypt
+import traceback
+import sys
+
+# Monkey patch bcrypt for passlib compatibility - ROBUST VERSION
+try:
+    if not hasattr(bcrypt, "__about__"):
+        class About:
+            __version__ = getattr(bcrypt, "__version__", "4.0.1")
+        bcrypt.__about__ = About()
+except Exception as e:
+    print(f"Warning: Failed to patch bcrypt: {e}", file=sys.stderr)
+
 from app.config import settings
-from app.api import auth, purchases, expenses, reports, production, staff_meals, personnel, online_sales, branches, users, invitation_codes, courier_expenses
+from app.api import auth, purchases, expenses, reports, production, staff_meals, personnel, online_sales, branches, users, invitation_codes, courier_expenses, ai_insights
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -10,6 +24,19 @@ app = FastAPI(
     redoc_url="/api/redoc",
     openapi_url="/api/openapi.json"
 )
+
+# Global 500 Handler for Debugging
+@app.middleware("http")
+async def debug_exception_handler(request: Request, call_next):
+    try:
+        return await call_next(request)
+    except Exception as e:
+        print(f"\nCRITICAL ERROR: {request.method} {request.url.path}", file=sys.stderr)
+        traceback.print_exc(file=sys.stderr)
+        return JSONResponse(
+            status_code=500,
+            content={"detail": "Internal Server Error", "debug_trace": str(e)}
+        )
 
 # CORS
 app.add_middleware(
@@ -31,6 +58,7 @@ app.include_router(personnel.router, prefix="/api")
 app.include_router(online_sales.router, prefix="/api")
 app.include_router(branches.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
+app.include_router(ai_insights.router, prefix="/api")
 app.include_router(invitation_codes.router, prefix="/api")
 app.include_router(courier_expenses.router, prefix="/api")
 

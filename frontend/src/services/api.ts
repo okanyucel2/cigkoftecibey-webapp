@@ -492,4 +492,9 @@ export const invitationCodesApi = {
     api.post<InvitationCodeValidation>(`/invitation-codes/validate?code_str=${code}`)
 }
 
+// AI Insights
+export const aiApi = {
+  getDailyBrief: () => api.get('/ai/daily-brief')
+}
+
 export default api
