@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import type { ChannelsGrouped, OnlineSale, OnlineSalesSummary } from '@/types'
 import { unifiedSalesApi, onlineSalesApi } from '@/services/api'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 // Channel data
 const channels = ref<ChannelsGrouped>({ pos: [], online: [] })
@@ -77,6 +78,24 @@ const years = computed(() => {
   const currentYear = new Date().getFullYear()
   return [currentYear, currentYear - 1, currentYear - 2]
 })
+
+// Confirm Modal
+const showConfirm = ref(false)
+const confirmMessage = ref('')
+const confirmAction = ref<(() => Promise<void>) | null>(null)
+
+function openConfirm(message: string, action: () => Promise<void>) {
+  confirmMessage.value = message
+  confirmAction.value = action
+  showConfirm.value = true
+}
+
+async function handleConfirm() {
+  if (confirmAction.value) {
+    await confirmAction.value()
+  }
+  showConfirm.value = false
+}
 
 // All channels combined for table display
 const allChannels = computed(() => [...channels.value.pos, ...channels.value.online])
@@ -260,15 +279,16 @@ async function submitSaleForm() {
 }
 
 async function deleteDay(dateStr: string) {
-  if (!confirm(`${formatDate(dateStr)} tarihindeki tum satislari silmek istediginize emin misiniz?`)) return
-
-  try {
-    await onlineSalesApi.deleteDailySales(dateStr)
-    await loadData()
-  } catch (e) {
-    console.error('Failed to delete:', e)
-    alert('Silme basarisiz!')
-  }
+  openConfirm(`${formatDate(dateStr)} tarihindeki tum satislari silmek istediginize emin misiniz?`, async () => {
+    try {
+      await onlineSalesApi.deleteDailySales(dateStr)
+      sales.value = sales.value.filter(s => s.sale_date !== dateStr) // Optimistic
+      await loadData()
+    } catch (e) {
+      console.error('Failed to delete:', e)
+      alert('Silme basarisiz!')
+    }
+  })
 }
 
 // Platform management (only for online channels)
@@ -313,15 +333,15 @@ async function submitPlatformForm() {
 }
 
 async function deletePlatform(id: number) {
-  if (!confirm('Bu platformu silmek istediginize emin misiniz?')) return
-
-  error.value = ''
-  try {
-    await onlineSalesApi.deletePlatform(id)
-    await loadChannels()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Silme basarisiz'
-  }
+  openConfirm('Bu platformu silmek istediginize emin misiniz?', async () => {
+    error.value = ''
+    try {
+      await onlineSalesApi.deletePlatform(id)
+      channels.value.online = channels.value.online.filter(c => c.id !== id) // Optimistic
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    }
+  })
 }
 
 // Toplu giris fonksiyonlari
@@ -1351,5 +1371,12 @@ function getChannelTextColor(channel: any): string {
         </form>
       </div>
     </div>
+    
+    <ConfirmModal 
+      :show="showConfirm"
+      :message="confirmMessage"
+      @confirm="handleConfirm"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>

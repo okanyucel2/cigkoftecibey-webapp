@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import type { Expense, ExpenseCategory } from '@/types'
 import { expensesApi, expenseCategoriesApi } from '@/services/api'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const expenses = ref<Expense[]>([])
 const categories = ref<ExpenseCategory[]>([])
@@ -43,6 +44,24 @@ const years = computed(() => {
   const currentYear = new Date().getFullYear()
   return [currentYear, currentYear - 1, currentYear - 2]
 })
+
+// Confirm Modal
+const showConfirm = ref(false)
+const confirmMessage = ref('')
+const confirmAction = ref<(() => Promise<void>) | null>(null)
+
+function openConfirm(message: string, action: () => Promise<void>) {
+  confirmMessage.value = message
+  confirmAction.value = action
+  showConfirm.value = true
+}
+
+async function handleConfirm() {
+  if (confirmAction.value) {
+    await confirmAction.value()
+  }
+  showConfirm.value = false
+}
 
 onMounted(async () => {
   await Promise.all([loadExpenses(), loadCategories()])
@@ -86,15 +105,15 @@ async function loadExpenses() {
 }
 
 async function deleteExpense(id: number) {
-  if (!confirm('Bu gideri silmek istediginizden emin misiniz?')) return
-
-  try {
-    await expensesApi.delete(id)
-    expenses.value = expenses.value.filter(e => e.id !== id)
-  } catch (e) {
-    console.error('Failed to delete expense:', e)
-    alert('Gider silinemedi!')
-  }
+  openConfirm('Bu gideri silmek istediginizden emin misiniz?', async () => {
+    try {
+      await expensesApi.delete(id)
+      expenses.value = expenses.value.filter(e => e.id !== id) // Optimistic
+    } catch (e) {
+      console.error('Failed to delete expense:', e)
+      alert('Gider silinemedi!')
+    }
+  })
 }
 
 // ==================== KATEGORI YONETIMI ====================
@@ -140,15 +159,15 @@ async function submitCategoryForm() {
 }
 
 async function deleteCategory(id: number) {
-  if (!confirm('Bu kategoriyi silmek istediginize emin misiniz?')) return
-
-  error.value = ''
-  try {
-    await expenseCategoriesApi.delete(id)
-    await loadCategories()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Silme basarisiz'
-  }
+  openConfirm('Bu kategoriyi silmek istediginize emin misiniz?', async () => {
+    error.value = ''
+    try {
+      await expenseCategoriesApi.delete(id)
+      await loadCategories()
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    }
+  })
 }
 
 // Ozet hesaplamalari
@@ -408,5 +427,12 @@ function formatDate(dateStr: string) {
         </div>
       </div>
     </div>
+
+    <ConfirmModal 
+      :show="showConfirm"
+      :message="confirmMessage"
+      @confirm="handleConfirm"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>

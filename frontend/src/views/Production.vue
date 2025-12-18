@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { productionApi } from '@/services/api'
 import type { DailyProduction, ProductionSummary } from '@/types'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const productions = ref<DailyProduction[]>([])
 const summary = ref<ProductionSummary | null>(null)
@@ -42,6 +43,24 @@ const years = computed(() => {
   const currentYear = new Date().getFullYear()
   return [currentYear - 1, currentYear, currentYear + 1]
 })
+
+// Confirm Modal
+const showConfirm = ref(false)
+const confirmMessage = ref('')
+const confirmAction = ref<(() => Promise<void>) | null>(null)
+
+function openConfirm(message: string, action: () => Promise<void>) {
+  confirmMessage.value = message
+  confirmAction.value = action
+  showConfirm.value = true
+}
+
+async function handleConfirm() {
+  if (confirmAction.value) {
+    await confirmAction.value()
+  }
+  showConfirm.value = false
+}
 
 // Hesaplanan form degerleri
 const formLegenCount = computed(() => {
@@ -120,17 +139,20 @@ async function saveProduction() {
 }
 
 async function deleteProduction(id: number) {
-  if (!confirm('Bu kaydi silmek istediginize emin misiniz?')) return
-
-  loading.value = true
-  try {
-    await productionApi.delete(id)
-    await loadData()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Silme basarisiz'
-  } finally {
-    loading.value = false
-  }
+  openConfirm('Bu kaydi silmek istediginize emin misiniz?', async () => {
+    loading.value = true
+    try {
+      await productionApi.delete(id)
+      const index = productions.value.findIndex(p => p.id === id)
+      if (index > -1) {
+        productions.value.splice(index, 1) // Optimistic
+      }
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } finally {
+      loading.value = false
+    }
+  })
 }
 
 function formatNumber(num: number, decimals = 2): string {
@@ -376,5 +398,12 @@ onMounted(() => {
         </div>
       </div>
     </div>
+    
+    <ConfirmModal 
+      :show="showConfirm"
+      :message="confirmMessage"
+      @confirm="handleConfirm"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>

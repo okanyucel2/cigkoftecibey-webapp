@@ -2,6 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import type { Purchase, Supplier } from '@/types'
 import { purchasesApi, suppliersApi } from '@/services/api'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const purchases = ref<Purchase[]>([])
 const suppliers = ref<Supplier[]>([])
@@ -47,6 +48,24 @@ const supplierForm = ref({
   name: '',
   phone: ''
 })
+
+// Confirm Modal
+const showConfirm = ref(false)
+const confirmMessage = ref('')
+const confirmAction = ref<(() => Promise<void>) | null>(null)
+
+function openConfirm(message: string, action: () => Promise<void>) {
+  confirmMessage.value = message
+  confirmAction.value = action
+  showConfirm.value = true
+}
+
+async function handleConfirm() {
+  if (confirmAction.value) {
+    await confirmAction.value()
+  }
+  showConfirm.value = false
+}
 
 onMounted(async () => {
   await loadData()
@@ -134,18 +153,19 @@ async function saveSupplier() {
 }
 
 async function deleteSupplier(id: number) {
-  if (!confirm('Bu tedarikciyi silmek istediginize emin misiniz?')) return
-
-  supplierLoading.value = true
-  error.value = ''
-  try {
-    await suppliersApi.delete(id)
-    await loadSuppliers()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Silme basarisiz'
-  } finally {
-    supplierLoading.value = false
-  }
+  openConfirm('Bu tedarikciyi silmek istediginize emin misiniz?', async () => {
+    supplierLoading.value = true
+    error.value = ''
+    try {
+      await suppliersApi.delete(id)
+      suppliers.value = suppliers.value.filter(s => s.id !== id) // Optimistic
+      await loadSuppliers()
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } finally {
+      supplierLoading.value = false
+    }
+  })
 }
 
 function closeSupplierForm() {
@@ -155,14 +175,15 @@ function closeSupplierForm() {
 
 // Purchase silme
 async function deletePurchase(id: number) {
-  if (!confirm('Bu mal alimini silmek istediginize emin misiniz?')) return
-
-  try {
-    await purchasesApi.delete(id)
-    await loadPurchases()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Silme basarisiz'
-  }
+  openConfirm('Bu mal alimini silmek istediginize emin misiniz?', async () => {
+    try {
+      await purchasesApi.delete(id)
+      purchases.value = purchases.value.filter(p => p.id !== id) // Optimistic
+      await loadPurchases()
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    }
+  })
 }
 
 function formatCurrency(value: number) {
@@ -404,5 +425,12 @@ function formatDate(dateStr: string) {
         </div>
       </div>
     </div>
+
+    <ConfirmModal 
+      :show="showConfirm"
+      :message="confirmMessage"
+      @confirm="handleConfirm"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>

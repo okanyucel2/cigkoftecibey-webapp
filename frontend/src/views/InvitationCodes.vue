@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { invitationCodesApi, branchesApi } from '@/services/api'
 import type { InvitationCode, Branch } from '@/types'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const codes = ref<InvitationCode[]>([])
 const branches = ref<Branch[]>([])
@@ -84,17 +85,34 @@ async function createCode() {
   }
 }
 
-async function deactivateCode(code: InvitationCode) {
-  if (!confirm(`${code.code} kodunu devre disi birakmak istiyor musunuz?`)) {
-    return
-  }
+// Confirm Modal
+const showConfirm = ref(false)
+const confirmMessage = ref('')
+const confirmAction = ref<(() => Promise<void>) | null>(null)
 
-  try {
-    await invitationCodesApi.delete(code.id)
-    await loadData()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kod devre disi birakilamadi'
+function openConfirm(message: string, action: () => Promise<void>) {
+  confirmMessage.value = message
+  confirmAction.value = action
+  showConfirm.value = true
+}
+
+async function handleConfirm() {
+  if (confirmAction.value) {
+    await confirmAction.value()
   }
+  showConfirm.value = false
+}
+
+async function deactivateCode(code: InvitationCode) {
+  openConfirm(`${code.code} kodunu devre disi birakmak istiyor musunuz?`, async () => {
+    try {
+      await invitationCodesApi.delete(code.id)
+      codes.value = codes.value.filter(c => c.id !== code.id) // Optimistic
+      await loadData()
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || 'Kod devre disi birakilamadi'
+    }
+  })
 }
 
 function copyCode(code: string) {
@@ -316,5 +334,12 @@ const inactiveCodes = computed(() => codes.value.filter(c => !c.is_valid))
         </div>
       </div>
     </div>
+    <!-- Confirm Modal -->
+    <ConfirmModal 
+      :show="showConfirm"
+      :message="confirmMessage"
+      @confirm="handleConfirm"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>

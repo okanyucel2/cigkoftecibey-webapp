@@ -92,6 +92,24 @@ const partTimeForm = ref({
   notes: ''
 })
 
+// Confirmation Modal State
+const showConfirmModal = ref(false)
+const confirmMessage = ref('')
+const confirmAction = ref<(() => Promise<void>) | null>(null)
+
+function openConfirmModal(message: string, action: () => Promise<void>) {
+  confirmMessage.value = message
+  confirmAction.value = action
+  showConfirmModal.value = true
+}
+
+async function handleConfirm() {
+  if (confirmAction.value) {
+    await confirmAction.value()
+  }
+  showConfirmModal.value = false
+}
+
 onMounted(async () => {
   await loadEmployees()
 })
@@ -217,14 +235,14 @@ async function submitEmployeeForm() {
 }
 
 async function deleteEmployee(id: number) {
-  if (!confirm('Bu personeli pasif yapmak istediginize emin misiniz?')) return
-
-  try {
-    await personnelApi.deleteEmployee(id)
-    await loadEmployees()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Silme basarisiz'
-  }
+  openConfirmModal('Bu personeli pasif yapmak istediginize emin misiniz?', async () => {
+      try {
+        await personnelApi.deleteEmployee(id)
+        await loadEmployees()
+      } catch (e: any) {
+        error.value = e.response?.data?.detail || 'Silme basarisiz'
+      }
+  })
 }
 
 // ==================== PAYROLL ====================
@@ -381,14 +399,14 @@ async function submitPayrollForm() {
 }
 
 async function deletePayroll(id: number) {
-  if (!confirm('Bu bordro kaydini silmek istediginize emin misiniz?')) return
-
-  try {
-    await personnelApi.deletePayroll(id)
-    await loadPayrolls()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Silme basarisiz'
-  }
+  openConfirmModal('Bu bordro kaydini silmek istediginize emin misiniz?', async () => {
+      try {
+        await personnelApi.deletePayroll(id)
+        await loadPayrolls()
+      } catch (e: any) {
+        error.value = e.response?.data?.detail || 'Silme basarisiz'
+      }
+  })
 }
 
 // ==================== PART-TIME ====================
@@ -1081,5 +1099,27 @@ const employeesWithoutPayroll = computed(() => {
         </form>
       </div>
     </div>
+
+    <!-- ==================== CONFIRMATION MODAL ==================== -->
+    <div v-if="showConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div class="bg-white rounded-lg shadow-xl w-full max-w-sm mx-4 p-6">
+        <h3 class="text-lg font-semibold text-gray-900 mb-4">Onay</h3>
+        <p class="text-gray-600 mb-6">{{ confirmMessage }}</p>
+        <div class="flex justify-end gap-3">
+          <button 
+            @click="showConfirmModal = false" 
+            class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+          >
+            Iptal
+          </button>
+          <button 
+            @click="handleConfirm" 
+            class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            Evet, Sil
+          </button>
+        </div>
+    </div>
+  </div>
   </div>
 </template>

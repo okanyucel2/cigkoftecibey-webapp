@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import type { StaffMeal, StaffMealSummary } from '@/types'
 import { staffMealsApi } from '@/services/api'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const meals = ref<StaffMeal[]>([])
 const summary = ref<StaffMealSummary | null>(null)
@@ -46,6 +47,24 @@ const form = ref({
 
 // Son girilen birim fiyatı hatırla
 const lastUnitPrice = ref(145)
+
+// Confirm Modal
+const showConfirm = ref(false)
+const confirmMessage = ref('')
+const confirmAction = ref<(() => Promise<void>) | null>(null)
+
+function openConfirm(message: string, action: () => Promise<void>) {
+  confirmMessage.value = message
+  confirmAction.value = action
+  showConfirm.value = true
+}
+
+async function handleConfirm() {
+  if (confirmAction.value) {
+    await confirmAction.value()
+  }
+  showConfirm.value = false
+}
 
 onMounted(async () => {
   await loadData()
@@ -137,14 +156,17 @@ async function handleSubmit() {
 }
 
 async function deleteMeal(id: number) {
-  if (!confirm('Bu kaydi silmek istediginize emin misiniz?')) return
-
-  try {
-    await staffMealsApi.delete(id)
-    await loadData()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Silme basarisiz'
-  }
+  openConfirm('Bu kaydi silmek istediginize emin misiniz?', async () => {
+    try {
+      await staffMealsApi.delete(id)
+      const index = meals.value.findIndex(m => m.id === id)
+      if (index > -1) {
+        meals.value.splice(index, 1)
+      }
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    }
+  })
 }
 
 function formatCurrency(value: number | string) {
@@ -373,5 +395,11 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
         </form>
       </div>
     </div>
+    <ConfirmModal 
+      :show="showConfirm"
+      :message="confirmMessage"
+      @confirm="handleConfirm"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>

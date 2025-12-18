@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import type { CourierExpense, CourierExpenseSummary } from '@/types'
 import { courierExpensesApi } from '@/services/api'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 // Data
 const expenses = ref<CourierExpense[]>([])
@@ -18,7 +19,26 @@ const selectedYear = ref(currentDate.getFullYear())
 const showModal = ref(false)
 const showBulkModal = ref(false)
 const editingId = ref<number | null>(null)
+
 const submitting = ref(false)
+
+// Confirm Modal State
+const showConfirm = ref(false)
+const confirmMessage = ref('')
+const confirmAction = ref<(() => Promise<void>) | null>(null)
+
+function openConfirm(message: string, action: () => Promise<void>) {
+  confirmMessage.value = message
+  confirmAction.value = action
+  showConfirm.value = true
+}
+
+async function handleConfirm() {
+  if (confirmAction.value) {
+    await confirmAction.value()
+  }
+  showConfirm.value = false
+}
 
 // Form
 const form = ref({
@@ -146,15 +166,16 @@ async function submitForm() {
 }
 
 async function deleteExpense(id: number) {
-  if (!confirm('Bu kurye giderini silmek istediginize emin misiniz?')) return
-
-  try {
-    await courierExpensesApi.delete(id)
-    await loadData()
-  } catch (e) {
-    console.error('Failed to delete:', e)
-    alert('Silme basarisiz!')
-  }
+  openConfirm('Bu kurye giderini silmek istediginize emin misiniz?', async () => {
+    try {
+      await courierExpensesApi.delete(id)
+      expenses.value = expenses.value.filter(e => e.id !== id)
+      await loadData()
+    } catch (e) {
+      console.error('Failed to delete:', e)
+      alert('Silme basarisiz!')
+    }
+  })
 }
 
 // Bulk Entry Functions
@@ -642,5 +663,12 @@ function formatNumber(value: number) {
         </form>
       </div>
     </div>
+
+    <ConfirmModal 
+      :show="showConfirm"
+      :message="confirmMessage"
+      @confirm="handleConfirm"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>

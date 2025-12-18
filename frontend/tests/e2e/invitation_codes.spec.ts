@@ -1,0 +1,49 @@
+
+import { test, expect } from '@playwright/test';
+
+test.describe('Invitation Codes UI @smoke', () => {
+
+    test.beforeEach(async ({ page }) => {
+        page.on('console', msg => console.log(`BROWSER LOG: ${msg.text()}`));
+        await page.goto('/login');
+        await page.fill('input[type="email"]', 'admin@cigkofte.com');
+        await page.fill('input[type="password"]', 'admin123');
+        await page.click('button[type="submit"]');
+        await expect(page).toHaveURL('/');
+    });
+
+    test('Robust Deactivation Test', async ({ page }) => {
+        await page.goto('/invitation-codes');
+        await page.waitForTimeout(3000); // Wait for load (Backend slow)
+
+        // Ensure at least one code exists
+        const activeRows = page.locator('table').first().locator('tbody tr');
+        const count = await activeRows.count();
+
+        if (count === 0) {
+            await page.click('button:has-text("Yeni Kod")');
+            await page.click('button:has-text("Olustur")');
+            await page.waitForTimeout(1000);
+        }
+
+        // Get first code
+        const firstRow = activeRows.first();
+        const codeText = await firstRow.locator('code').innerText();
+        console.log('Testing deactivation for code:', codeText);
+
+        // Click Deactivate
+        await firstRow.getByRole('button', { name: 'Devre Disi Birak' }).click();
+
+        // Modal Check
+        await expect(page.locator('div.fixed h3:has-text("Onay")')).toBeVisible();
+        await page.click('button:has-text("Evet, Sil")'); // Or "Evet" if text is generic? Usually "Evet, Sil" or "Onayla"
+
+        // Wait for update
+        await page.waitForTimeout(1000);
+
+        // Verify gone from first table (Optimistic check)
+        const table1 = page.locator('h2:has-text("Aktif Kodlar")').locator('xpath=../..').locator('table');
+        await expect(table1).not.toContainText(codeText);
+        console.log('Code removed from Active list');
+    });
+});

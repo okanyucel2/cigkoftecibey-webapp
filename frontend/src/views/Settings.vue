@@ -3,6 +3,7 @@ import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import type { Branch } from '@/types'
 import { branchesApi, usersApi, type UserWithBranches } from '@/services/api'
+import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const authStore = useAuthStore()
 
@@ -221,14 +222,35 @@ async function assignBranch() {
   }
 }
 
-async function removeBranchAssignment(user: UserWithBranches, branchId: number) {
-  if (!confirm('Bu kullaniciyi subeden cikarmak istediginize emin misiniz?')) return
-  try {
-    await usersApi.removeFromBranch(user.id, branchId)
-    await loadData()
-  } catch (error: any) {
-    alert(error.response?.data?.detail || 'Bir hata olustu')
+// Confirm Modal
+const showConfirm = ref(false)
+const confirmMessage = ref('')
+const confirmAction = ref<(() => Promise<void>) | null>(null)
+
+function openConfirm(message: string, action: () => Promise<void>) {
+  confirmMessage.value = message
+  confirmAction.value = action
+  showConfirm.value = true
+}
+
+async function handleConfirm() {
+  if (confirmAction.value) {
+    await confirmAction.value()
   }
+  showConfirm.value = false
+}
+
+async function removeBranchAssignment(user: UserWithBranches, branchId: number) {
+  openConfirm('Bu kullaniciyi subeden cikarmak istediginize emin misiniz?', async () => {
+    try {
+      await usersApi.removeFromBranch(user.id, branchId)
+      // Optimistic
+      user.branches = user.branches.filter(b => b.branch_id !== branchId)
+      await loadData()
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Bir hata olustu')
+    }
+  })
 }
 
 function getRoleLabel(role: string) {
@@ -628,5 +650,12 @@ function getRoleLabel(role: string) {
         </form>
       </div>
     </div>
+    
+    <ConfirmModal 
+      :show="showConfirm"
+      :message="confirmMessage"
+      @confirm="handleConfirm"
+      @cancel="showConfirm = false"
+    />
   </div>
 </template>
