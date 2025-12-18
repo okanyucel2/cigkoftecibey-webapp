@@ -35,6 +35,7 @@ class AIService:
             
             Veriler:
             - Tarih: {context_data.get('date')} ({context_data.get('day_name')})
+            - Lokasyon: {context_data.get('city', 'Belirtilmemiş')}
             - Hava Durumu: {context_data.get('weather_forecast')}
             - Beklenen Ciro: {context_data.get('prediction', {}).get('revenue')} TL
             - Beklenen Müşteri: {context_data.get('prediction', {}).get('covers')} kişi

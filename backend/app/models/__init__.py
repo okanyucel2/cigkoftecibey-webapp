@@ -29,6 +29,7 @@ class Branch(Base):
     organization_id: Mapped[Optional[int]] = mapped_column(ForeignKey("organizations.id"), nullable=True)
     name: Mapped[str] = mapped_column(String(100))
     code: Mapped[str] = mapped_column(String(20), unique=True)
+    city: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -443,5 +444,19 @@ class CourierExpense(Base):
     def total_with_vat(self) -> Decimal:
         """KDV dahil toplam"""
         return self.amount + self.vat_amount
+
+
+class DailyInsight(Base):
+    """Günlük AI içgörüleri - Caching için"""
+    __tablename__ = "daily_insights"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
+    date: Mapped[date] = mapped_column(Date)
+    content: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Unique constraint on (branch_id, date) is handled at DB level
+
 
 
