@@ -1,0 +1,253 @@
+GOOGLE_API_KEY not found in settings. AI features disabled.
+============================= test session starts ==============================
+platform darwin -- Python 3.13.7, pytest-9.0.2, pluggy-1.6.0 -- /Users/okan.yucel/cigkoftecibey-webapp/backend/venv/bin/python3.13
+cachedir: .pytest_cache
+rootdir: /Users/okan.yucel/cigkoftecibey-webapp/backend
+plugins: anyio-4.12.0, asyncio-1.3.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 1 item
+
+tests/test_sgk.py::test_sgk_lifecycle ERROR
+
+==================================== ERRORS ====================================
+_____________________ ERROR at setup of test_sgk_lifecycle _____________________
+
+self = <sqlalchemy.engine.base.Connection object at 0x11fe4a850>
+dialect = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x11f9d2900>
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x11ff36c90>
+statement = <sqlalchemy.dialects.sqlite.base.SQLiteCompiler object at 0x11fe52850>
+parameters = [(1, None, 'Test Branch', None, 'Istanbul', None, ...)]
+
+    def _exec_single_context(
+        self,
+        dialect: Dialect,
+        context: ExecutionContext,
+        statement: Union[str, Compiled],
+        parameters: Optional[_AnyMultiExecuteParams],
+    ) -> CursorResult[Any]:
+        """continue the _execute_context() method for a single DBAPI
+        cursor.execute() or cursor.executemany() call.
+    
+        """
+        if dialect.bind_typing is BindTyping.SETINPUTSIZES:
+            generic_setinputsizes = context._prepare_set_input_sizes()
+    
+            if generic_setinputsizes:
+                try:
+                    dialect.do_set_input_sizes(
+                        context.cursor, generic_setinputsizes, context
+                    )
+                except BaseException as e:
+                    self._handle_dbapi_exception(
+                        e, str(statement), parameters, None, context
+                    )
+    
+        cursor, str_statement, parameters = (
+            context.cursor,
+            context.statement,
+            context.parameters,
+        )
+    
+        effective_parameters: Optional[_AnyExecuteParams]
+    
+        if not context.executemany:
+            effective_parameters = parameters[0]
+        else:
+            effective_parameters = parameters
+    
+        if self._has_events or self.engine._has_events:
+            for fn in self.dispatch.before_cursor_execute:
+                str_statement, effective_parameters = fn(
+                    self,
+                    cursor,
+                    str_statement,
+                    effective_parameters,
+                    context,
+                    context.executemany,
+                )
+    
+        if self._echo:
+            self._log_info(str_statement)
+    
+            stats = context._get_cache_stats()
+    
+            if not self.engine.hide_parameters:
+                self._log_info(
+                    "[%s] %r",
+                    stats,
+                    sql_util._repr_params(
+                        effective_parameters,
+                        batches=10,
+                        ismulti=context.executemany,
+                    ),
+                )
+            else:
+                self._log_info(
+                    "[%s] [SQL parameters hidden due to hide_parameters=True]",
+                    stats,
+                )
+    
+        evt_handled: bool = False
+        try:
+            if context.execute_style is ExecuteStyle.EXECUTEMANY:
+                effective_parameters = cast(
+                    "_CoreMultiExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_executemany:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_executemany(
+                        cursor,
+                        str_statement,
+                        effective_parameters,
+                        context,
+                    )
+            elif not effective_parameters and context.no_parameters:
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute_no_params:
+                        if fn(cursor, str_statement, context):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+                    self.dialect.do_execute_no_params(
+                        cursor, str_statement, context
+                    )
+            else:
+                effective_parameters = cast(
+                    "_CoreSingleExecuteParams", effective_parameters
+                )
+                if self.dialect._has_events:
+                    for fn in self.dialect.dispatch.do_execute:
+                        if fn(
+                            cursor,
+                            str_statement,
+                            effective_parameters,
+                            context,
+                        ):
+                            evt_handled = True
+                            break
+                if not evt_handled:
+>                   self.dialect.do_execute(
+                        cursor, str_statement, effective_parameters, context
+                    )
+
+venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1967: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x11f9d2900>
+cursor = <sqlite3.Cursor object at 0x11ffb7cc0>
+statement = 'INSERT INTO branches (id, organization_id, name, code, city, address, phone, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+parameters = (1, None, 'Test Branch', None, 'Istanbul', None, ...)
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x11ff36c90>
+
+    def do_execute(self, cursor, statement, parameters, context=None):
+>       cursor.execute(statement, parameters)
+E       sqlite3.IntegrityError: NOT NULL constraint failed: branches.code
+
+venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:941: IntegrityError
+
+The above exception was the direct cause of the following exception:
+
+fixturedef = <FixtureDef argname='db' scope='function' baseid='tests'>
+request = <SubRequest 'db' for <Function test_sgk_lifecycle>>
+
+    @pytest.hookimpl(wrapper=True)
+    def pytest_fixture_setup(fixturedef: FixtureDef, request) -> object | None:
+        asyncio_mode = _get_asyncio_mode(request.config)
+        if not _is_asyncio_fixture_function(fixturedef.func):
+            if asyncio_mode == Mode.STRICT:
+                # Ignore async fixtures without explicit asyncio mark in strict mode
+                # This applies to pytest_trio fixtures, for example
+>               return (yield)
+                        ^^^^^
+
+venv/lib/python3.13/site-packages/pytest_asyncio/plugin.py:728: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/conftest.py:47: in db
+    session.commit()
+venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:2028: in commit
+    trans.commit(_to_root=True)
+venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1313: in commit
+    self._prepare_impl()
+venv/lib/python3.13/site-packages/sqlalchemy/orm/state_changes.py:139: in _go
+    ret_value = fn(self, *arg, **kw)
+                ^^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:1288: in _prepare_impl
+    self.session.flush()
+venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4352: in flush
+    self._flush(objects)
+venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4487: in _flush
+    with util.safe_reraise():
+         ^^^^^^^^^^^^^^^^^^^
+venv/lib/python3.13/site-packages/sqlalchemy/util/langhelpers.py:146: in __exit__
+    raise exc_value.with_traceback(exc_tb)
+venv/lib/python3.13/site-packages/sqlalchemy/orm/session.py:4448: in _flush
+    flush_context.execute()
+venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:466: in execute
+    rec.execute(self)
+venv/lib/python3.13/site-packages/sqlalchemy/orm/unitofwork.py:642: in execute
+    util.preloaded.orm_persistence.save_obj(
+venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:93: in save_obj
+    _emit_insert_statements(
+venv/lib/python3.13/site-packages/sqlalchemy/orm/persistence.py:1048: in _emit_insert_statements
+    result = connection.execute(
+venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1418: in execute
+    return meth(
+venv/lib/python3.13/site-packages/sqlalchemy/sql/elements.py:515: in _execute_on_connection
+    return connection._execute_clauseelement(
+venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1640: in _execute_clauseelement
+    ret = self._execute_context(
+venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1846: in _execute_context
+    return self._exec_single_context(
+venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1986: in _exec_single_context
+    self._handle_dbapi_exception(
+venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:2355: in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+venv/lib/python3.13/site-packages/sqlalchemy/engine/base.py:1967: in _exec_single_context
+    self.dialect.do_execute(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <sqlalchemy.dialects.sqlite.pysqlite.SQLiteDialect_pysqlite object at 0x11f9d2900>
+cursor = <sqlite3.Cursor object at 0x11ffb7cc0>
+statement = 'INSERT INTO branches (id, organization_id, name, code, city, address, phone, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+parameters = (1, None, 'Test Branch', None, 'Istanbul', None, ...)
+context = <sqlalchemy.dialects.sqlite.base.SQLiteExecutionContext object at 0x11ff36c90>
+
+    def do_execute(self, cursor, statement, parameters, context=None):
+>       cursor.execute(statement, parameters)
+E       sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) NOT NULL constraint failed: branches.code
+E       [SQL: INSERT INTO branches (id, organization_id, name, code, city, address, phone, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)]
+E       [parameters: (1, None, 'Test Branch', None, 'Istanbul', None, None, 1, '2025-12-18 11:40:15.413919')]
+E       (Background on this error at: https://sqlalche.me/e/20/gkpj)
+
+venv/lib/python3.13/site-packages/sqlalchemy/engine/default.py:941: IntegrityError
+=============================== warnings summary ===============================
+venv/lib/python3.13/site-packages/pydantic/_internal/_config.py:295: 25 warnings
+  /Users/okan.yucel/cigkoftecibey-webapp/backend/venv/lib/python3.13/site-packages/pydantic/_internal/_config.py:295: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.10/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.MessageMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+
+<frozen importlib._bootstrap>:488
+  <frozen importlib._bootstrap>:488: DeprecationWarning: Type google._upb._message.ScalarMapContainer uses PyType_Spec with a metaclass that has custom tp_new. This is deprecated and will no longer be allowed in Python 3.14.
+
+tests/test_sgk.py::test_sgk_lifecycle
+  /Users/okan.yucel/cigkoftecibey-webapp/backend/venv/lib/python3.13/site-packages/sqlalchemy/sql/schema.py:3596: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return util.wrap_callable(lambda ctx: fn(), fn)  # type: ignore
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/test_sgk.py::test_sgk_lifecycle - sqlalchemy.exc.IntegrityError: ...
+======================== 28 warnings, 1 error in 0.21s =========================
