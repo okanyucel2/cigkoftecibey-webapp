@@ -1,5 +1,5 @@
-
 import { defineConfig, devices } from '@playwright/test';
+import { config } from './tests/e2e/test_config';
 
 export default defineConfig({
     testDir: './tests/e2e',
@@ -9,7 +9,7 @@ export default defineConfig({
     workers: process.env.CI ? 1 : undefined,
     reporter: 'html',
     use: {
-        baseURL: 'http://localhost:5174',
+        baseURL: config.frontendUrl,
         trace: 'on-first-retry',
     },
     projects: [
@@ -19,8 +19,8 @@ export default defineConfig({
         },
     ],
     webServer: {
-        command: 'npm run dev -- --port 5174',
-        url: 'http://localhost:5174',
+        command: `npm run dev -- --port ${config.frontendPort}`,
+        url: config.frontendUrl,
         reuseExistingServer: false,
     },
 });

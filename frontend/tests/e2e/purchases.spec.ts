@@ -1,5 +1,6 @@
 
 import { test, expect } from '@playwright/test';
+import { config } from './test_config';
 
 test.describe('Mal Alimlari UI', () => {
 
@@ -18,8 +19,8 @@ test.describe('Mal Alimlari UI', () => {
         });
 
         await page.goto('/login');
-        await page.fill('input[type="email"]', 'admin@cigkofte.com');
-        await page.fill('input[type="password"]', 'admin123');
+        await page.fill('input[type="email"]', config.auth.email);
+        await page.fill('input[type="password"]', config.auth.password);
         await page.click('button[type="submit"]');
         await expect(page).toHaveURL('/');
     });
@@ -40,13 +41,13 @@ test.describe('Mal Alimlari UI', () => {
         if (token) {
             console.log("Cleaning up Purchases...");
             try {
-                const listUrl = 'http://localhost:8001/api/purchases?start_date=2025-12-01&end_date=2025-12-31';
+                const listUrl = `${config.backendUrl}/api/purchases?start_date=2025-12-01&end_date=2025-12-31`;
                 const res = await request.get(listUrl, { headers });
                 if (res.ok()) {
                     const data = await res.json();
                     console.log(`Cleanup: Found ${data.length} records.`);
                     for (const item of data) {
-                        await request.delete(`http://localhost:8001/api/purchases/${item.id}`, { headers });
+                        await request.delete(`${config.backendUrl}/api/purchases/${item.id}`, { headers });
                     }
                 }
             } catch (e) { console.log('Cleanup error', e); }
@@ -58,7 +59,7 @@ test.describe('Mal Alimlari UI', () => {
             console.log("Creating Test Data via API...");
 
             // 3.1 Create Supplier
-            const supplierResp = await request.post('http://localhost:8001/api/purchases/suppliers', {
+            const supplierResp = await request.post(`${config.backendUrl}/api/purchases/suppliers`, {
                 headers,
                 data: {
                     name: `Test Supplier ${Math.floor(Math.random() * 1000)}`,
@@ -77,28 +78,12 @@ test.describe('Mal Alimlari UI', () => {
                 notes: uniqueNotes,
                 items: [
                     { product_id: 1, description: 'Test Item', quantity: 10, unit: 'kg', unit_price: 100, vat_rate: 18 }
-                    // Note: Backend might require product_id if item table has FK.
-                    // Checking schema... PurchaseItem usually has product_id.
-                    // `PurchaseCreate` likely expects `items` list.
-                    // Let's assum product_id=1 exists or use strict schema.
-                    // Backend code: 
-                    // for item in data.items: item_total... items_data.append({"product_id": item.product_id...})
-                    // So product_id IS required.
-                    // I should fetch product groups/products first, OR try with dummy ID.
-                    // If Product ID 1 doesn't exist, this will fail.
-                    // Safe bet: Create a Product Group and Product first? 
-                    // Or just assume seeded data?
-                    // Use product_id=1 and see if it fails (400/404/500).
                 ]
             };
 
-            // To be ultra-safe, let's create a Product.
-            // But usually ID 1 exists. Let's try.
-            const purchaseResp = await request.post('http://localhost:8001/api/purchases', { headers, data: payload });
+            const purchaseResp = await request.post(`${config.backendUrl}/api/purchases`, { headers, data: payload });
             if (!purchaseResp.ok()) {
                 console.log(`Purchase Create Failed: ${purchaseResp.status()} ${await purchaseResp.text()}`);
-                // Fallback: Create Product
-                // But for now let's see.
             } else {
                 console.log("Purchase Created Successfully");
             }

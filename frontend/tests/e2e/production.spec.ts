@@ -1,5 +1,6 @@
 
 import { test, expect } from '@playwright/test';
+import { config } from './test_config';
 
 test.describe('Gunluk Uretim UI', () => {
 
@@ -18,8 +19,8 @@ test.describe('Gunluk Uretim UI', () => {
         });
 
         await page.goto('/login');
-        await page.fill('input[type="email"]', 'admin@cigkofte.com');
-        await page.fill('input[type="password"]', 'admin123');
+        await page.fill('input[type="email"]', config.auth.email);
+        await page.fill('input[type="password"]', config.auth.password);
         await page.click('button[type="submit"]');
         await expect(page).toHaveURL('/');
     });
@@ -42,14 +43,14 @@ test.describe('Gunluk Uretim UI', () => {
         if (token) {
             console.log("Cleaning up Production...");
             try {
-                const listUrl = `http://localhost:8001/api/production?month=12&year=2025`;
+                const listUrl = `${config.backendUrl}/api/production?month=12&year=2025`;
                 const res = await request.get(listUrl, { headers });
                 if (res.ok()) {
                     const data = await res.json();
                     console.log(`Cleanup: Found ${data.length} records.`);
                     for (const item of data) {
                         if (item.production_date === testDate) {
-                            await request.delete(`http://localhost:8001/api/production/${item.id}`, { headers });
+                            await request.delete(`${config.backendUrl}/api/production/${item.id}`, { headers });
                         }
                     }
                 }
@@ -69,7 +70,7 @@ test.describe('Gunluk Uretim UI', () => {
                 notes: uniqueNotes
             };
 
-            const resp = await request.post('http://localhost:8001/api/production', { headers, data: payload });
+            const resp = await request.post(`${config.backendUrl}/api/production`, { headers, data: payload });
             if (resp.ok()) {
                 console.log("Production Created Successfully");
             } else {

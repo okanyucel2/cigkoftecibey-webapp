@@ -1,5 +1,6 @@
 
 import { test, expect } from '@playwright/test';
+import { config } from './test_config';
 
 test.describe('Personel Yemek UI', () => {
 
@@ -18,8 +19,8 @@ test.describe('Personel Yemek UI', () => {
         });
 
         await page.goto('/login');
-        await page.fill('input[type="email"]', 'admin@cigkofte.com');
-        await page.fill('input[type="password"]', 'admin123');
+        await page.fill('input[type="email"]', config.auth.email);
+        await page.fill('input[type="password"]', config.auth.password);
         await page.click('button[type="submit"]');
         await expect(page).toHaveURL('/');
     });
@@ -42,14 +43,14 @@ test.describe('Personel Yemek UI', () => {
         if (token) {
             console.log("Cleaning up StaffMeals...");
             try {
-                const listUrl = `http://localhost:8001/api/staff-meals?month=12&year=2025`;
+                const listUrl = `${config.backendUrl}/api/staff-meals?month=12&year=2025`;
                 const res = await request.get(listUrl, { headers });
                 if (res.ok()) {
                     const data = await res.json();
                     console.log(`Cleanup: Found ${data.length} records.`);
                     for (const item of data) {
                         if (item.meal_date === testDate) {
-                            await request.delete(`http://localhost:8001/api/staff-meals/${item.id}`, { headers });
+                            await request.delete(`${config.backendUrl}/api/staff-meals/${item.id}`, { headers });
                         }
                     }
                 }
@@ -68,7 +69,7 @@ test.describe('Personel Yemek UI', () => {
                 notes: uniqueNotes
             };
 
-            const resp = await request.post('http://localhost:8001/api/staff-meals', { headers, data: payload });
+            const resp = await request.post(`${config.backendUrl}/api/staff-meals`, { headers, data: payload });
             if (resp.ok()) {
                 console.log("StaffMeal Created Successfully");
             } else {

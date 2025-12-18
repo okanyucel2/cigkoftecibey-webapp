@@ -1,5 +1,6 @@
 
 import { test, expect } from '@playwright/test';
+import { config } from './test_config';
 
 test.describe('Unified Sales UI @smoke', () => {
 
@@ -13,8 +14,8 @@ test.describe('Unified Sales UI @smoke', () => {
         });
 
         await page.goto('/login');
-        await page.fill('input[type="email"]', 'admin@cigkofte.com');
-        await page.fill('input[type="password"]', 'admin123');
+        await page.fill('input[type="email"]', config.auth.email);
+        await page.fill('input[type="password"]', config.auth.password);
         await page.click('button[type="submit"]');
         await expect(page).toHaveURL('/');
     });
@@ -37,7 +38,7 @@ test.describe('Unified Sales UI @smoke', () => {
         let platformId = 0;
         if (token) {
             console.log("Creating Test Platform...");
-            const pRes = await request.post('http://localhost:8000/api/online-sales/platforms', {
+            const pRes = await request.post(`${config.backendUrl}/api/online-sales/platforms`, {
                 headers,
                 data: { name: testPlatformName, display_order: 999 }
             });
@@ -48,7 +49,7 @@ test.describe('Unified Sales UI @smoke', () => {
 
             // 2. Create Sale via API
             console.log("Creating Test Sale...");
-            const sRes = await request.post('http://localhost:8000/api/online-sales/daily', {
+            const sRes = await request.post(`${config.backendUrl}/api/online-sales/daily`, {
                 headers,
                 data: {
                     sale_date: testDate,
@@ -116,8 +117,8 @@ test.describe('Unified Sales UI @smoke', () => {
     test.afterAll(async ({ request }) => {
         console.log('--- CLEANUP STARTED ---');
         // 1. Login to get token
-        const loginRes = await request.post('http://localhost:5000/api/auth/login-json', {
-            data: { email: 'admin@cigkofte.com', password: 'admin123' }
+        const loginRes = await request.post(`${config.backendUrl}/api/auth/login-json`, {
+            data: { email: config.auth.email, password: config.auth.password }
         });
 
         let token = '';
@@ -132,7 +133,7 @@ test.describe('Unified Sales UI @smoke', () => {
         const headers = { 'Authorization': `Bearer ${token}` };
 
         // 2. Get All Platforms
-        const pRes = await request.get('http://localhost:8000/api/online-sales/platforms', { headers });
+        const pRes = await request.get(`${config.backendUrl}/api/online-sales/platforms`, { headers });
         if (pRes.ok()) {
             const platforms = await pRes.json();
             const pollution = platforms.filter((p: any) => p.name.startsWith('Test Platform_'));
@@ -142,7 +143,7 @@ test.describe('Unified Sales UI @smoke', () => {
             // 3. Delete polluters
             for (const p of pollution) {
                 console.log(`Deleting polluted platform: ${p.name} (${p.id})`);
-                await request.delete(`http://localhost:8000/api/online-sales/platforms/${p.id}`, { headers });
+                await request.delete(`${config.backendUrl}/api/online-sales/platforms/${p.id}`, { headers });
             }
         }
         console.log('--- CLEANUP FINISHED ---');

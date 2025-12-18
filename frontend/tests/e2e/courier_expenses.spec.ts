@@ -1,5 +1,6 @@
 
 import { test, expect } from '@playwright/test';
+import { config } from './test_config';
 
 test.describe('Kurye Giderleri UI', () => {
 
@@ -21,8 +22,8 @@ test.describe('Kurye Giderleri UI', () => {
 
         // 1. Login
         await page.goto('/login');
-        await page.fill('input[type="email"]', 'admin@cigkofte.com');
-        await page.fill('input[type="password"]', 'admin123');
+        await page.fill('input[type="email"]', config.auth.email);
+        await page.fill('input[type="password"]', config.auth.password);
         await page.click('button[type="submit"]');
         await expect(page).toHaveURL('/');
     });
@@ -40,13 +41,13 @@ test.describe('Kurye Giderleri UI', () => {
             // List endpoint used: /api/courier-expenses?year=2025&month=12
             try {
                 const headers = { 'Authorization': `Bearer ${token}` };
-                const listUrl = 'http://localhost:8001/api/courier-expenses?year=2025&month=12';
+                const listUrl = `${config.backendUrl}/api/courier-expenses?year=2025&month=12`;
                 const res = await request.get(listUrl, { headers });
                 if (res.ok()) {
                     const data = await res.json();
                     console.log(`Cleanup: Found ${data.length} records to delete.`);
                     for (const item of data) {
-                        await request.delete(`http://localhost:8001/api/courier-expenses/${item.id}`, { headers });
+                        await request.delete(`${config.backendUrl}/api/courier-expenses/${item.id}`, { headers });
                     }
                 }
             } catch (e) { console.log('Cleanup error', e); }

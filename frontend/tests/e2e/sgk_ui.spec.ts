@@ -1,5 +1,6 @@
 
 import { test, expect } from '@playwright/test';
+import { config } from './test_config';
 
 test.describe('SGK ve Prim Yönetimi UI', () => {
 
@@ -31,8 +32,8 @@ test.describe('SGK ve Prim Yönetimi UI', () => {
 
         // 1. LOGIN IS FIRST to get Token
         await page.goto('/login');
-        await page.fill('input[type="email"]', 'admin@cigkofte.com');
-        await page.fill('input[type="password"]', 'admin123');
+        await page.fill('input[type="email"]', config.auth.email);
+        await page.fill('input[type="password"]', config.auth.password);
         await page.click('button[type="submit"]');
         await expect(page).toHaveURL('/');
     });
@@ -50,7 +51,7 @@ test.describe('SGK ve Prim Yönetimi UI', () => {
             console.log("Cleaning up for fresh test (Authenticated)...");
             try {
                 const headers = { 'Authorization': `Bearer ${token}` };
-                const apiUrl = 'http://localhost:8001/api/personnel/payroll';
+                const apiUrl = `${config.backendUrl}/api/personnel/payroll`;
                 const response = await request.get(`${apiUrl}?year=2025&month=12`, { headers });
 
                 if (response.ok()) {

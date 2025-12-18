@@ -1,5 +1,6 @@
 
 import { test, expect } from '@playwright/test';
+import { config } from './test_config';
 
 test.describe('Isletme Giderleri UI', () => {
 
@@ -18,8 +19,8 @@ test.describe('Isletme Giderleri UI', () => {
         });
 
         await page.goto('/login');
-        await page.fill('input[type="email"]', 'admin@cigkofte.com');
-        await page.fill('input[type="password"]', 'admin123');
+        await page.fill('input[type="email"]', config.auth.email);
+        await page.fill('input[type="password"]', config.auth.password);
         await page.click('button[type="submit"]');
         await expect(page).toHaveURL('/');
     });
@@ -40,13 +41,13 @@ test.describe('Isletme Giderleri UI', () => {
         if (token) {
             console.log("Cleaning up Expenses...");
             try {
-                const listUrl = 'http://localhost:8001/api/expenses?start_date=2025-12-01&end_date=2025-12-31';
+                const listUrl = `${config.backendUrl}/api/expenses?start_date=2025-12-01&end_date=2025-12-31`;
                 const res = await request.get(listUrl, { headers });
                 if (res.ok()) {
                     const data = await res.json();
                     console.log(`Cleanup: Found ${data.length} records.`);
                     for (const item of data) {
-                        await request.delete(`http://localhost:8001/api/expenses/${item.id}`, { headers });
+                        await request.delete(`${config.backendUrl}/api/expenses/${item.id}`, { headers });
                     }
                 }
             } catch (e) { console.log('Cleanup error', e); }
@@ -58,7 +59,7 @@ test.describe('Isletme Giderleri UI', () => {
             console.log("Creating Test Data via API...");
 
             // 3.1 Create Category
-            const catResp = await request.post('http://localhost:8001/api/expenses/categories', {
+            const catResp = await request.post(`${config.backendUrl}/api/expenses/categories`, {
                 headers,
                 data: {
                     name: `Test Cat ${Math.floor(Math.random() * 1000)}`,
@@ -77,7 +78,7 @@ test.describe('Isletme Giderleri UI', () => {
                 amount: 500
             };
 
-            const expResp = await request.post('http://localhost:8001/api/expenses', { headers, data: payload });
+            const expResp = await request.post(`${config.backendUrl}/api/expenses`, { headers, data: payload });
             if (expResp.ok()) {
                 console.log("Expense Created Successfully");
             } else {
