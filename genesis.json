@@ -1,0 +1,38 @@
+{
+    "project": {
+        "name": "Cigkofteci Bey",
+        "slug": "cigkoftecibey-webapp",
+        "type": "monorepo"
+    },
+    "services": {
+        "frontend": {
+            "port": 5173,
+            "test_port": 5174,
+            "technologies": [
+                "vue",
+                "vite"
+            ],
+            "commands": {
+                "dev": "npm run dev",
+                "build": "npm run build",
+                "test:e2e": "npx playwright test --grep @smoke"
+            }
+        },
+        "backend": {
+            "port": 8000,
+            "technologies": [
+                "fastapi",
+                "python"
+            ],
+            "health_endpoint": "/api/health",
+            "test_login_endpoint": "/api/auth/login-json",
+            "commands": {
+                "dev": "uvicorn app.main:app --reload --port 8000"
+            }
+        }
+    },
+    "deployment": {
+        "platform": "render",
+        "safe_mode": true
+    }
+}

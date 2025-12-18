@@ -42,8 +42,15 @@ test.describe('Invitation Codes UI @smoke', () => {
         await page.waitForTimeout(1000);
 
         // Verify gone from first table (Optimistic check)
-        const table1 = page.locator('h2:has-text("Aktif Kodlar")').locator('xpath=../..').locator('table');
-        await expect(table1).not.toContainText(codeText);
+        // Verify gone from first table
+        // If table is gone (empty list), that's also a pass for "not containing text"
+        const table1 = page.locator('table').first();
+        if (await table1.isVisible()) {
+            await expect(table1).not.toContainText(codeText);
+        } else {
+            // Table gone implies empty list
+            await expect(page.locator('text=Henuz aktif davet kodu yok')).toBeVisible();
+        }
         console.log('Code removed from Active list');
     });
 });

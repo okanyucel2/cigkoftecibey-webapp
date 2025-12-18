@@ -71,3 +71,5 @@ def health_check():
 @app.get("/")
 def root():
     return {"message": "Cig Kofte Yonetim Sistemi API", "docs": "/api/docs"}
+
+# Forced reload trigger
