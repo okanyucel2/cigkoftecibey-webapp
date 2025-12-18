@@ -297,6 +297,12 @@ class MonthlyPayroll(Base):
         if self.record_type == "advance":
             # Avans ödemesi - sadece avans tutarı
             return self.advance
+        elif self.record_type == "sgk":
+            # Sadece SGK ödemesi
+            return self.sgk_amount
+        elif self.record_type == "prim":
+            # Sadece Prim ödemesi
+            return self.premium
         else:
             # Maaş veya haftalık ödeme
             return (self.base_salary + self.sgk_amount + self.bonus +

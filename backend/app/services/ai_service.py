@@ -12,7 +12,8 @@ class AIService:
         try:
             if hasattr(settings, 'GOOGLE_API_KEY') and settings.GOOGLE_API_KEY:
                 genai.configure(api_key=settings.GOOGLE_API_KEY)
-                self.model = genai.GenerativeModel('gemini-1.5-flash')
+                # Updated to 2.5-flash as 1.5 is not available in current environment
+                self.model = genai.GenerativeModel('gemini-2.5-flash')
                 self.enabled = True
             else:
                 logger.warning("GOOGLE_API_KEY not found in settings. AI features disabled.")

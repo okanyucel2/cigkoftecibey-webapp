@@ -282,6 +282,8 @@ class DashboardStats(BaseModel):
     today_purchases: Decimal
     today_expenses: Decimal
     today_staff_meals: Decimal = Decimal("0")  # Personel yemek masrafı
+    today_courier_cost: Decimal = Decimal("0") # Kurye giderleri
+    today_part_time_cost: Decimal = Decimal("0") # Part-time giderleri
     today_profit: Decimal
     today_production_kg: Decimal = Decimal("0")
     today_production_cost: Decimal = Decimal("0")

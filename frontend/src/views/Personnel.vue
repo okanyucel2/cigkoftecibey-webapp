@@ -60,7 +60,7 @@ const selectedEmployeeFilter = ref<number | null>(null)
 const payrollForm = ref({
   employee_id: 0,
   payment_date: new Date().toISOString().split('T')[0],
-  record_type: 'salary' as 'salary' | 'advance' | 'weekly',
+  record_type: 'salary' as 'salary' | 'advance' | 'weekly' | 'sgk' | 'prim',
   base_salary: 0,
   sgk_amount: 0,
   bonus: 0,
@@ -76,7 +76,9 @@ const payrollForm = ref({
 const recordTypes = [
   { value: 'salary', label: 'Maas Odemesi' },
   { value: 'advance', label: 'Avans' },
-  { value: 'weekly', label: 'Haftalik Odeme' }
+  { value: 'weekly', label: 'Haftalik Odeme' },
+  { value: 'sgk', label: 'SGK Odemesi' },
+  { value: 'prim', label: 'Prim Odemesi' }
 ]
 
 // Part-time state
@@ -708,9 +710,17 @@ const employeesWithoutPayroll = computed(() => {
                   'px-2 py-0.5 rounded-full text-xs',
                   p.record_type === 'salary' ? 'bg-green-100 text-green-700' :
                   p.record_type === 'advance' ? 'bg-blue-100 text-blue-700' :
+                  p.record_type === 'sgk' ? 'bg-orange-100 text-orange-700' :
+                  p.record_type === 'prim' ? 'bg-yellow-100 text-yellow-700' :
                   'bg-purple-100 text-purple-700'
                 ]">
-                  {{ p.record_type === 'salary' ? 'Maas' : p.record_type === 'advance' ? 'Avans' : 'Haftalik' }}
+                  {{ 
+                    p.record_type === 'salary' ? 'Maas' : 
+                    p.record_type === 'advance' ? 'Avans' : 
+                    p.record_type === 'sgk' ? 'SGK' : 
+                    p.record_type === 'prim' ? 'Prim' : 
+                    'Haftalik' 
+                  }}
                 </span>
               </td>
               <td class="px-3 py-3 text-right text-gray-900">{{ formatCurrency(p.base_salary) }}</td>

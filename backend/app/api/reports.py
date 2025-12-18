@@ -3,7 +3,7 @@ from decimal import Decimal
 from fastapi import APIRouter
 from sqlalchemy import func, and_
 from app.api.deps import DBSession, CurrentBranchContext
-from app.models import Purchase, Expense, DailyProduction, StaffMeal, OnlineSale, OnlinePlatform
+from app.models import Purchase, Expense, DailyProduction, StaffMeal, OnlineSale, OnlinePlatform, CourierExpense, PartTimeCost
 from app.schemas import DashboardStats
 
 router = APIRouter(prefix="/reports", tags=["reports"])
@@ -67,6 +67,20 @@ def get_dashboard_stats(db: DBSession, ctx: CurrentBranchContext):
         Expense.expense_date == today
     ).scalar()
 
+    # Bugünün kurye giderleri
+    today_courier_expense = db.query(func.coalesce(func.sum(CourierExpense.amount), 0)).filter(
+        CourierExpense.branch_id == branch_id,
+        CourierExpense.expense_date == today
+    ).scalar()
+    today_courier_cost = Decimal(str(today_courier_expense))
+
+    # Bugünün part-time giderleri
+    today_part_time_expense = db.query(func.coalesce(func.sum(PartTimeCost.amount), 0)).filter(
+        PartTimeCost.branch_id == branch_id,
+        PartTimeCost.cost_date == today
+    ).scalar()
+    today_part_time_cost = Decimal(str(today_part_time_expense))
+
     # Bugünün personel yemekleri
     today_staff_meal = db.query(StaffMeal).filter(
         StaffMeal.branch_id == branch_id,
@@ -75,7 +89,14 @@ def get_dashboard_stats(db: DBSession, ctx: CurrentBranchContext):
     today_staff_meals = today_staff_meal.total if today_staff_meal else Decimal("0")
 
     # Bugünün karı
-    today_profit = today_total_sales - Decimal(str(today_purchases)) - Decimal(str(today_expenses)) - today_staff_meals
+    today_profit = (
+        today_total_sales 
+        - Decimal(str(today_purchases)) 
+        - Decimal(str(today_expenses)) 
+        - today_staff_meals
+        - today_courier_cost
+        - today_part_time_cost
+    )
 
     # Bugünün üretimi
     today_production = db.query(DailyProduction).filter(
@@ -113,6 +134,8 @@ def get_dashboard_stats(db: DBSession, ctx: CurrentBranchContext):
         today_purchases=Decimal(str(today_purchases)),
         today_expenses=Decimal(str(today_expenses)),
         today_staff_meals=today_staff_meals,
+        today_courier_cost=today_courier_cost,
+        today_part_time_cost=today_part_time_cost,
         today_profit=today_profit,
         today_production_kg=today_production_kg,
         today_production_cost=today_production_cost,

@@ -116,10 +116,10 @@ function toNum(value: number | string | null | undefined): number {
           <div>
             <p class="text-sm text-gray-500">Toplam Gider</p>
             <p class="text-2xl font-display font-bold text-gray-900">
-              {{ formatCurrency(toNum(stats?.today_purchases) + toNum(stats?.today_expenses) + toNum(stats?.today_staff_meals)) }}
+              {{ formatCurrency(toNum(stats?.today_purchases) + toNum(stats?.today_expenses) + toNum(stats?.today_staff_meals) + toNum(stats?.today_courier_cost) + toNum(stats?.today_part_time_cost)) }}
             </p>
             <p class="text-xs text-gray-400 mt-1">
-              📦 {{ formatCurrency(toNum(stats?.today_purchases)) }} · 💸 {{ formatCurrency(toNum(stats?.today_expenses)) }} · 🍽️ {{ formatCurrency(toNum(stats?.today_staff_meals)) }}
+              📦 {{ formatCurrency(toNum(stats?.today_purchases)) }} · 💸 {{ formatCurrency(toNum(stats?.today_expenses)) }} · 🍽️ {{ formatCurrency(toNum(stats?.today_staff_meals)) }} · 🛵 {{ formatCurrency(toNum(stats?.today_courier_cost)) }}
             </p>
           </div>
           <div class="text-3xl">📉</div>

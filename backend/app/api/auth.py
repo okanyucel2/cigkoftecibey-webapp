@@ -24,7 +24,7 @@ class SwitchBranchRequest(BaseModel):
 @router.post("/login", response_model=Token)
 def login(db: DBSession, form_data: OAuth2PasswordRequestForm = Depends()):
     user = db.query(User).filter(User.email == form_data.username).first()
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user or not user.password_hash or not verify_password(form_data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email veya sifre hatali",
@@ -43,7 +43,7 @@ def login(db: DBSession, form_data: OAuth2PasswordRequestForm = Depends()):
 def login_json(data: LoginRequest, db: DBSession):
     """JSON body ile login (frontend icin)"""
     user = db.query(User).filter(User.email == data.email).first()
-    if not user or not verify_password(data.password, user.password_hash):
+    if not user or not user.password_hash or not verify_password(data.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email veya sifre hatali"

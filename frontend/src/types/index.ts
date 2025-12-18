@@ -131,6 +131,8 @@ export interface DashboardStats {
   today_purchases: number
   today_expenses: number
   today_staff_meals: number
+  today_courier_cost: number
+  today_part_time_cost: number
   today_profit: number
   today_production_kg: number
   today_production_cost: number
@@ -203,7 +205,7 @@ export interface MonthlyPayroll {
   year: number
   month: number
   payment_date: string
-  record_type: 'salary' | 'advance' | 'weekly'
+  record_type: 'salary' | 'advance' | 'weekly' | 'sgk' | 'prim'
   base_salary: number
   sgk_amount: number
   bonus: number
