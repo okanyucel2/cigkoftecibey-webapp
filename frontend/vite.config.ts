@@ -3,8 +3,21 @@ import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
 import { execSync } from 'child_process'
 
-// Git bilgilerini al
+// Git bilgilerini al (Render env vars veya git komutlarından)
 function getGitInfo() {
+  // Render otomatik olarak RENDER_GIT_COMMIT sağlar
+  const envCommit = process.env.RENDER_GIT_COMMIT || process.env.VITE_GIT_COMMIT
+  const envBranch = process.env.RENDER_GIT_BRANCH || process.env.VITE_GIT_BRANCH
+
+  if (envCommit && envCommit !== 'unknown') {
+    return {
+      commitHash: envCommit.substring(0, 7),
+      commitDate: new Date().toISOString().split('T')[0], // Build tarihi
+      branch: envBranch || 'main'
+    }
+  }
+
+  // Fallback: git komutları (local development)
   try {
     const commitHash = execSync('git rev-parse --short HEAD').toString().trim()
     const commitDate = execSync('git log -1 --format=%cd --date=short').toString().trim()
