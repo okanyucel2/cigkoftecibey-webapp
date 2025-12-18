@@ -973,6 +973,35 @@ const employeesWithoutPayroll = computed(() => {
             </div>
           </div>
 
+          <!-- SGK & PRIM: Tekil tutar girisi -->
+          <div v-else-if="['sgk', 'prim'].includes(payrollForm.record_type)" class="space-y-4">
+             <div :class="[
+               'border rounded-lg p-3',
+               payrollForm.record_type === 'sgk' ? 'bg-orange-50 border-orange-200 text-orange-700' : 'bg-yellow-50 border-yellow-200 text-yellow-700'
+             ]">
+               <p class="text-sm">
+                 {{ payrollForm.record_type === 'sgk' ? 'SGK Odemesi - tutari giriniz' : 'Prim Odemesi - tutari giriniz' }}
+               </p>
+             </div>
+             <div>
+               <label class="block text-sm font-medium text-gray-700 mb-1">
+                 {{ payrollForm.record_type === 'sgk' ? 'SGK Tutari' : 'Prim Tutari' }} *
+               </label>
+               <input 
+                 v-if="payrollForm.record_type === 'sgk'"
+                 v-model.number="payrollForm.sgk_amount" 
+                 type="number" step="0.01" min="0" 
+                 class="w-full border rounded-lg px-3 py-2 text-lg" required 
+               />
+               <input 
+                 v-else
+                 v-model.number="payrollForm.premium" 
+                 type="number" step="0.01" min="0" 
+                 class="w-full border rounded-lg px-3 py-2 text-lg" required 
+               />
+             </div>
+          </div>
+
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Not</label>
             <input v-model="payrollForm.notes" type="text" class="w-full border rounded-lg px-3 py-2" placeholder="Opsiyonel..." />
