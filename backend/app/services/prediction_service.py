@@ -33,13 +33,13 @@ class PredictionService:
         
         # 3. Weather Simulation (Mock)
         # In real app, we'd fetch forecast API
-        weather_conditions = ["Sunny", "Cloudy", "Rainy", "Snowy"]
+        weather_conditions = ["Güneşli", "Bulutlu", "Yağmurlu", "Karlı"]
         weather = random.choice(weather_conditions)
         
         weather_impact = 0.0
-        if weather == "Rainy":
+        if weather == "Yağmurlu":
             weather_impact = -0.15 # 15% drop
-        elif weather == "Snowy":
+        elif weather == "Karlı":
             weather_impact = -0.30 # 30% drop
             
         # 4. Calculate Final Prediction

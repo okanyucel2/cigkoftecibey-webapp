@@ -21,6 +21,7 @@ const editingBranch = ref<Branch | null>(null)
 const branchForm = ref({
   name: '',
   code: '',
+  city: '',
   address: '',
   phone: ''
 })
@@ -79,12 +80,13 @@ function openBranchModal(branch?: Branch) {
     branchForm.value = {
       name: branch.name,
       code: branch.code,
+      city: branch.city || '',
       address: branch.address || '',
       phone: branch.phone || ''
     }
   } else {
     editingBranch.value = null
-    branchForm.value = { name: '', code: '', address: '', phone: '' }
+    branchForm.value = { name: '', code: '', city: '', address: '', phone: '' }
   }
   showBranchModal.value = true
 }
@@ -449,6 +451,18 @@ function getRoleLabel(role: string) {
               maxlength="20"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-red focus:border-transparent"
             />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sehir</label>
+            <select
+              v-model="branchForm.city"
+              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-red focus:border-transparent"
+            >
+              <option value="">Sehir Seciniz</option>
+              <option v-for="city in ['Adana', 'Adiyaman', 'Afyonkarahisar', 'Agri', 'Aksaray', 'Amasya', 'Ankara', 'Antalya', 'Ardahan', 'Artvin', 'Aydin', 'Balikesir', 'Bartin', 'Batman', 'Bayburt', 'Bilecik', 'Bingol', 'Bitlis', 'Bolu', 'Burdur', 'Bursa', 'Canakkale', 'Cankiri', 'Corum', 'Denizli', 'Diyarbakir', 'Duzce', 'Edirne', 'Elazig', 'Erzincan', 'Erzurum', 'Eskisehir', 'Gaziantep', 'Giresun', 'Gumushane', 'Hakkari', 'Hatay', 'Igdir', 'Isparta', 'Istanbul', 'Izmir', 'Kahramanmaras', 'Karabuk', 'Karaman', 'Kars', 'Kastamonu', 'Kayseri', 'Kilis', 'Kirikkale', 'Kirklareli', 'Kirsehir', 'Kocaeli', 'Konya', 'Kutahya', 'Malatya', 'Manisa', 'Mardin', 'Mersin', 'Mugla', 'Mus', 'Nevsehir', 'Nigde', 'Ordu', 'Osmaniye', 'Rize', 'Sakarya', 'Samsun', 'Sanliurfa', 'Siirt', 'Sinop', 'Sirnak', 'Sivas', 'Tekirdag', 'Tokat', 'Trabzon', 'Tunceli', 'Usak', 'Van', 'Yalova', 'Yozgat', 'Zonguldak']" :key="city" :value="city">
+                {{ city }}
+              </option>
+            </select>
           </div>
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Adres</label>

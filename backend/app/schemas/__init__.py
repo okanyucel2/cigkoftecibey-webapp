@@ -68,12 +68,20 @@ class UserWithBranchesResponse(UserBase):
 class BranchBase(BaseModel):
     name: str
     code: str
+    city: Optional[str] = None
     address: Optional[str] = None
     phone: Optional[str] = None
 
 
 class BranchCreate(BranchBase):
     pass
+
+
+class BranchUpdate(BaseModel):
+    name: Optional[str] = None
+    city: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
 
 
 class BranchResponse(BranchBase):

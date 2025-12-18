@@ -494,7 +494,7 @@ export const invitationCodesApi = {
 
 // AI Insights
 export const aiApi = {
-  getDailyBrief: () => api.get('/ai/daily-brief')
+  getDailyBrief: (forceRefresh = false) => api.get('/ai/daily-brief', { params: { force_refresh: forceRefresh } })
 }
 
 export default api

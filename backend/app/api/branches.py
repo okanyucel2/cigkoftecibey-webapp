@@ -67,6 +67,7 @@ def create_branch(
     branch = Branch(
         name=data.name,
         code=data.code,
+        city=data.city,
         address=data.address,
         phone=data.phone
     )
@@ -110,6 +111,7 @@ def update_branch(
 
     branch.name = data.name
     branch.code = data.code
+    branch.city = data.city
     branch.address = data.address
     branch.phone = data.phone
     db.commit()
