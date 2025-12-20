@@ -514,12 +514,13 @@ const employeesWithoutPayroll = computed(() => {
     <!-- ==================== EMPLOYEES TAB ==================== -->
     <div v-if="activeTab === 'employees'">
       <div class="flex justify-end mb-4">
-        <button @click="openEmployeeForm()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+        <button @click="openEmployeeForm()" data-testid="btn-add-personnel"
+          class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
           + Yeni Personel
         </button>
       </div>
 
-      <div class="bg-white rounded-lg shadow overflow-hidden">
+      <div class="bg-white rounded-lg shadow overflow-hidden" data-testid="personnel-list">
         <LoadingState v-if="loading" />
 
         <div v-else-if="employees.length === 0" class="p-8 text-center text-gray-500">
@@ -755,13 +756,14 @@ const employeesWithoutPayroll = computed(() => {
       <form @submit.prevent="submitEmployeeForm" class="p-6 space-y-4">
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Isim *</label>
-          <input v-model="employeeForm.name" type="text" class="w-full border rounded-lg px-3 py-2" required />
+          <input v-model="employeeForm.name" data-testid="input-personnel-name" type="text"
+            class="w-full border rounded-lg px-3 py-2" required />
         </div>
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Aylik Maas (TL) *</label>
-          <input v-model.number="employeeForm.base_salary" type="number" step="0.01"
-            class="w-full border rounded-lg px-3 py-2" required />
+          <input v-model.number="employeeForm.base_salary" data-testid="input-personnel-salary" type="number"
+            step="0.01" class="w-full border rounded-lg px-3 py-2" required />
         </div>
 
         <div class="flex items-center gap-4">
@@ -798,7 +800,7 @@ const employeesWithoutPayroll = computed(() => {
             class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100">
             Iptal
           </button>
-          <button @click="submitEmployeeForm" :disabled="submitting"
+          <button @click="submitEmployeeForm" data-testid="btn-save-personnel" :disabled="submitting"
             class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
             {{ submitting ? 'Kaydediliyor...' : (editingEmployeeId ? 'Guncelle' : 'Kaydet') }}
           </button>
