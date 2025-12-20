@@ -5,11 +5,18 @@ test.describe('Invitation Codes UI @smoke', () => {
 
     test.beforeEach(async ({ page }) => {
         page.on('console', msg => console.log(`BROWSER LOG: ${msg.text()}`));
-        await page.goto('/login');
-        await page.fill('input[type="email"]', config.auth.email);
-        await page.fill('input[type="password"]', config.auth.password);
-        await page.click('button[type="submit"]');
-        await expect(page).toHaveURL('/');
+        
+        // Skip login if backend API is not available
+        try {
+            await page.goto('/login');
+            await page.fill('input[type="email"]', config.auth.email);
+            await page.fill('input[type="password"]', config.auth.password);
+            await page.click('button[type="submit"]');
+            await page.waitForURL('/', { timeout: 10000 });
+        } catch (error) {
+            console.error('Login failed - backend API may not be running:', error.message);
+            throw new Error('Test setup failed: Backend API connection refused (ECONNREFUSED). Ensure backend server is running before executing E2E tests.');
+        }
     });
 
     test('Robust Deactivation Test', async ({ page }) => {

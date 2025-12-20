@@ -45,11 +45,8 @@ async function handleBranchSwitch(branchId: number) {
   branchSelectorOpen.value = false
   if (branchId === authStore.currentBranchId) return
 
-  const success = await authStore.switchBranch(branchId)
-  if (success) {
-    // Reload the current page to refresh data with new branch context
-    window.location.reload()
-  }
+  await authStore.switchBranch(branchId)
+  // Vue will re-mount route components via router-view key change
 }
 </script>
 
@@ -226,7 +223,7 @@ async function handleBranchSwitch(branchId: number) {
 
       <!-- Page Content -->
       <main class="flex-1 p-6 overflow-auto">
-        <router-view />
+        <router-view :key="authStore.currentBranchId ?? 'default'" />
       </main>
     </div>
 

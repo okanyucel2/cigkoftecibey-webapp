@@ -2,40 +2,34 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import type { Purchase, Supplier } from '@/types'
 import { purchasesApi, suppliersApi } from '@/services/api'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
+// Composables
+import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
+
+// UI Components
+import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+
+// Use composables
+const { formatCurrency, formatDate } = useFormatters()
+const { selectedMonth, selectedYear, years, selectedMonthLabel } = useMonthYearFilter()
+const confirmModal = useConfirmModal()
+
+// Data
 const purchases = ref<Purchase[]>([])
 const suppliers = ref<Supplier[]>([])
 const loading = ref(true)
 const error = ref('')
 
-// Ay/Yıl filtreleme
-const currentDate = new Date()
-const selectedMonth = ref(currentDate.getMonth() + 1) // 1-12
-const selectedYear = ref(currentDate.getFullYear())
-
-const months = [
-  { value: 1, label: 'Ocak' },
-  { value: 2, label: 'Subat' },
-  { value: 3, label: 'Mart' },
-  { value: 4, label: 'Nisan' },
-  { value: 5, label: 'Mayis' },
-  { value: 6, label: 'Haziran' },
-  { value: 7, label: 'Temmuz' },
-  { value: 8, label: 'Agustos' },
-  { value: 9, label: 'Eylul' },
-  { value: 10, label: 'Ekim' },
-  { value: 11, label: 'Kasim' },
-  { value: 12, label: 'Aralik' },
-]
-
-// Yıl seçenekleri (son 3 yıl)
-const years = computed(() => {
-  const currentYear = new Date().getFullYear()
-  return [currentYear, currentYear - 1, currentYear - 2]
+// Month/Year filter value for v-model
+const filterValue = computed({
+  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
+  set: (val) => {
+    selectedMonth.value = val.month
+    selectedYear.value = val.year
+  }
 })
 
-// Aylık toplam
+// Monthly total
 const monthlyTotal = computed(() => {
   return purchases.value.reduce((sum, p) => sum + Number(p.total || 0), 0)
 })
@@ -49,29 +43,10 @@ const supplierForm = ref({
   phone: ''
 })
 
-// Confirm Modal
-const showConfirm = ref(false)
-const confirmMessage = ref('')
-const confirmAction = ref<(() => Promise<void>) | null>(null)
-
-function openConfirm(message: string, action: () => Promise<void>) {
-  confirmMessage.value = message
-  confirmAction.value = action
-  showConfirm.value = true
-}
-
-async function handleConfirm() {
-  if (confirmAction.value) {
-    await confirmAction.value()
-  }
-  showConfirm.value = false
-}
-
 onMounted(async () => {
   await loadData()
 })
 
-// Ay/yıl değiştiğinde yeniden yükle
 watch([selectedMonth, selectedYear], () => {
   loadPurchases()
 })
@@ -93,7 +68,6 @@ async function loadData() {
 
 async function loadPurchases() {
   try {
-    // Ay başlangıç ve bitiş tarihleri
     const startDate = `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}-01`
     const lastDay = new Date(selectedYear.value, selectedMonth.value, 0).getDate()
     const endDate = `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}-${lastDay}`
@@ -153,12 +127,12 @@ async function saveSupplier() {
 }
 
 async function deleteSupplier(id: number) {
-  openConfirm('Bu tedarikciyi silmek istediginize emin misiniz?', async () => {
+  confirmModal.confirm('Bu tedarikciyi silmek istediginize emin misiniz?', async () => {
     supplierLoading.value = true
     error.value = ''
     try {
       await suppliersApi.delete(id)
-      suppliers.value = suppliers.value.filter(s => s.id !== id) // Optimistic
+      suppliers.value = suppliers.value.filter(s => s.id !== id)
       await loadSuppliers()
     } catch (e: any) {
       error.value = e.response?.data?.detail || 'Silme basarisiz'
@@ -173,32 +147,15 @@ function closeSupplierForm() {
   supplierForm.value = { name: '', phone: '' }
 }
 
-// Purchase silme
 async function deletePurchase(id: number) {
-  openConfirm('Bu mal alimini silmek istediginize emin misiniz?', async () => {
+  confirmModal.confirm('Bu mal alimini silmek istediginize emin misiniz?', async () => {
     try {
       await purchasesApi.delete(id)
-      purchases.value = purchases.value.filter(p => p.id !== id) // Optimistic
+      purchases.value = purchases.value.filter(p => p.id !== id)
       await loadPurchases()
     } catch (e: any) {
       error.value = e.response?.data?.detail || 'Silme basarisiz'
     }
-  })
-}
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    minimumFractionDigits: 0
-  }).format(value)
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('tr-TR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric'
   })
 }
 </script>
@@ -209,25 +166,7 @@ function formatDate(dateStr: string) {
     <div class="flex items-center justify-between flex-wrap gap-4">
       <h1 class="text-2xl font-display font-bold text-gray-900">Mal Alimlari</h1>
       <div class="flex gap-3 items-center flex-wrap">
-        <!-- Ay/Yıl Filtreleri -->
-        <div class="flex gap-2 items-center bg-gray-100 rounded-lg px-3 py-1.5">
-          <select
-            v-model="selectedMonth"
-            class="bg-transparent border-none text-sm font-medium focus:ring-0 cursor-pointer"
-          >
-            <option v-for="month in months" :key="month.value" :value="month.value">
-              {{ month.label }}
-            </option>
-          </select>
-          <select
-            v-model="selectedYear"
-            class="bg-transparent border-none text-sm font-medium focus:ring-0 cursor-pointer"
-          >
-            <option v-for="year in years" :key="year" :value="year">
-              {{ year }}
-            </option>
-          </select>
-        </div>
+        <MonthYearFilter v-model="filterValue" :years="years" />
         <button
           @click="openSupplierModal"
           class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
@@ -240,28 +179,20 @@ function formatDate(dateStr: string) {
       </div>
     </div>
 
-    <!-- Aylık Özet -->
-    <div class="bg-white rounded-lg shadow p-4 flex items-center justify-between">
-      <div>
-        <p class="text-sm text-gray-500">{{ months.find(m => m.value === selectedMonth)?.label }} {{ selectedYear }} Toplam</p>
-        <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(monthlyTotal) }}</p>
-      </div>
-      <div class="text-sm text-gray-500">
-        {{ purchases.length }} kalem mal alimi
-      </div>
-    </div>
+    <!-- Monthly Summary -->
+    <SummaryCard
+      :label="`${selectedMonthLabel} ${selectedYear} Toplam`"
+      :value="formatCurrency(monthlyTotal)"
+      :subtext="`${purchases.length} kalem mal alimi`"
+      variant="primary"
+    />
 
     <!-- Error -->
-    <div v-if="error" class="bg-red-100 text-red-700 p-4 rounded-lg">
-      {{ error }}
-      <button @click="error = ''" class="ml-2 text-red-800 font-bold">x</button>
-    </div>
+    <ErrorAlert :message="error" @dismiss="error = ''" />
 
     <!-- Purchases Table -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
-      <div v-if="loading" class="p-8 text-center text-gray-500">
-        Yukleniyor...
-      </div>
+      <LoadingState v-if="loading" />
 
       <div v-else-if="purchases.length === 0" class="p-8 text-center text-gray-500">
         Mal alimi bulunamadi
@@ -270,30 +201,18 @@ function formatDate(dateStr: string) {
       <table v-else class="w-full">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Tarih
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Tedarikci
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Kalem Sayisi
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Not
-            </th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              Toplam
-            </th>
-            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">
-              Islemler
-            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tarih</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tedarikci</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kalem Sayisi</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Not</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Toplam</th>
+            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Islemler</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
           <tr v-for="purchase in purchases" :key="purchase.id" class="hover:bg-gray-50">
             <td class="px-6 py-4 text-sm text-gray-900">
-              {{ formatDate(purchase.purchase_date) }}
+              {{ formatDate(purchase.purchase_date, { format: 'short' }) }}
             </td>
             <td class="px-6 py-4">
               <span class="font-medium text-gray-900">{{ purchase.supplier?.name || '-' }}</span>
@@ -329,108 +248,106 @@ function formatDate(dateStr: string) {
     </div>
 
     <!-- Supplier Management Modal -->
-    <div v-if="showSupplierModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-hidden flex flex-col">
-        <div class="p-6 border-b flex justify-between items-center">
-          <h2 class="text-xl font-semibold">Tedarikci Yonetimi</h2>
-          <button @click="showSupplierModal = false" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-        </div>
-
-        <div class="p-6 flex-1 overflow-auto">
-          <!-- Add/Edit Form -->
-          <div class="bg-gray-50 rounded-lg p-4 mb-6">
-            <h3 class="font-medium text-gray-700 mb-3">
-              {{ editingSupplierId ? 'Tedarikci Duzenle' : 'Yeni Tedarikci Ekle' }}
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Tedarikci Adi *</label>
-                <input
-                  type="text"
-                  v-model="supplierForm.name"
-                  class="w-full border rounded-lg px-3 py-2"
-                  placeholder="Tedarikci adi"
-                />
-              </div>
-              <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-                <input
-                  type="text"
-                  v-model="supplierForm.phone"
-                  class="w-full border rounded-lg px-3 py-2"
-                  placeholder="0532 XXX XX XX"
-                />
-              </div>
+    <PageModal
+      :show="showSupplierModal"
+      title="Tedarikci Yonetimi"
+      size="lg"
+      @close="showSupplierModal = false"
+    >
+      <div class="p-6">
+        <!-- Add/Edit Form -->
+        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+          <h3 class="font-medium text-gray-700 mb-3">
+            {{ editingSupplierId ? 'Tedarikci Duzenle' : 'Yeni Tedarikci Ekle' }}
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Tedarikci Adi *</label>
+              <input
+                type="text"
+                v-model="supplierForm.name"
+                class="w-full border rounded-lg px-3 py-2"
+                placeholder="Tedarikci adi"
+              />
             </div>
-            <div class="mt-4 flex gap-2">
-              <button
-                @click="saveSupplier"
-                :disabled="supplierLoading"
-                class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
-              >
-                {{ supplierLoading ? 'Kaydediliyor...' : (editingSupplierId ? 'Guncelle' : 'Ekle') }}
-              </button>
-              <button
-                v-if="editingSupplierId"
-                @click="closeSupplierForm"
-                class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
-              >
-                Iptal
-              </button>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
+              <input
+                type="text"
+                v-model="supplierForm.phone"
+                class="w-full border rounded-lg px-3 py-2"
+                placeholder="0532 XXX XX XX"
+              />
             </div>
           </div>
-
-          <!-- Suppliers List -->
-          <div>
-            <h3 class="font-medium text-gray-700 mb-3">Mevcut Tedarikciler ({{ suppliers.length }})</h3>
-            <div v-if="suppliers.length === 0" class="text-gray-500 text-center py-4">
-              Henuz tedarikci eklenmemis
-            </div>
-            <div v-else class="space-y-2">
-              <div
-                v-for="supplier in suppliers"
-                :key="supplier.id"
-                class="flex items-center justify-between bg-white border rounded-lg p-3 hover:bg-gray-50"
-              >
-                <div>
-                  <div class="font-medium text-gray-900">{{ supplier.name }}</div>
-                  <div v-if="supplier.phone" class="text-sm text-gray-500">{{ supplier.phone }}</div>
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    @click="editSupplier(supplier)"
-                    class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1"
-                  >
-                    Duzenle
-                  </button>
-                  <button
-                    @click="deleteSupplier(supplier.id)"
-                    class="text-red-600 hover:text-red-800 text-sm px-2 py-1"
-                  >
-                    Sil
-                  </button>
-                </div>
-              </div>
-            </div>
+          <div class="mt-4 flex gap-2">
+            <button
+              @click="saveSupplier"
+              :disabled="supplierLoading"
+              class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              {{ supplierLoading ? 'Kaydediliyor...' : (editingSupplierId ? 'Guncelle' : 'Ekle') }}
+            </button>
+            <button
+              v-if="editingSupplierId"
+              @click="closeSupplierForm"
+              class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+            >
+              Iptal
+            </button>
           </div>
         </div>
 
-        <div class="p-4 border-t bg-gray-50">
-          <button
-            @click="showSupplierModal = false"
-            class="w-full px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
-          >
-            Kapat
-          </button>
+        <!-- Suppliers List -->
+        <div>
+          <h3 class="font-medium text-gray-700 mb-3">Mevcut Tedarikciler ({{ suppliers.length }})</h3>
+          <div v-if="suppliers.length === 0" class="text-gray-500 text-center py-4">
+            Henuz tedarikci eklenmemis
+          </div>
+          <div v-else class="space-y-2">
+            <div
+              v-for="supplier in suppliers"
+              :key="supplier.id"
+              class="flex items-center justify-between bg-white border rounded-lg p-3 hover:bg-gray-50"
+            >
+              <div>
+                <div class="font-medium text-gray-900">{{ supplier.name }}</div>
+                <div v-if="supplier.phone" class="text-sm text-gray-500">{{ supplier.phone }}</div>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="editSupplier(supplier)"
+                  class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1"
+                >
+                  Duzenle
+                </button>
+                <button
+                  @click="deleteSupplier(supplier.id)"
+                  class="text-red-600 hover:text-red-800 text-sm px-2 py-1"
+                >
+                  Sil
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
 
-    <ConfirmModal 
-      :show="showConfirm"
-      :message="confirmMessage"
-      @confirm="handleConfirm"
-      @cancel="showConfirm = false"
+      <template #footer>
+        <button
+          @click="showSupplierModal = false"
+          class="w-full px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+        >
+          Kapat
+        </button>
+      </template>
+    </PageModal>
+
+    <ConfirmModal
+      :show="confirmModal.isOpen.value"
+      :message="confirmModal.message.value"
+      @confirm="confirmModal.handleConfirm"
+      @cancel="confirmModal.handleCancel"
     />
   </div>
 </template>

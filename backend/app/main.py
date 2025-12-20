@@ -38,6 +38,14 @@ async def debug_exception_handler(request: Request, call_next):
             content={"detail": "Internal Server Error", "debug_trace": str(e)}
         )
 
+# Identity Header Middleware (Prevents Port Confusion)
+@app.middleware("http")
+async def add_identity_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Service-Name"] = "cigkoftecibey-webapp"
+    response.headers["X-Service-Port"] = "8000"
+    return response
+
 # CORS
 app.add_middleware(
     CORSMiddleware,

@@ -7,7 +7,7 @@ export default defineConfig({
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 2 : 0,
     workers: process.env.CI ? 1 : undefined,
-    reporter: 'html',
+    reporter: [['list'], ['html']],
     use: {
         baseURL: config.frontendUrl,
         trace: 'on-first-retry',
@@ -21,6 +21,6 @@ export default defineConfig({
     webServer: {
         command: `npm run dev -- --port ${config.frontendPort}`,
         url: config.frontendUrl,
-        reuseExistingServer: false,
+        reuseExistingServer: !process.env.CI,
     },
 });

@@ -2,38 +2,24 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import type { StaffMeal, StaffMealSummary } from '@/types'
 import { staffMealsApi } from '@/services/api'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
+// Composables
+import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
+
+// UI Components
+import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+
+// Use composables
+const { formatCurrency, formatDate } = useFormatters()
+const { selectedMonth, selectedYear, years } = useMonthYearFilter()
+const confirmModal = useConfirmModal()
+
+// Data
 const meals = ref<StaffMeal[]>([])
 const summary = ref<StaffMealSummary | null>(null)
 const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
-
-// Ay/Yıl filtreleme
-const currentDate = new Date()
-const selectedMonth = ref(currentDate.getMonth() + 1)
-const selectedYear = ref(currentDate.getFullYear())
-
-const months = [
-  { value: 1, label: 'Ocak' },
-  { value: 2, label: 'Subat' },
-  { value: 3, label: 'Mart' },
-  { value: 4, label: 'Nisan' },
-  { value: 5, label: 'Mayis' },
-  { value: 6, label: 'Haziran' },
-  { value: 7, label: 'Temmuz' },
-  { value: 8, label: 'Agustos' },
-  { value: 9, label: 'Eylul' },
-  { value: 10, label: 'Ekim' },
-  { value: 11, label: 'Kasim' },
-  { value: 12, label: 'Aralik' },
-]
-
-const years = computed(() => {
-  const currentYear = new Date().getFullYear()
-  return [currentYear, currentYear - 1, currentYear - 2]
-})
 
 // Form state
 const showForm = ref(false)
@@ -45,26 +31,17 @@ const form = ref({
   notes: ''
 })
 
-// Son girilen birim fiyatı hatırla
+// Remember last unit price
 const lastUnitPrice = ref(145)
 
-// Confirm Modal
-const showConfirm = ref(false)
-const confirmMessage = ref('')
-const confirmAction = ref<(() => Promise<void>) | null>(null)
-
-function openConfirm(message: string, action: () => Promise<void>) {
-  confirmMessage.value = message
-  confirmAction.value = action
-  showConfirm.value = true
-}
-
-async function handleConfirm() {
-  if (confirmAction.value) {
-    await confirmAction.value()
+// Month/Year filter value for v-model
+const filterValue = computed({
+  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
+  set: (val) => {
+    selectedMonth.value = val.month
+    selectedYear.value = val.year
   }
-  showConfirm.value = false
-}
+})
 
 onMounted(async () => {
   await loadData()
@@ -85,7 +62,6 @@ async function loadData() {
     meals.value = mealsRes.data
     summary.value = summaryRes.data
 
-    // Son girilen fiyatı bul
     if (mealsRes.data.length > 0) {
       lastUnitPrice.value = Number(mealsRes.data[0].unit_price)
     }
@@ -156,7 +132,7 @@ async function handleSubmit() {
 }
 
 async function deleteMeal(id: number) {
-  openConfirm('Bu kaydi silmek istediginize emin misiniz?', async () => {
+  confirmModal.confirm('Bu kaydi silmek istediginize emin misiniz?', async () => {
     try {
       await staffMealsApi.delete(id)
       const index = meals.value.findIndex(m => m.id === id)
@@ -169,25 +145,7 @@ async function deleteMeal(id: number) {
   })
 }
 
-function formatCurrency(value: number | string) {
-  const num = Number(value) || 0
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    minimumFractionDigits: 0
-  }).format(num)
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('tr-TR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-    weekday: 'long'
-  })
-}
-
-// Hesaplanan toplam
+// Calculated total
 const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
 </script>
 
@@ -197,25 +155,7 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
     <div class="flex items-center justify-between flex-wrap gap-4">
       <h1 class="text-2xl font-display font-bold text-gray-900">Personel Yemek</h1>
       <div class="flex gap-3 items-center flex-wrap">
-        <!-- Ay/Yıl Filtreleri -->
-        <div class="flex gap-2 items-center bg-gray-100 rounded-lg px-3 py-1.5">
-          <select
-            v-model="selectedMonth"
-            class="bg-transparent border-none text-sm font-medium focus:ring-0 cursor-pointer"
-          >
-            <option v-for="month in months" :key="month.value" :value="month.value">
-              {{ month.label }}
-            </option>
-          </select>
-          <select
-            v-model="selectedYear"
-            class="bg-transparent border-none text-sm font-medium focus:ring-0 cursor-pointer"
-          >
-            <option v-for="year in years" :key="year" :value="year">
-              {{ year }}
-            </option>
-          </select>
-        </div>
+        <MonthYearFilter v-model="filterValue" :years="years" />
         <button
           @click="openAddForm"
           class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
@@ -226,39 +166,36 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
     </div>
 
     <!-- Error -->
-    <div v-if="error" class="bg-red-100 text-red-700 p-4 rounded-lg">
-      {{ error }}
-      <button @click="error = ''" class="ml-2 text-red-800 font-bold">x</button>
-    </div>
+    <ErrorAlert :message="error" @dismiss="error = ''" />
 
-    <!-- Aylık Özet -->
+    <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-      <div class="bg-white rounded-lg shadow p-4">
-        <p class="text-sm text-gray-500">Toplam Tutar</p>
-        <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(summary?.total_cost || 0) }}</p>
-      </div>
-      <div class="bg-white rounded-lg shadow p-4">
-        <p class="text-sm text-gray-500">Toplam Kisi</p>
-        <p class="text-2xl font-bold text-gray-900">{{ summary?.total_staff_count || 0 }}</p>
-      </div>
-      <div class="bg-white rounded-lg shadow p-4">
-        <p class="text-sm text-gray-500">Gunluk Ortalama</p>
-        <p class="text-2xl font-bold text-gray-900">{{ Number(summary?.avg_daily_staff || 0).toFixed(1) }} kisi</p>
-      </div>
-      <div class="bg-white rounded-lg shadow p-4">
-        <p class="text-sm text-gray-500">Kayit Sayisi</p>
-        <p class="text-2xl font-bold text-gray-900">{{ summary?.days_count || 0 }} gun</p>
-      </div>
+      <SummaryCard
+        label="Toplam Tutar"
+        :value="formatCurrency(summary?.total_cost || 0)"
+      />
+      <SummaryCard
+        label="Toplam Kisi"
+        :value="summary?.total_staff_count || 0"
+        variant="primary"
+      />
+      <SummaryCard
+        label="Gunluk Ortalama"
+        :value="`${Number(summary?.avg_daily_staff || 0).toFixed(1)} kisi`"
+        variant="info"
+      />
+      <SummaryCard
+        label="Kayit Sayisi"
+        :value="`${summary?.days_count || 0} gun`"
+        variant="purple"
+      />
     </div>
 
-    <!-- Loading -->
-    <div v-if="loading" class="text-center py-8 text-gray-500">
-      Yukleniyor...
-    </div>
+    <!-- Table -->
+    <div class="bg-white rounded-lg shadow overflow-hidden">
+      <LoadingState v-if="loading" />
 
-    <!-- Kayıt Listesi -->
-    <div v-else class="bg-white rounded-lg shadow overflow-hidden">
-      <div v-if="meals.length === 0" class="p-8 text-center text-gray-500">
+      <div v-else-if="meals.length === 0" class="p-8 text-center text-gray-500">
         Bu ay icin kayit bulunamadi
       </div>
 
@@ -276,7 +213,7 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
         <tbody class="divide-y divide-gray-200">
           <tr v-for="meal in meals" :key="meal.id" class="hover:bg-gray-50">
             <td class="px-6 py-4 text-sm text-gray-900">
-              {{ formatDate(meal.meal_date) }}
+              {{ formatDate(meal.meal_date, { format: 'long', showWeekday: true }) }}
             </td>
             <td class="px-6 py-4 text-right text-sm text-gray-900">
               {{ formatCurrency(meal.unit_price) }}
@@ -312,94 +249,84 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
     </div>
 
     <!-- Form Modal -->
-    <div v-if="showForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-        <div class="p-6 border-b flex justify-between items-center">
-          <h2 class="text-xl font-semibold">
-            {{ editingId ? 'Kayit Duzenle' : 'Yeni Personel Yemek Kaydi' }}
-          </h2>
-          <button @click="closeForm" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+    <PageModal
+      :show="showForm"
+      :title="editingId ? 'Kayit Duzenle' : 'Yeni Personel Yemek Kaydi'"
+      @close="closeForm"
+    >
+      <form @submit.prevent="handleSubmit" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tarih *</label>
+          <input
+            v-model="form.meal_date"
+            type="date"
+            class="w-full border rounded-lg px-3 py-2"
+            required
+          />
         </div>
 
-        <form @submit.prevent="handleSubmit" class="p-6 space-y-4">
-          <!-- Tarih -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tarih *</label>
-            <input
-              v-model="form.meal_date"
-              type="date"
-              class="w-full border rounded-lg px-3 py-2"
-              required
-            />
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Birim Fiyat (TL) *</label>
+          <input
+            v-model.number="form.unit_price"
+            type="number"
+            step="0.01"
+            min="0"
+            class="w-full border rounded-lg px-3 py-2"
+            required
+          />
+        </div>
 
-          <!-- Birim Fiyat -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Birim Fiyat (TL) *</label>
-            <input
-              v-model.number="form.unit_price"
-              type="number"
-              step="0.01"
-              min="0"
-              class="w-full border rounded-lg px-3 py-2"
-              required
-            />
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Personel Adedi *</label>
+          <input
+            v-model.number="form.staff_count"
+            type="number"
+            min="1"
+            class="w-full border rounded-lg px-3 py-2"
+            required
+          />
+        </div>
 
-          <!-- Personel Adedi -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Personel Adedi *</label>
-            <input
-              v-model.number="form.staff_count"
-              type="number"
-              min="1"
-              class="w-full border rounded-lg px-3 py-2"
-              required
-            />
-          </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+          <p class="text-sm text-gray-500">Toplam Tutar</p>
+          <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(formTotal) }}</p>
+        </div>
 
-          <!-- Hesaplanan Toplam -->
-          <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Toplam Tutar</p>
-            <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(formTotal) }}</p>
-          </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Not</label>
+          <input
+            v-model="form.notes"
+            type="text"
+            class="w-full border rounded-lg px-3 py-2"
+            placeholder="Opsiyonel not..."
+          />
+        </div>
 
-          <!-- Not -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Not</label>
-            <input
-              v-model="form.notes"
-              type="text"
-              class="w-full border rounded-lg px-3 py-2"
-              placeholder="Opsiyonel not..."
-            />
-          </div>
+        <div class="flex justify-end gap-3 pt-4">
+          <button
+            type="button"
+            @click="closeForm"
+            class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+          >
+            Iptal
+          </button>
+          <button
+            type="submit"
+            :disabled="submitting"
+            class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+          >
+            {{ submitting ? 'Kaydediliyor...' : (editingId ? 'Guncelle' : 'Kaydet') }}
+          </button>
+        </div>
+      </form>
+    </PageModal>
 
-          <!-- Buttons -->
-          <div class="flex justify-end gap-3 pt-4">
-            <button
-              type="button"
-              @click="closeForm"
-              class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
-            >
-              Iptal
-            </button>
-            <button
-              type="submit"
-              :disabled="submitting"
-              class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-            >
-              {{ submitting ? 'Kaydediliyor...' : (editingId ? 'Guncelle' : 'Kaydet') }}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-    <ConfirmModal 
-      :show="showConfirm"
-      :message="confirmMessage"
-      @confirm="handleConfirm"
-      @cancel="showConfirm = false"
+    <ConfirmModal
+      :show="confirmModal.isOpen.value"
+      :message="confirmModal.message.value"
+      @confirm="confirmModal.handleConfirm"
+      @cancel="confirmModal.handleCancel"
     />
   </div>
 </template>

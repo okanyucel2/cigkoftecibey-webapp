@@ -6,7 +6,7 @@
     },
     "services": {
         "frontend": {
-            "port": 5173,
+            "port": 5174,
             "test_port": 5174,
             "technologies": [
                 "vue",

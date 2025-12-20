@@ -2,16 +2,23 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { productionApi } from '@/services/api'
 import type { DailyProduction, ProductionSummary } from '@/types'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
+// Composables
+import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
+
+// UI Components
+import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+
+// Use composables
+const { formatCurrency, formatDate, formatNumber } = useFormatters()
+const { selectedMonth, selectedYear, years, selectedMonthLabel } = useMonthYearFilter()
+const confirmModal = useConfirmModal()
+
+// Data
 const productions = ref<DailyProduction[]>([])
 const summary = ref<ProductionSummary | null>(null)
 const loading = ref(false)
 const error = ref('')
-
-// Filtre
-const selectedMonth = ref(new Date().getMonth() + 1)
-const selectedYear = ref(new Date().getFullYear())
 
 // Form
 const showForm = ref(false)
@@ -24,45 +31,16 @@ const form = ref({
   notes: ''
 })
 
-const months = [
-  { value: 1, label: 'Ocak' },
-  { value: 2, label: 'Subat' },
-  { value: 3, label: 'Mart' },
-  { value: 4, label: 'Nisan' },
-  { value: 5, label: 'Mayis' },
-  { value: 6, label: 'Haziran' },
-  { value: 7, label: 'Temmuz' },
-  { value: 8, label: 'Agustos' },
-  { value: 9, label: 'Eylul' },
-  { value: 10, label: 'Ekim' },
-  { value: 11, label: 'Kasim' },
-  { value: 12, label: 'Aralik' }
-]
-
-const years = computed(() => {
-  const currentYear = new Date().getFullYear()
-  return [currentYear - 1, currentYear, currentYear + 1]
+// Month/Year filter value for v-model
+const filterValue = computed({
+  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
+  set: (val) => {
+    selectedMonth.value = val.month
+    selectedYear.value = val.year
+  }
 })
 
-// Confirm Modal
-const showConfirm = ref(false)
-const confirmMessage = ref('')
-const confirmAction = ref<(() => Promise<void>) | null>(null)
-
-function openConfirm(message: string, action: () => Promise<void>) {
-  confirmMessage.value = message
-  confirmAction.value = action
-  showConfirm.value = true
-}
-
-async function handleConfirm() {
-  if (confirmAction.value) {
-    await confirmAction.value()
-  }
-  showConfirm.value = false
-}
-
-// Hesaplanan form degerleri
+// Calculated form values
 const formLegenCount = computed(() => {
   if (form.value.legen_kg > 0) {
     return form.value.kneaded_kg / form.value.legen_kg
@@ -139,13 +117,13 @@ async function saveProduction() {
 }
 
 async function deleteProduction(id: number) {
-  openConfirm('Bu kaydi silmek istediginize emin misiniz?', async () => {
+  confirmModal.confirm('Bu kaydi silmek istediginize emin misiniz?', async () => {
     loading.value = true
     try {
       await productionApi.delete(id)
       const index = productions.value.findIndex(p => p.id === id)
       if (index > -1) {
-        productions.value.splice(index, 1) // Optimistic
+        productions.value.splice(index, 1)
       }
     } catch (e: any) {
       error.value = e.response?.data?.detail || 'Silme basarisiz'
@@ -153,24 +131,6 @@ async function deleteProduction(id: number) {
       loading.value = false
     }
   })
-}
-
-function formatNumber(num: number, decimals = 2): string {
-  return new Intl.NumberFormat('tr-TR', {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals
-  }).format(num)
-}
-
-function formatCurrency(num: number): string {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY'
-  }).format(num)
-}
-
-function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('tr-TR')
 }
 
 watch([selectedMonth, selectedYear], () => {
@@ -183,80 +143,66 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-6">
-    <div class="flex justify-between items-center mb-6">
-      <h1 class="text-2xl font-bold text-gray-800">Gunluk Uretim / Legen Takibi</h1>
-      <button
-        @click="openNewForm"
-        class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-      >
-        + Yeni Giris
-      </button>
-    </div>
-
-    <!-- Filtreler -->
-    <div class="bg-white rounded-lg shadow p-4 mb-6">
-      <div class="flex gap-4 items-center">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Ay</label>
-          <select
-            v-model="selectedMonth"
-            class="border rounded-lg px-3 py-2"
-          >
-            <option v-for="m in months" :key="m.value" :value="m.value">
-              {{ m.label }}
-            </option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Yil</label>
-          <select
-            v-model="selectedYear"
-            class="border rounded-lg px-3 py-2"
-          >
-            <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
-          </select>
-        </div>
+  <div class="space-y-6">
+    <!-- Header -->
+    <div class="flex justify-between items-center flex-wrap gap-4">
+      <h1 class="text-2xl font-display font-bold text-gray-900">Gunluk Uretim / Legen Takibi</h1>
+      <div class="flex gap-3 items-center">
+        <MonthYearFilter v-model="filterValue" :years="years" />
+        <button
+          @click="openNewForm"
+          class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+        >
+          + Yeni Giris
+        </button>
       </div>
     </div>
 
-    <!-- Ozet -->
-    <div v-if="summary" class="bg-red-50 rounded-lg shadow p-4 mb-6">
+    <!-- Error -->
+    <ErrorAlert :message="error" @dismiss="error = ''" />
+
+    <!-- Summary -->
+    <div v-if="summary" class="bg-red-50 rounded-lg shadow p-4">
       <h2 class="text-lg font-semibold text-red-800 mb-3">
-        {{ months.find(m => m.value === selectedMonth)?.label }} {{ selectedYear }} Ozeti
+        {{ selectedMonthLabel }} {{ selectedYear }} Ozeti
       </h2>
       <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-        <div class="bg-white rounded-lg p-3">
-          <div class="text-sm text-gray-500">Toplam Yogrulan</div>
-          <div class="text-xl font-bold text-gray-800">{{ formatNumber(summary.total_kneaded_kg) }} kg</div>
-        </div>
-        <div class="bg-white rounded-lg p-3">
-          <div class="text-sm text-gray-500">Toplam Legen</div>
-          <div class="text-xl font-bold text-gray-800">{{ formatNumber(summary.total_legen_count) }}</div>
-        </div>
-        <div class="bg-white rounded-lg p-3">
-          <div class="text-sm text-gray-500">Toplam Maliyet</div>
-          <div class="text-xl font-bold text-red-600">{{ formatCurrency(summary.total_cost) }}</div>
-        </div>
-        <div class="bg-white rounded-lg p-3">
-          <div class="text-sm text-gray-500">Gunluk Ort.</div>
-          <div class="text-xl font-bold text-gray-800">{{ formatNumber(summary.avg_daily_kg) }} kg</div>
-        </div>
-        <div class="bg-white rounded-lg p-3">
-          <div class="text-sm text-gray-500">Gun Sayisi</div>
-          <div class="text-xl font-bold text-gray-800">{{ summary.days_count }}</div>
-        </div>
+        <SummaryCard
+          label="Toplam Yogrulan"
+          :value="`${formatNumber(summary.total_kneaded_kg)} kg`"
+        />
+        <SummaryCard
+          label="Toplam Legen"
+          :value="formatNumber(summary.total_legen_count)"
+          variant="primary"
+        />
+        <SummaryCard
+          label="Toplam Maliyet"
+          :value="formatCurrency(summary.total_cost)"
+          variant="danger"
+        />
+        <SummaryCard
+          label="Gunluk Ort."
+          :value="`${formatNumber(summary.avg_daily_kg)} kg`"
+          variant="info"
+        />
+        <SummaryCard
+          label="Gun Sayisi"
+          :value="summary.days_count"
+          variant="purple"
+        />
       </div>
     </div>
 
-    <!-- Hata -->
-    <div v-if="error" class="bg-red-100 text-red-700 p-4 rounded-lg mb-4">
-      {{ error }}
-    </div>
-
-    <!-- Tablo -->
+    <!-- Table -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
-      <table class="w-full">
+      <LoadingState v-if="loading" />
+
+      <div v-else-if="productions.length === 0" class="p-8 text-center text-gray-500">
+        Bu donem icin uretim kaydi bulunamadi
+      </div>
+
+      <table v-else class="w-full">
         <thead class="bg-gray-100">
           <tr>
             <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Tarih</th>
@@ -270,18 +216,8 @@ onMounted(() => {
           </tr>
         </thead>
         <tbody class="divide-y">
-          <tr v-if="loading">
-            <td colspan="8" class="px-4 py-8 text-center text-gray-500">
-              Yukleniyor...
-            </td>
-          </tr>
-          <tr v-else-if="productions.length === 0">
-            <td colspan="8" class="px-4 py-8 text-center text-gray-500">
-              Bu donem icin uretim kaydi bulunamadi
-            </td>
-          </tr>
-          <tr v-else v-for="prod in productions" :key="prod.id" class="hover:bg-gray-50">
-            <td class="px-4 py-3 text-sm">{{ formatDate(prod.production_date) }}</td>
+          <tr v-for="prod in productions" :key="prod.id" class="hover:bg-gray-50">
+            <td class="px-4 py-3 text-sm">{{ formatDate(prod.production_date, { format: 'short' }) }}</td>
             <td class="px-4 py-3 text-sm text-right font-medium">{{ formatNumber(prod.kneaded_kg) }}</td>
             <td class="px-4 py-3 text-sm text-right text-gray-600">{{ formatNumber(prod.legen_kg) }}</td>
             <td class="px-4 py-3 text-sm text-right font-medium text-blue-600">{{ formatNumber(prod.legen_count) }}</td>
@@ -308,80 +244,81 @@ onMounted(() => {
     </div>
 
     <!-- Form Modal -->
-    <div v-if="showForm" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4">
-        <div class="p-6 border-b">
-          <h2 class="text-xl font-semibold">
-            {{ editingId ? 'Uretim Duzenle' : 'Yeni Uretim Girisi' }}
-          </h2>
+    <PageModal
+      :show="showForm"
+      :title="editingId ? 'Uretim Duzenle' : 'Yeni Uretim Girisi'"
+      size="lg"
+      @close="showForm = false"
+    >
+      <div class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tarih</label>
+          <input
+            type="date"
+            v-model="form.production_date"
+            class="w-full border rounded-lg px-3 py-2"
+          />
         </div>
-        <div class="p-6 space-y-4">
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Tarih</label>
-            <input
-              type="date"
-              v-model="form.production_date"
-              class="w-full border rounded-lg px-3 py-2"
-            />
-          </div>
 
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Yogrulan Kilo</label>
+          <input
+            type="number"
+            step="0.1"
+            v-model.number="form.kneaded_kg"
+            class="w-full border rounded-lg px-3 py-2"
+            placeholder="220"
+          />
+        </div>
+
+        <div class="grid grid-cols-2 gap-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Yogrulan Kilo</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">1 Legen Kilosu</label>
             <input
               type="number"
               step="0.1"
-              v-model.number="form.kneaded_kg"
+              v-model.number="form.legen_kg"
               class="w-full border rounded-lg px-3 py-2"
-              placeholder="220"
             />
           </div>
-
-          <div class="grid grid-cols-2 gap-4">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">1 Legen Kilosu</label>
-              <input
-                type="number"
-                step="0.1"
-                v-model.number="form.legen_kg"
-                class="w-full border rounded-lg px-3 py-2"
-              />
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">1 Legen Maliyeti</label>
-              <input
-                type="number"
-                step="1"
-                v-model.number="form.legen_cost"
-                class="w-full border rounded-lg px-3 py-2"
-              />
-            </div>
-          </div>
-
-          <!-- Hesaplanan degerler -->
-          <div class="bg-gray-50 rounded-lg p-4">
-            <div class="grid grid-cols-2 gap-4">
-              <div>
-                <div class="text-sm text-gray-500">Legen Sayisi</div>
-                <div class="text-lg font-bold text-blue-600">{{ formatNumber(formLegenCount) }}</div>
-              </div>
-              <div>
-                <div class="text-sm text-gray-500">Toplam Maliyet</div>
-                <div class="text-lg font-bold text-red-600">{{ formatCurrency(formTotalCost) }}</div>
-              </div>
-            </div>
-          </div>
-
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Not (Opsiyonel)</label>
-            <textarea
-              v-model="form.notes"
-              rows="2"
+            <label class="block text-sm font-medium text-gray-700 mb-1">1 Legen Maliyeti</label>
+            <input
+              type="number"
+              step="1"
+              v-model.number="form.legen_cost"
               class="w-full border rounded-lg px-3 py-2"
-              placeholder="Aciklama..."
-            ></textarea>
+            />
           </div>
         </div>
-        <div class="p-6 border-t bg-gray-50 flex justify-end gap-3">
+
+        <!-- Calculated values -->
+        <div class="bg-gray-50 rounded-lg p-4">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <div class="text-sm text-gray-500">Legen Sayisi</div>
+              <div class="text-lg font-bold text-blue-600">{{ formatNumber(formLegenCount) }}</div>
+            </div>
+            <div>
+              <div class="text-sm text-gray-500">Toplam Maliyet</div>
+              <div class="text-lg font-bold text-red-600">{{ formatCurrency(formTotalCost) }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Not (Opsiyonel)</label>
+          <textarea
+            v-model="form.notes"
+            rows="2"
+            class="w-full border rounded-lg px-3 py-2"
+            placeholder="Aciklama..."
+          ></textarea>
+        </div>
+      </div>
+
+      <template #footer>
+        <div class="flex justify-end gap-3">
           <button
             @click="showForm = false"
             class="px-4 py-2 text-gray-700 border rounded-lg hover:bg-gray-100"
@@ -396,14 +333,14 @@ onMounted(() => {
             {{ loading ? 'Kaydediliyor...' : 'Kaydet' }}
           </button>
         </div>
-      </div>
-    </div>
-    
-    <ConfirmModal 
-      :show="showConfirm"
-      :message="confirmMessage"
-      @confirm="handleConfirm"
-      @cancel="showConfirm = false"
+      </template>
+    </PageModal>
+
+    <ConfirmModal
+      :show="confirmModal.isOpen.value"
+      :message="confirmModal.message.value"
+      @confirm="confirmModal.handleConfirm"
+      @cancel="confirmModal.handleCancel"
     />
   </div>
 </template>

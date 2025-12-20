@@ -102,7 +102,7 @@ def get_expenses(
     if category_id:
         query = query.filter(Expense.category_id == category_id)
 
-    return query.order_by(Expense.expense_date.desc()).limit(limit).all()
+    return query.order_by(Expense.expense_date.desc(), Expense.id.desc()).limit(limit).all()
 
 
 @router.get("/today", response_model=list[ExpenseResponse])

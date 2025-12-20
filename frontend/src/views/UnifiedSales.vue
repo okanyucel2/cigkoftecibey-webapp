@@ -2,7 +2,17 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import type { ChannelsGrouped, OnlineSale, OnlineSalesSummary } from '@/types'
 import { unifiedSalesApi, onlineSalesApi } from '@/services/api'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
+
+// Composables
+import { useFormatters, useMonthYearFilter, useConfirmModal, MONTHS } from '@/composables'
+
+// UI Components
+import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal } from '@/components/ui'
+
+// Use composables
+const { formatCurrency, formatDate } = useFormatters()
+const { selectedMonth, selectedYear, years } = useMonthYearFilter()
+const confirmModal = useConfirmModal()
 
 // Channel data
 const channels = ref<ChannelsGrouped>({ pos: [], online: [] })
@@ -11,10 +21,14 @@ const summary = ref<OnlineSalesSummary | null>(null)
 const loading = ref(true)
 const error = ref('')
 
-// Filtreler
-const currentDate = new Date()
-const selectedMonth = ref(currentDate.getMonth() + 1)
-const selectedYear = ref(currentDate.getFullYear())
+// Month/Year filter value for v-model
+const filterValue = computed({
+  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
+  set: (val) => {
+    selectedMonth.value = val.month
+    selectedYear.value = val.year
+  }
+})
 
 // Modal State
 const showModal = ref(false)
@@ -59,43 +73,6 @@ const bulkPeriodForm = ref({
   notes: ''
 })
 
-const months = [
-  { value: 1, label: 'Ocak' },
-  { value: 2, label: 'Subat' },
-  { value: 3, label: 'Mart' },
-  { value: 4, label: 'Nisan' },
-  { value: 5, label: 'Mayis' },
-  { value: 6, label: 'Haziran' },
-  { value: 7, label: 'Temmuz' },
-  { value: 8, label: 'Agustos' },
-  { value: 9, label: 'Eylul' },
-  { value: 10, label: 'Ekim' },
-  { value: 11, label: 'Kasim' },
-  { value: 12, label: 'Aralik' },
-]
-
-const years = computed(() => {
-  const currentYear = new Date().getFullYear()
-  return [currentYear, currentYear - 1, currentYear - 2]
-})
-
-// Confirm Modal
-const showConfirm = ref(false)
-const confirmMessage = ref('')
-const confirmAction = ref<(() => Promise<void>) | null>(null)
-
-function openConfirm(message: string, action: () => Promise<void>) {
-  confirmMessage.value = message
-  confirmAction.value = action
-  showConfirm.value = true
-}
-
-async function handleConfirm() {
-  if (confirmAction.value) {
-    await confirmAction.value()
-  }
-  showConfirm.value = false
-}
 
 // All channels combined for table display
 const allChannels = computed(() => [...channels.value.pos, ...channels.value.online])
@@ -279,14 +256,14 @@ async function submitSaleForm() {
 }
 
 async function deleteDay(dateStr: string) {
-  openConfirm(`${formatDate(dateStr)} tarihindeki tum satislari silmek istediginize emin misiniz?`, async () => {
+  confirmModal.confirm(`${formatDate(dateStr)} tarihindeki tum satislari silmek istediginize emin misiniz?`, async () => {
     try {
       await onlineSalesApi.deleteDailySales(dateStr)
       sales.value = sales.value.filter(s => s.sale_date !== dateStr) // Optimistic
       await loadData()
     } catch (e) {
       console.error('Failed to delete:', e)
-      alert('Silme basarisiz!')
+      error.value = 'Silme basarisiz!'
     }
   })
 }
@@ -333,7 +310,7 @@ async function submitPlatformForm() {
 }
 
 async function deletePlatform(id: number) {
-  openConfirm('Bu platformu silmek istediginize emin misiniz?', async () => {
+  confirmModal.confirm('Bu platformu silmek istediginize emin misiniz?', async () => {
     error.value = ''
     try {
       await onlineSalesApi.deletePlatform(id)
@@ -465,7 +442,7 @@ function calculateWeeks() {
       number: weekNum,
       start: weekStart.toISOString().split('T')[0],
       end: weekEnd.toISOString().split('T')[0],
-      label: `${weekNum}. Hafta (${weekStart.getDate()}-${weekEnd.getDate()} ${months[selectedMonth.value - 1].label})`
+      label: `${weekNum}. Hafta (${weekStart.getDate()}-${weekEnd.getDate()} ${MONTHS[selectedMonth.value - 1].label})`
     })
 
     weekStart = new Date(weekEnd)
@@ -499,7 +476,7 @@ const bulkPeriodEndDate = computed(() => {
 
 const bulkPeriodLabel = computed(() => {
   if (bulkPeriodForm.value.period_type === 'monthly') {
-    return `${months[selectedMonth.value - 1].label} ${selectedYear.value} (Ay Toplami)`
+    return `${MONTHS[selectedMonth.value - 1].label} ${selectedYear.value} (Ay Toplami)`
   } else if (bulkPeriodForm.value.period_type === 'weekly') {
     const week = weeksInMonth.value.find(w => w.number === bulkPeriodForm.value.week_number)
     return week?.label || ''
@@ -569,23 +546,6 @@ async function submitBulkPeriodForm() {
   }
 }
 
-// Format helpers
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    minimumFractionDigits: 0
-  }).format(value)
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('tr-TR', {
-    day: '2-digit',
-    month: 'long',
-    weekday: 'short'
-  })
-}
-
 // Channel colors
 function getChannelColor(channel: any): string {
   if (channel.channel_type === 'pos_salon') return 'bg-blue-500'
@@ -613,23 +573,12 @@ function getChannelTextColor(channel: any): string {
     </div>
 
     <!-- Error -->
-    <div v-if="error" class="bg-red-100 text-red-700 p-4 rounded-lg">
-      {{ error }}
-      <button @click="error = ''" class="ml-2 text-red-800 font-bold">x</button>
-    </div>
+    <ErrorAlert :message="error" @dismiss="error = ''" />
 
     <!-- Filtreler -->
     <div class="flex items-center justify-between flex-wrap gap-4">
       <div class="flex gap-3 items-center flex-wrap">
-        <!-- Ay/Yil -->
-        <div class="flex gap-2 items-center bg-gray-100 rounded-lg px-3 py-1.5">
-          <select v-model="selectedMonth" class="bg-transparent border-none text-sm font-medium focus:ring-0">
-            <option v-for="month in months" :key="month.value" :value="month.value">{{ month.label }}</option>
-          </select>
-          <select v-model="selectedYear" class="bg-transparent border-none text-sm font-medium focus:ring-0">
-            <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
-          </select>
-        </div>
+        <MonthYearFilter v-model="filterValue" :years="years" />
         <!-- Platform Ayarlari -->
         <button
           @click="showPlatformModal = true"
@@ -711,9 +660,7 @@ function getChannelTextColor(channel: any): string {
 
     <!-- Tablo -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
-      <div v-if="loading" class="p-8 text-center text-gray-500">
-        Yukleniyor...
-      </div>
+      <LoadingState v-if="loading" />
 
       <div v-else-if="salesByDate.length === 0" class="p-8 text-center text-gray-500">
         Bu donemde kayit bulunamadi
@@ -802,14 +749,13 @@ function getChannelTextColor(channel: any): string {
     </div>
 
     <!-- ==================== SATIS EKLEME/DUZENLEME MODAL ==================== -->
-    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-        <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
-          <h2 class="text-lg font-semibold">Gunluk Satis Girisi</h2>
-          <button @click="showModal = false" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-        </div>
-
-        <form @submit.prevent="submitSaleForm" class="p-4 space-y-4">
+    <PageModal
+      :show="showModal"
+      title="Gunluk Satis Girisi"
+      size="lg"
+      @close="showModal = false"
+    >
+      <form @submit.prevent="submitSaleForm" class="p-4 space-y-4">
           <!-- Tarih -->
           <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Tarih *</label>
@@ -900,133 +846,131 @@ function getChannelTextColor(channel: any): string {
             />
           </div>
 
-          <!-- Butonlar -->
+      </form>
+
+      <template #footer>
+        <div class="flex gap-3">
+          <button
+            type="button"
+            @click="showModal = false"
+            class="flex-1 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+          >
+            Iptal
+          </button>
+          <button
+            @click="submitSaleForm"
+            :disabled="submitting"
+            class="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+          >
+            {{ submitting ? 'Kaydediliyor...' : 'Kaydet' }}
+          </button>
+        </div>
+      </template>
+    </PageModal>
+
+    <!-- ==================== PLATFORM YONETIM MODAL ==================== -->
+    <PageModal
+      :show="showPlatformModal"
+      title="Satis Kanallari"
+      @close="showPlatformModal = false"
+    >
+      <div class="p-4">
+        <!-- Platform Listesi -->
+        <div v-if="!showPlatformForm" class="space-y-4">
+          <!-- Sistem Kanallari (Silinemez) -->
+          <div>
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Sistem Kanallari</h3>
+            <div
+              v-for="channel in channels.pos"
+              :key="channel.id"
+              class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2"
+            >
+              <div class="flex items-center gap-2">
+                <div :class="['w-3 h-3 rounded-full', getChannelColor(channel)]"></div>
+                <span class="font-medium">{{ channel.name }}</span>
+                <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">Sistem</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Online Platformlar -->
+          <div>
+            <h3 class="text-sm font-medium text-gray-500 mb-2">Online Platformlar</h3>
+            <div
+              v-for="channel in channels.online"
+              :key="channel.id"
+              class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2"
+            >
+              <div class="flex items-center gap-2">
+                <div :class="['w-3 h-3 rounded-full', getChannelColor(channel)]"></div>
+                <span class="font-medium">{{ channel.name }}</span>
+              </div>
+              <div class="flex gap-2">
+                <button @click="openPlatformForm(channel)" class="text-blue-600 hover:text-blue-800 text-sm">Duzenle</button>
+                <button @click="deletePlatform(channel.id)" class="text-red-600 hover:text-red-800 text-sm">Sil</button>
+              </div>
+            </div>
+
+            <div v-if="channels.online.length === 0" class="text-center py-4 text-gray-500 text-sm">
+              Henuz online platform yok
+            </div>
+
+            <button
+              @click="openPlatformForm()"
+              class="w-full mt-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-700"
+            >
+              + Yeni Platform Ekle
+            </button>
+          </div>
+        </div>
+
+        <!-- Platform Formu -->
+        <div v-else class="space-y-4">
+          <div class="flex items-center gap-2 mb-4">
+            <button @click="showPlatformForm = false" class="text-gray-500 hover:text-gray-700">
+              &larr;
+            </button>
+            <h3 class="font-medium">{{ editingPlatformId ? 'Platform Duzenle' : 'Yeni Platform' }}</h3>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Platform Adi *</label>
+            <input
+              v-model="platformForm.name"
+              type="text"
+              class="w-full border rounded-lg px-3 py-2"
+              placeholder="ornegin: Trendyol, Getir..."
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Sira No</label>
+            <input
+              v-model.number="platformForm.display_order"
+              type="number"
+              class="w-full border rounded-lg px-3 py-2"
+              min="0"
+            />
+          </div>
+
           <div class="flex gap-3 pt-2">
             <button
-              type="button"
-              @click="showModal = false"
+              @click="showPlatformForm = false"
               class="flex-1 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
             >
               Iptal
             </button>
             <button
-              type="submit"
+              @click="submitPlatformForm"
               :disabled="submitting"
               class="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
             >
               {{ submitting ? 'Kaydediliyor...' : 'Kaydet' }}
             </button>
           </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- ==================== PLATFORM YONETIM MODAL ==================== -->
-    <div v-if="showPlatformModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-        <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
-          <h2 class="text-lg font-semibold">Satis Kanallari</h2>
-          <button @click="showPlatformModal = false" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-        </div>
-
-        <div class="p-4">
-          <!-- Platform Listesi -->
-          <div v-if="!showPlatformForm" class="space-y-4">
-            <!-- Sistem Kanallari (Silinemez) -->
-            <div>
-              <h3 class="text-sm font-medium text-gray-500 mb-2">Sistem Kanallari</h3>
-              <div
-                v-for="channel in channels.pos"
-                :key="channel.id"
-                class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2"
-              >
-                <div class="flex items-center gap-2">
-                  <div :class="['w-3 h-3 rounded-full', getChannelColor(channel)]"></div>
-                  <span class="font-medium">{{ channel.name }}</span>
-                  <span class="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">Sistem</span>
-                </div>
-              </div>
-            </div>
-
-            <!-- Online Platformlar -->
-            <div>
-              <h3 class="text-sm font-medium text-gray-500 mb-2">Online Platformlar</h3>
-              <div
-                v-for="channel in channels.online"
-                :key="channel.id"
-                class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2"
-              >
-                <div class="flex items-center gap-2">
-                  <div :class="['w-3 h-3 rounded-full', getChannelColor(channel)]"></div>
-                  <span class="font-medium">{{ channel.name }}</span>
-                </div>
-                <div class="flex gap-2">
-                  <button @click="openPlatformForm(channel)" class="text-blue-600 hover:text-blue-800 text-sm">Duzenle</button>
-                  <button @click="deletePlatform(channel.id)" class="text-red-600 hover:text-red-800 text-sm">Sil</button>
-                </div>
-              </div>
-
-              <div v-if="channels.online.length === 0" class="text-center py-4 text-gray-500 text-sm">
-                Henuz online platform yok
-              </div>
-
-              <button
-                @click="openPlatformForm()"
-                class="w-full mt-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-700"
-              >
-                + Yeni Platform Ekle
-              </button>
-            </div>
-          </div>
-
-          <!-- Platform Formu -->
-          <div v-else class="space-y-4">
-            <div class="flex items-center gap-2 mb-4">
-              <button @click="showPlatformForm = false" class="text-gray-500 hover:text-gray-700">
-                &larr;
-              </button>
-              <h3 class="font-medium">{{ editingPlatformId ? 'Platform Duzenle' : 'Yeni Platform' }}</h3>
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Platform Adi *</label>
-              <input
-                v-model="platformForm.name"
-                type="text"
-                class="w-full border rounded-lg px-3 py-2"
-                placeholder="ornegin: Trendyol, Getir..."
-              />
-            </div>
-
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Sira No</label>
-              <input
-                v-model.number="platformForm.display_order"
-                type="number"
-                class="w-full border rounded-lg px-3 py-2"
-                min="0"
-              />
-            </div>
-
-            <div class="flex gap-3 pt-2">
-              <button
-                @click="showPlatformForm = false"
-                class="flex-1 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
-              >
-                Iptal
-              </button>
-              <button
-                @click="submitPlatformForm"
-                :disabled="submitting"
-                class="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-              >
-                {{ submitting ? 'Kaydediliyor...' : 'Kaydet' }}
-              </button>
-            </div>
-          </div>
         </div>
       </div>
-    </div>
+    </PageModal>
 
     <!-- ==================== TOPLU GIRIS MODAL ==================== -->
     <div v-if="showBulkModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -1372,11 +1316,11 @@ function getChannelTextColor(channel: any): string {
       </div>
     </div>
     
-    <ConfirmModal 
-      :show="showConfirm"
-      :message="confirmMessage"
-      @confirm="handleConfirm"
-      @cancel="showConfirm = false"
+    <ConfirmModal
+      :show="confirmModal.isOpen.value"
+      :message="confirmModal.message.value"
+      @confirm="confirmModal.handleConfirm"
+      @cancel="confirmModal.handleCancel"
     />
   </div>
 </template>

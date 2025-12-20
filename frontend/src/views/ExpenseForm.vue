@@ -66,10 +66,10 @@ async function handleSubmit() {
     <form @submit.prevent="handleSubmit" class="card space-y-6">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label for="category_id" class="block text-sm font-medium text-gray-700 mb-1">
             Kategori *
           </label>
-          <select v-model="selectedCategoryId" class="input" required>
+          <select id="category_id" v-model="selectedCategoryId" class="input" required>
             <option :value="null">Kategori Secin</option>
             <option v-for="cat in categories" :key="cat.id" :value="cat.id">
               {{ cat.name }}
@@ -78,38 +78,26 @@ async function handleSubmit() {
           </select>
         </div>
         <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">
+          <label for="expense_date" class="block text-sm font-medium text-gray-700 mb-1">
             Tarih *
           </label>
-          <input v-model="expenseDate" type="date" class="input" required />
+          <input id="expense_date" v-model="expenseDate" type="date" class="input" required />
         </div>
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
+        <label for="amount" class="block text-sm font-medium text-gray-700 mb-1">
           Tutar (TL) *
         </label>
-        <input
-          v-model.number="amount"
-          type="number"
-          step="0.01"
-          min="0"
-          class="input text-2xl font-bold"
-          placeholder="0.00"
-          required
-        />
+        <input id="amount" v-model.number="amount" type="number" step="0.01" min="0" class="input text-2xl font-bold"
+          placeholder="0.00" required />
       </div>
 
       <div>
-        <label class="block text-sm font-medium text-gray-700 mb-1">
+        <label for="description" class="block text-sm font-medium text-gray-700 mb-1">
           Aciklama
         </label>
-        <textarea
-          v-model="description"
-          rows="3"
-          class="input"
-          placeholder="Opsiyonel aciklama..."
-        />
+        <textarea id="description" v-model="description" rows="3" class="input" placeholder="Opsiyonel aciklama..." />
       </div>
 
       <div class="flex justify-end gap-3 pt-4 border-t">

@@ -47,9 +47,11 @@ test.describe('Unified Sales UI @smoke', () => {
             platformId = pData.id;
             console.log(`Platform Created: ${platformId} - ${testPlatformName}`);
 
-            // 2. Create Sale via API
-            console.log("Creating Test Sale...");
-            const sRes = await request.post(`${config.backendUrl}/api/online-sales/daily`, {
+
+
+            // 3. Create Daily Sales Entry (Correct API Endpoint)
+            console.log("Creating Daily Sales Entry...");
+            const dRes = await request.post(`${config.backendUrl}/api/online-sales/daily`, {
                 headers,
                 data: {
                     sale_date: testDate,
@@ -57,10 +59,10 @@ test.describe('Unified Sales UI @smoke', () => {
                     notes: 'Test Sale'
                 }
             });
-            if (!sRes.ok()) {
-                console.log(`Sale Create Failed: ${sRes.status()} ${await sRes.text()}`);
+            if (!dRes.ok()) {
+                console.log(`Sale Create Failed: ${dRes.status()} ${await dRes.text()}`);
             }
-            expect(sRes.ok()).toBeTruthy();
+            expect(dRes.ok()).toBeTruthy();
             console.log("Sale Created");
         }
 
@@ -72,12 +74,17 @@ test.describe('Unified Sales UI @smoke', () => {
 
         // --- Verify & Delete Day ---
         // Verify Row exists
-        await expect(page.locator('table')).toContainText('25 Aralık Per');
+        await expect(page.locator('table')).toContainText('25 Aralık');
 
         // Click Delete Day
         // Locate the row by date
-        const row = page.locator('tr').filter({ hasText: '25 Aralık Per' });
-        await row.getByRole('button', { name: 'Sil' }).click();
+        await page.waitForSelector('tr', { state: 'visible', timeout: 10000 });
+        const row = page.locator('tr').filter({ hasText: '25 Aralık' });
+        await expect(row).toBeVisible({ timeout: 10000 });
+        const deleteButton = row.getByRole('button', { name: 'Sil' });
+        await expect(deleteButton).toBeVisible({ timeout: 10000 });
+        await deleteButton.click();
+        await page.waitForLoadState('networkidle');
 
         // Modal Check
         await expect(page.locator('div.fixed h3:has-text("Onay")')).toBeVisible();

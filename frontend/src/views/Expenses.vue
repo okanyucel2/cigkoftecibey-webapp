@@ -2,20 +2,28 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import type { Expense, ExpenseCategory } from '@/types'
 import { expensesApi, expenseCategoriesApi } from '@/services/api'
-import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
+// Composables
+import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
+
+// UI Components
+import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+
+// Use composables
+const { formatCurrency, formatDate } = useFormatters()
+const { selectedMonth, selectedYear, years } = useMonthYearFilter()
+const confirmModal = useConfirmModal()
+
+// Data
 const expenses = ref<Expense[]>([])
 const categories = ref<ExpenseCategory[]>([])
 const loading = ref(true)
 const error = ref('')
 
-// Filtreler
-const currentDate = new Date()
-const selectedMonth = ref(currentDate.getMonth() + 1)
-const selectedYear = ref(currentDate.getFullYear())
+// Filters
 const selectedCategoryId = ref<number | null>(null)
 
-// Kategori Modal State
+// Category Modal State
 const showCategoryModal = ref(false)
 const showCategoryForm = ref(false)
 const editingCategoryId = ref<number | null>(null)
@@ -25,43 +33,14 @@ const categoryForm = ref({
   is_fixed: false
 })
 
-const months = [
-  { value: 1, label: 'Ocak' },
-  { value: 2, label: 'Subat' },
-  { value: 3, label: 'Mart' },
-  { value: 4, label: 'Nisan' },
-  { value: 5, label: 'Mayis' },
-  { value: 6, label: 'Haziran' },
-  { value: 7, label: 'Temmuz' },
-  { value: 8, label: 'Agustos' },
-  { value: 9, label: 'Eylul' },
-  { value: 10, label: 'Ekim' },
-  { value: 11, label: 'Kasim' },
-  { value: 12, label: 'Aralik' },
-]
-
-const years = computed(() => {
-  const currentYear = new Date().getFullYear()
-  return [currentYear, currentYear - 1, currentYear - 2]
-})
-
-// Confirm Modal
-const showConfirm = ref(false)
-const confirmMessage = ref('')
-const confirmAction = ref<(() => Promise<void>) | null>(null)
-
-function openConfirm(message: string, action: () => Promise<void>) {
-  confirmMessage.value = message
-  confirmAction.value = action
-  showConfirm.value = true
-}
-
-async function handleConfirm() {
-  if (confirmAction.value) {
-    await confirmAction.value()
+// Month/Year filter value for v-model
+const filterValue = computed({
+  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
+  set: (val) => {
+    selectedMonth.value = val.month
+    selectedYear.value = val.year
   }
-  showConfirm.value = false
-}
+})
 
 onMounted(async () => {
   await Promise.all([loadExpenses(), loadCategories()])
@@ -83,7 +62,6 @@ async function loadCategories() {
 async function loadExpenses() {
   loading.value = true
   try {
-    // Ay baslangic ve bitis tarihleri
     const startDate = new Date(selectedYear.value, selectedMonth.value - 1, 1)
     const endDate = new Date(selectedYear.value, selectedMonth.value, 0)
 
@@ -99,25 +77,25 @@ async function loadExpenses() {
     expenses.value = data
   } catch (e) {
     console.error('Failed to load expenses:', e)
+    error.value = 'Giderler yuklenemedi'
   } finally {
     loading.value = false
   }
 }
 
 async function deleteExpense(id: number) {
-  openConfirm('Bu gideri silmek istediginizden emin misiniz?', async () => {
+  confirmModal.confirm('Bu gideri silmek istediginizden emin misiniz?', async () => {
     try {
       await expensesApi.delete(id)
-      expenses.value = expenses.value.filter(e => e.id !== id) // Optimistic
+      expenses.value = expenses.value.filter(e => e.id !== id)
     } catch (e) {
       console.error('Failed to delete expense:', e)
-      alert('Gider silinemedi!')
+      error.value = 'Gider silinemedi!'
     }
   })
 }
 
-// ==================== KATEGORI YONETIMI ====================
-
+// Category Management
 function openCategoryForm(category?: ExpenseCategory) {
   if (category) {
     editingCategoryId.value = category.id
@@ -159,7 +137,7 @@ async function submitCategoryForm() {
 }
 
 async function deleteCategory(id: number) {
-  openConfirm('Bu kategoriyi silmek istediginize emin misiniz?', async () => {
+  confirmModal.confirm('Bu kategoriyi silmek istediginize emin misiniz?', async () => {
     error.value = ''
     try {
       await expenseCategoriesApi.delete(id)
@@ -170,7 +148,7 @@ async function deleteCategory(id: number) {
   })
 }
 
-// Ozet hesaplamalari
+// Summary calculations
 const totalAmount = computed(() => {
   return expenses.value.reduce((sum, e) => sum + Number(e.amount), 0)
 })
@@ -186,22 +164,6 @@ const variableExpensesTotal = computed(() => {
     .filter(e => !e.category?.is_fixed)
     .reduce((sum, e) => sum + Number(e.amount), 0)
 })
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    minimumFractionDigits: 0
-  }).format(value)
-}
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString('tr-TR', {
-    day: '2-digit',
-    month: 'long',
-    weekday: 'short'
-  })
-}
 </script>
 
 <template>
@@ -212,39 +174,26 @@ function formatDate(dateStr: string) {
     </div>
 
     <!-- Error -->
-    <div v-if="error" class="bg-red-100 text-red-700 p-4 rounded-lg">
-      {{ error }}
-      <button @click="error = ''" class="ml-2 text-red-800 font-bold">x</button>
-    </div>
+    <ErrorAlert :message="error" @dismiss="error = ''" />
 
-    <!-- Filtreler -->
+    <!-- Filters -->
     <div class="flex items-center justify-between flex-wrap gap-4">
       <div class="flex gap-3 items-center flex-wrap">
-        <!-- Ay/Yil -->
-        <div class="flex gap-2 items-center bg-gray-100 rounded-lg px-3 py-1.5">
-          <select v-model="selectedMonth" class="bg-transparent border-none text-sm font-medium focus:ring-0">
-            <option v-for="month in months" :key="month.value" :value="month.value">{{ month.label }}</option>
-          </select>
-          <select v-model="selectedYear" class="bg-transparent border-none text-sm font-medium focus:ring-0">
-            <option v-for="year in years" :key="year" :value="year">{{ year }}</option>
-          </select>
-        </div>
-        <!-- Kategori Filtresi + Ayar -->
+        <MonthYearFilter v-model="filterValue" :years="years" />
+
+        <!-- Category Filter + Settings -->
         <div class="flex items-center gap-1">
-          <select
-            v-model="selectedCategoryId"
-            class="bg-gray-100 border-none rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-0"
-          >
+          <select v-model="selectedCategoryId"
+            class="bg-gray-100 border-none rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-0">
             <option :value="null">Tum Kategoriler</option>
             <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
           </select>
-          <button
-            @click="showCategoryModal = true"
-            class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg"
-            title="Kategorileri Yonet"
-          >
+          <button @click="showCategoryModal = true"
+            class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg" title="Kategorileri Yonet">
             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
+              <path fill-rule="evenodd"
+                d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
+                clip-rule="evenodd" />
             </svg>
           </button>
         </div>
@@ -254,28 +203,17 @@ function formatDate(dateStr: string) {
       </router-link>
     </div>
 
-    <!-- Ozet Kartlari -->
+    <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <div class="bg-white rounded-lg shadow p-4">
-        <p class="text-sm text-gray-500">Sabit Giderler</p>
-        <p class="text-xl font-bold text-purple-600">{{ formatCurrency(fixedExpensesTotal) }}</p>
-      </div>
-      <div class="bg-white rounded-lg shadow p-4">
-        <p class="text-sm text-gray-500">Degisken Giderler</p>
-        <p class="text-xl font-bold text-gray-900">{{ formatCurrency(variableExpensesTotal) }}</p>
-      </div>
-      <div class="bg-white rounded-lg shadow p-4 border-l-4 border-red-500">
-        <p class="text-sm text-gray-500">Toplam Gider</p>
-        <p class="text-xl font-bold text-red-600">{{ formatCurrency(totalAmount) }}</p>
-        <p class="text-xs text-gray-400">{{ expenses.length }} kayit</p>
-      </div>
+      <SummaryCard label="Sabit Giderler" :value="formatCurrency(fixedExpensesTotal)" variant="purple" />
+      <SummaryCard label="Degisken Giderler" :value="formatCurrency(variableExpensesTotal)" />
+      <SummaryCard label="Toplam Gider" :value="formatCurrency(totalAmount)" :subtext="`${expenses.length} kayit`"
+        variant="danger" data-testid="total-expenses-card" />
     </div>
 
     <!-- Expenses Table -->
     <div class="bg-white rounded-lg shadow overflow-hidden">
-      <div v-if="loading" class="p-8 text-center text-gray-500">
-        Yukleniyor...
-      </div>
+      <LoadingState v-if="loading" />
 
       <div v-else-if="expenses.length === 0" class="p-8 text-center text-gray-500">
         Bu donemde gider bulunamadi
@@ -284,27 +222,17 @@ function formatDate(dateStr: string) {
       <table v-else class="w-full">
         <thead class="bg-gray-50">
           <tr>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Tarih
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Kategori
-            </th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-              Aciklama
-            </th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              Tutar
-            </th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-              Islem
-            </th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tarih</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aciklama</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tutar</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Islem</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
           <tr v-for="expense in expenses" :key="expense.id" class="hover:bg-gray-50">
             <td class="px-6 py-4 text-sm text-gray-900">
-              {{ formatDate(expense.expense_date) }}
+              {{ formatDate(expense.expense_date, { showWeekday: true }) }}
             </td>
             <td class="px-6 py-4">
               <span :class="[
@@ -323,10 +251,7 @@ function formatDate(dateStr: string) {
               {{ formatCurrency(Number(expense.amount)) }}
             </td>
             <td class="px-6 py-4 text-right">
-              <button
-                @click="deleteExpense(expense.id)"
-                class="text-red-500 hover:text-red-700 text-sm"
-              >
+              <button @click="deleteExpense(expense.id)" class="text-red-500 hover:text-red-700 text-sm">
                 Sil
               </button>
             </td>
@@ -335,104 +260,74 @@ function formatDate(dateStr: string) {
       </table>
     </div>
 
-    <!-- ==================== KATEGORI YONETIM MODAL ==================== -->
-    <div v-if="showCategoryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-        <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
-          <h2 class="text-lg font-semibold">Gider Kategorileri</h2>
-          <button @click="showCategoryModal = false" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-        </div>
-
-        <div class="p-4">
-          <!-- Kategori Listesi -->
-          <div v-if="!showCategoryForm" class="space-y-2">
-            <div
-              v-for="cat in categories"
-              :key="cat.id"
-              class="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-            >
-              <div class="flex items-center gap-2">
-                <span :class="[
-                  'w-3 h-3 rounded-full',
-                  cat.is_fixed ? 'bg-purple-500' : 'bg-gray-400'
-                ]"></span>
-                <span class="font-medium">{{ cat.name }}</span>
-                <span v-if="cat.is_fixed" class="text-xs text-purple-600">(Sabit)</span>
-              </div>
-              <div class="flex gap-2">
-                <button @click="openCategoryForm(cat)" class="text-blue-600 hover:text-blue-800 text-sm">Duzenle</button>
-                <button @click="deleteCategory(cat.id)" class="text-red-600 hover:text-red-800 text-sm">Sil</button>
-              </div>
+    <!-- Category Management Modal -->
+    <PageModal :show="showCategoryModal" title="Gider Kategorileri" @close="showCategoryModal = false">
+      <div class="p-4">
+        <!-- Category List -->
+        <div v-if="!showCategoryForm" class="space-y-2">
+          <div v-for="cat in categories" :key="cat.id"
+            class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-center gap-2">
+              <span :class="[
+                'w-3 h-3 rounded-full',
+                cat.is_fixed ? 'bg-purple-500' : 'bg-gray-400'
+              ]"></span>
+              <span class="font-medium">{{ cat.name }}</span>
+              <span v-if="cat.is_fixed" class="text-xs text-purple-600">(Sabit)</span>
             </div>
-
-            <div v-if="categories.length === 0" class="text-center py-4 text-gray-500">
-              Henuz kategori yok
+            <div class="flex gap-2">
+              <button @click="openCategoryForm(cat)" class="text-blue-600 hover:text-blue-800 text-sm">Duzenle</button>
+              <button @click="deleteCategory(cat.id)" class="text-red-600 hover:text-red-800 text-sm">Sil</button>
             </div>
-
-            <button
-              @click="openCategoryForm()"
-              class="w-full mt-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-700"
-            >
-              + Yeni Kategori Ekle
-            </button>
           </div>
 
-          <!-- Kategori Formu -->
-          <div v-else class="space-y-4">
-            <div class="flex items-center gap-2 mb-4">
-              <button @click="showCategoryForm = false" class="text-gray-500 hover:text-gray-700">
-                &larr;
-              </button>
-              <h3 class="font-medium">{{ editingCategoryId ? 'Kategori Duzenle' : 'Yeni Kategori' }}</h3>
-            </div>
+          <div v-if="categories.length === 0" class="text-center py-4 text-gray-500">
+            Henuz kategori yok
+          </div>
 
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-1">Kategori Adi *</label>
-              <input
-                v-model="categoryForm.name"
-                type="text"
-                class="w-full border rounded-lg px-3 py-2"
-                placeholder="ornegin: Kira, Elektrik, Temizlik..."
-              />
-            </div>
+          <button @click="openCategoryForm()"
+            class="w-full mt-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-700">
+            + Yeni Kategori Ekle
+          </button>
+        </div>
 
-            <div class="flex items-center gap-2">
-              <input
-                v-model="categoryForm.is_fixed"
-                type="checkbox"
-                id="is_fixed"
-                class="rounded text-purple-600"
-              />
-              <label for="is_fixed" class="text-sm text-gray-700">
-                Sabit gider kategorisi (Kira, SGK gibi her ay tekrar eden)
-              </label>
-            </div>
+        <!-- Category Form -->
+        <div v-else class="space-y-4">
+          <div class="flex items-center gap-2 mb-4">
+            <button @click="showCategoryForm = false" class="text-gray-500 hover:text-gray-700">
+              &larr;
+            </button>
+            <h3 class="font-medium">{{ editingCategoryId ? 'Kategori Duzenle' : 'Yeni Kategori' }}</h3>
+          </div>
 
-            <div class="flex gap-3 pt-2">
-              <button
-                @click="showCategoryForm = false"
-                class="flex-1 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
-              >
-                Iptal
-              </button>
-              <button
-                @click="submitCategoryForm"
-                :disabled="categorySubmitting"
-                class="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
-              >
-                {{ categorySubmitting ? 'Kaydediliyor...' : 'Kaydet' }}
-              </button>
-            </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Kategori Adi *</label>
+            <input v-model="categoryForm.name" type="text" class="w-full border rounded-lg px-3 py-2"
+              placeholder="ornegin: Kira, Elektrik, Temizlik..." />
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input v-model="categoryForm.is_fixed" type="checkbox" id="is_fixed" class="rounded text-purple-600" />
+            <label for="is_fixed" class="text-sm text-gray-700">
+              Sabit gider kategorisi (Kira, SGK gibi her ay tekrar eden)
+            </label>
+          </div>
+
+          <div class="flex gap-3 pt-2">
+            <button @click="showCategoryForm = false"
+              class="flex-1 py-2 border rounded-lg text-gray-700 hover:bg-gray-100">
+              Iptal
+            </button>
+            <button @click="submitCategoryForm" :disabled="categorySubmitting"
+              class="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">
+              {{ categorySubmitting ? 'Kaydediliyor...' : 'Kaydet' }}
+            </button>
           </div>
         </div>
       </div>
-    </div>
+    </PageModal>
 
-    <ConfirmModal 
-      :show="showConfirm"
-      :message="confirmMessage"
-      @confirm="handleConfirm"
-      @cancel="showConfirm = false"
-    />
+    <ConfirmModal :show="confirmModal.isOpen.value" :message="confirmModal.message.value"
+      @confirm="confirmModal.handleConfirm" @cancel="confirmModal.handleCancel" />
   </div>
 </template>

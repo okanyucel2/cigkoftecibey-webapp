@@ -202,42 +202,36 @@ def create_or_update_daily_sales(
 ):
     """
     Günlük satışları toplu kaydet/güncelle.
-    Aynı tarih ve platform için kayıt varsa günceller, yoksa yeni oluşturur.
+    Önce o günün tüm kayıtlarını siler, sonra yeni kayıtları oluşturur.
+    Bu sayede kullanıcı bir kanalı 0'a çektiğinde eski kayıt silinmiş olur.
     """
-    result_entries = []
+    # Önce o günün tüm satış kayıtlarını sil
+    db.query(OnlineSale).filter(
+        OnlineSale.branch_id == ctx.current_branch_id,
+        OnlineSale.sale_date == data.sale_date
+    ).delete()
+    db.commit()
 
+    # Sadece amount > 0 olan kayıtları oluştur
+    result_entries = []
     for entry in data.entries:
         if entry.amount <= 0:
-            continue  # Boş veya negatif tutarları atla
+            continue
 
-        # Aynı gün ve platform için kayıt var mı?
-        existing = db.query(OnlineSale).filter(
-            OnlineSale.branch_id == ctx.current_branch_id,
-            OnlineSale.sale_date == data.sale_date,
-            OnlineSale.platform_id == entry.platform_id
-        ).first()
+        sale = OnlineSale(
+            branch_id=ctx.current_branch_id,
+            platform_id=entry.platform_id,
+            sale_date=data.sale_date,
+            amount=entry.amount,
+            notes=data.notes,
+            created_by=ctx.user.id
+        )
+        db.add(sale)
+        result_entries.append(sale)
 
-        if existing:
-            # Güncelle
-            existing.amount = entry.amount
-            existing.notes = data.notes
-            db.commit()
-            db.refresh(existing)
-            result_entries.append(existing)
-        else:
-            # Yeni kayıt
-            sale = OnlineSale(
-                branch_id=ctx.current_branch_id,
-                platform_id=entry.platform_id,
-                sale_date=data.sale_date,
-                amount=entry.amount,
-                notes=data.notes,
-                created_by=ctx.user.id
-            )
-            db.add(sale)
-            db.commit()
-            db.refresh(sale)
-            result_entries.append(sale)
+    db.commit()
+    for sale in result_entries:
+        db.refresh(sale)
 
     total = sum(e.amount for e in result_entries)
     return DailySalesResponse(sale_date=data.sale_date, entries=result_entries, total=total)
