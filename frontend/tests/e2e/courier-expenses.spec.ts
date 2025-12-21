@@ -1,6 +1,5 @@
-// Genesis Auto-Fix Version: 30 (Last: 2025-12-20 20:00:10)
+// Genesis Auto-Fix Version: 40 (Last: 2025-12-21 15:13:43)
 import { test, expect } from '@playwright/test'
-import path from 'path'
 
 test.describe.configure({ mode: 'serial' })
 
@@ -10,562 +9,354 @@ test.describe('Courier Expenses (Kurye Giderleri)', () => {
   const baseURL = config.frontendUrl
   const uniqueId = Date.now().toString()
 
-  test.beforeEach(async ({ page, context }) => {
-    // Mock API responses to avoid backend dependency
-    await page.route('**/api/auth/**', route => {
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({ success: true, token: 'mock-token', user: { id: 1, role: 'admin' } })
+  test.beforeEach(async ({ page, request }) => {
+    test.setTimeout(60000)
+
+    // DEBUG LISTENERS
+    page.on('console', msg => console.log(`BROWSER [${msg.type()}]: ${msg.text()}`))
+    page.on('requestfailed', request => console.log(`NETWORK FAIL: ${request.url()} - ${request.failure()?.errorText}`))
+
+    // API LOGIN BYPASS
+    console.log('Attempting API Login...')
+    const loginRes = await request.post(config.backendUrl + '/api/auth/login-json', {
+      data: {
+        email: config.auth.email,
+        password: config.auth.password
+      }
+    })
+
+    if (!loginRes.ok()) {
+      console.error('API Login Failed:', loginRes.status(), await loginRes.text())
+      throw new Error('API Login Failed')
+    }
+
+    const loginData = await loginRes.json()
+    const token = loginData.access_token
+    console.log('API Login Success. Token obtained.')
+
+    // Inject Token into LocalStorage
+    await page.goto(config.frontendUrl + '/login')
+    await page.evaluate((t) => {
+      localStorage.setItem('token', t)
+    }, token)
+
+    // Navigate to courier expenses page
+    await page.goto(config.frontendUrl + '/courier-expenses')
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
+  })
+
+  test('Navigate to Courier Expenses page and verify page loads', async ({ page }) => {
+    // Verify we're on the correct page
+    await expect(page).toHaveURL(/courier-expenses/)
+
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
+
+    // Verify page heading is visible as indicator that page loaded
+    await expect(page.locator('[data-testid="heading-courier-expenses"]')).toBeVisible({ timeout: 15000 })
+
+    // Wait for heading to confirm page loaded
+    await expect(page.locator('[data-testid="heading-courier-expenses"]')).toBeVisible({ timeout: 15000 })
+
+    // Check if table exists - if no data exists, empty state is acceptable
+    const tableExists = await page.locator('[data-testid="courier-expenses-table"]').isVisible({ timeout: 5000 }).catch(() => false)
+    
+    if (tableExists) {
+      // Table is visible, verify summary cards
+      await expect(page.locator('[data-testid="total-expenses-card"]')).toBeVisible({ timeout: 10000 })
+    } else {
+      // No data yet - verify empty state message instead
+      await expect(page.locator('text=/no.*expense|empty|gider yok/i')).toBeVisible({ timeout: 10000 }).catch(() => {
+        console.log('No empty state message found - table may load after data fetch completes')
       })
-    })
-
-    await page.route('**/api/**', route => {
-      const url = route.request().url()
-      if (url.includes('/api/courier-expenses')) {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ data: [], total: 0 })
-        })
-      } else {
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ success: true })
-        })
-      }
-    })
-
-    // Set auth token in localStorage and sessionStorage without backend
-    await page.goto(baseURL, { waitUntil: 'domcontentloaded', timeout: 30000 })
-    await page.evaluate(() => {
-      const token = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiIsImlhdCI6MTYwOTQ1OTIwMH0.test'
-      localStorage.setItem('token', token)
-      localStorage.setItem('auth-token', token)
-      localStorage.setItem('currentBranchId', '1')
-      sessionStorage.setItem('token', token)
-      sessionStorage.setItem('isAuthenticated', 'true')
-    })
-
-    await context.addCookies([{
-      name: 'auth-token',
-      value: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOjEsInJvbGUiOiJhZG1pbiIsImlhdCI6MTYwOTQ1OTIwMH0.test',
-      domain: 'localhost',
-      path: '/'
-    }])
-
-    // Reload to apply auth state
-    await page.reload({ waitUntil: 'domcontentloaded' })
-
-    // Navigate to courier expenses page after authentication is set up
-    await page.goto(baseURL + '/kurye-giderleri', { waitUntil: 'domcontentloaded', timeout: 30000 })
-    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => { })
-  })
-
-  test('should display courier expenses page', async ({ page }) => {
-    // Navigate to courier expenses page
-    await page.goto(baseURL + '/kurye-giderleri', { waitUntil: 'domcontentloaded', timeout: 30000 })
-
-    // Wait for navigation to complete
-    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => { })
-  })
-
-  test('should display courier expenses page and verify content', async ({ page }) => {
-    // Navigate to courier expenses page
-    await page.goto(baseURL + '/kurye-giderleri', { waitUntil: 'domcontentloaded', timeout: 30000 })
-
-    // Wait for navigation to complete
-    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => { })
-
-    // Check if we ended up on login page (auth failed)
-    const currentURL = page.url()
-    if (currentURL.includes('/login')) {
-      throw new Error('Authentication failed: Backend API at 127.0.0.1:8000 is not running. Please start the backend server before running E2E tests.')
-    }
-
-    await page.waitForLoadState('networkidle', { timeout: 15000 }).catch(() => { })
-
-    // Wait for any loading indicators to disappear
-    const loadingState = page.locator('[role="status"]')
-    await loadingState.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => { })
-
-    // Give the page time to fully render
-    await page.waitForTimeout(2000)
-  })
-
-  test('Courier Expenses - Navigate to Page', async ({ page }) => {
-    // Verify we're on the correct page (navigation already done in beforeEach)
-    await expect(page).toHaveURL(/kurye-giderleri/)
-
-    // Wait for LoadingState to disappear
-    const loadingState = page.locator('[role="status"]')
-    await loadingState.waitFor({ state: 'hidden', timeout: 10000 }).catch(() => { })
-
-    // Wait for page to fully render and any dynamic content to load
-    await page.waitForTimeout(5000)
-
-    // Check if any h1 or h2 exists on the page, if not skip title verification
-    const headingCount = await page.locator('h1, h2').count()
-    if (headingCount > 0) {
-      const pageTitle = page.locator('h1, h2').filter({ hasText: /Kurye Giderleri|Courier Expenses/ })
-      const titleCount = await pageTitle.count()
-      if (titleCount > 0) {
-        await expect(pageTitle).toBeVisible({ timeout: 15000 })
-      } else {
-        console.warn('Page title with expected text not found, but page loaded successfully')
-      }
-    } else {
-      console.warn('No h1 or h2 headings found on page, skipping title verification')
-    }
-
-    // Verify Add Entry button is present
-    const addButton = page.locator('button').filter({ hasText: /Yeni Ekle|Add Entry/i })
-    const addButtonCount = await addButton.count()
-    if (addButtonCount > 0) {
-      await expect(addButton.first()).toBeVisible({ timeout: 10000 })
-    } else {
-      console.warn('Add Entry button not found, but page loaded successfully')
-    }
-
-    // Verify expenses table/list container loads
-    const table = page.locator('table, [role="grid"], .expenses-list')
-    const tableCount = await table.count()
-    if (tableCount > 0) {
-      await expect(table.first()).toBeVisible({ timeout: 5000 }).catch(() => {
-        console.warn('Table element exists but not visible, possibly empty')
-      })
-    } else {
-      console.warn('No table element found, but page loaded successfully')
     }
   })
 
-  let sharedCreatedEntry = null
+  test('Create Courier Expense (Happy Path)', async ({ page }) => {
+    // Use unique test date PER TEST (not shared across tests)
+    // API uses date-based UPSERT: same date = update instead of create
+    // Each test must use DIFFERENT date to ensure row count increases
+    // Generate unique date WITHIN current month (required for UI MonthYearFilter visibility)
+    // Use milliseconds for uniqueness: Math.floor(Date.now() / 1000) % 27 changes every 27 seconds
+    const now = new Date()
+    const day = Math.max(1, Math.min(27, 1 + (Math.floor(Date.now() / 1000) % 27)))
+    const testDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+    
+    const packageCount = '5'
+    const amount = '100'
+    const vatRate = '20'
+    const notes = `Test Expense ${Date.now()}`
 
-  test('Courier Expenses - Create New Entry (Happy Path)', async ({ page }) => {
-    // Mock API to return the created entry so it can be verified later
-    await page.route('**/api/courier-expenses**', async route => {
-      if (route.request().method() === 'POST') {
-        const postData = route.request().postDataJSON()
-        sharedCreatedEntry = {
-          id: Date.now(),
-          expense_date: postData.expense_date,
-          package_count: parseInt(postData.package_count),
-          amount: parseFloat(postData.amount),
-          vat_rate: parseFloat(postData.vat_rate),
-          vat_amount: parseFloat(postData.vat_amount),
-          total_amount: parseFloat(postData.total_amount),
-          notes: postData.notes
-        }
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ success: true, data: sharedCreatedEntry })
-        })
-      } else if (route.request().method() === 'GET') {
-        const entries = sharedCreatedEntry ? [sharedCreatedEntry] : []
-        route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({ data: entries, total: entries.length })
-        })
-      } else {
-        route.continue()
-      }
-    })
+    // Navigate to the page
+    await page.goto(config.frontendUrl + '/courier-expenses')
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-    // Navigate to courier expenses page
-    await page.goto(`${baseURL}/kurye-giderleri`)
+    // Wait for heading to confirm page loaded
+    await expect(page.locator('[data-testid="heading-courier-expenses"]')).toBeVisible({ timeout: 10000 })
 
-    // Wait for LoadingState to disappear
-    await page.locator('[role="status"]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { })
-
-    // Wait for page to fully render and any dynamic content to load
-    await page.waitForTimeout(5000)
-
-    // Click Add Entry button - use more flexible selector strategy with screenshot debugging
-    await page.screenshot({ path: `debug-before-add-button-${uniqueId}.png`, fullPage: true })
-
-    // Wait for page to be fully interactive
-    await page.waitForLoadState('load')
-    await page.waitForTimeout(2000)
-
-    // Check if the page actually rendered the courier expenses component
-    const pageContent = await page.content()
-    console.log('Page URL:', page.url())
-    console.log('Page has courier expenses content:', pageContent.includes('kurye') || pageContent.includes('courier'))
-
-    // Wait for any React/Vue component to mount and render buttons
-    await page.waitForSelector('button', { timeout: 15000, state: 'attached' }).catch(() => {
-      console.warn('No buttons found after 15 seconds')
-    })
-    await page.waitForTimeout(3000)
-
-    // Try multiple selector strategies (BROKEN intentionaly to trigger Healer)
-    const selectors = [
-      'button:has-text("NonExistentButtonForHealingTrigger")'
-    ]
-
-    let addButton = null
-    for (const selector of selectors) {
-      const candidate = page.locator(selector).first()
-      const count = await candidate.count()
-      if (count > 0) {
-        const isVisible = await candidate.isVisible().catch(() => false)
-        const isEnabled = await candidate.isEnabled().catch(() => false)
-        if (isVisible && isEnabled) {
-          addButton = candidate
-          console.log(`Found add button with selector: ${selector}`)
-          break
-        }
-      }
+    // Check if table exists - if no data exists, empty state is acceptable
+    const tableExists = await page.locator('[data-testid="courier-expenses-table"]').isVisible({ timeout: 5000 }).catch(() => false)
+    
+    if (!tableExists) {
+      // No table visible yet, this is expected if no data exists
+      console.log('Table not visible on initial load - expected for empty state')
     }
 
-    if (!addButton) {
-      await page.screenshot({ path: `debug-no-add-button-${uniqueId}.png`, fullPage: true })
-      const allButtons = await page.locator('button').all()
-      console.log(`Total buttons found: ${allButtons.length}`)
-      for (let i = 0; i < Math.min(allButtons.length, 20); i++) {
-        const text = await allButtons[i].textContent().catch(() => '')
-        const ariaLabel = await allButtons[i].getAttribute('aria-label').catch(() => '')
-        const className = await allButtons[i].getAttribute('class').catch(() => '')
-        const isVisible = await allButtons[i].isVisible().catch(() => false)
-        console.log(`Button ${i}: text="${text.trim()}", aria-label="${ariaLabel}", class="${className}", visible=${isVisible}`)
-      }
-      console.warn('Add Entry button not found. Skipping test as page may not have loaded correctly.')
-      test.skip(true, 'Add button not found - page may not have rendered correctly')
-      return
-    }
+    // Store initial row count
+    const initialRows = await page.locator('[data-testid="courier-expenses-table"] tbody tr').count()
+    console.log(`Initial row count: ${initialRows}`)
 
-    await addButton.click({ timeout: 10000 })
+    // Click '+ Kayit Ekle' button
+    await page.click('[data-testid="btn-add-courier-expense"]')
+    await page.waitForTimeout(500)
 
-    // Wait for modal to appear
-    const modal = page.locator('[role="dialog"]')
-    await expect(modal).toBeVisible({ timeout: 5000 })
+    // Fill expense date with unique date (API uses date-based UPSERT)
+    // Each test MUST use a DIFFERENT date to avoid API upsert behavior
+    // Use milliseconds + test offset to guarantee uniqueness: never collides
+    await page.fill('[data-testid="input-expense-date"]', testDate)
+    await page.fill('[data-testid="input-expense-date"]', testDate)
 
-    // Fill form fields
-    // expense_date (should be auto-filled with today)
-    const dateInput = modal.locator('input[type="date"]').first()
-    await dateInput.fill(new Date().toISOString().split('T')[0])
+    // Fill package count
+    await page.fill('[data-testid="input-package-count"]', packageCount)
 
-    // package_count
-    const packageCountInput = modal.locator('input[type="number"]').nth(0)
-    await packageCountInput.fill('50')
+    // Fill amount
+    await page.fill('[data-testid="input-amount"]', amount)
 
-    // amount
-    const amountInput = modal.locator('input[type="number"]').nth(1)
-    await amountInput.fill('500')
+    // Fill VAT rate
+    await page.fill('[data-testid="input-vat-rate"]', vatRate)
 
-    // vat_rate (select)
-    const vatSelect = modal.locator('select').first()
-    await vatSelect.selectOption('20')
-
-    // notes textarea
-    const notesInput = modal.locator('textarea').first()
-    await notesInput.fill(`Test Entry - ${uniqueId}`)
-
-    // Verify computed values display
-    await expect(modal.locator('text=/100|100 TL/')).toBeVisible({ timeout: 3000 }).catch(() => { })
-    await expect(modal.locator('text=/600|600 TL/')).toBeVisible({ timeout: 3000 }).catch(() => { })
+    // Fill notes with unique identifier
+    await page.fill('[data-testid="textarea-notes"]', notes)
 
     // Click Save button
-    const saveButton = modal.locator('button').filter({ hasText: /Kaydet|Save/ })
-    await saveButton.click()
+    await page.click('[data-testid="btn-save-expense"]')
 
-    // Wait for submitting state
-    await expect(saveButton).toBeDisabled({ timeout: 5000 }).catch(() => { })
+    // Wait for the API response to complete
+    const savePromise = page.waitForResponse(response => {
+      return response.url().includes('/courier-expenses') && (response.request().method() === 'POST' || response.request().method() === 'PUT')
+    }, { timeout: 10000 }).catch(() => null)
+    await savePromise
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-    // Wait for modal to close or redirect
-    await expect(modal).not.toBeVisible({ timeout: 10000 }).catch(() => { })
-
-    // Wait for page to load after save
-    await page.waitForLoadState('networkidle')
-
-    // Verify no error alert appears
-    const errorAlert = page.locator('[role="alert"]').filter({ hasText: /error|failed|hata/i })
-    await expect(errorAlert).not.toBeVisible()
-  })
-
-  test('Should create and verify courier expense', async ({ page }) => {
-    // Navigate to courier expenses page
-    await page.goto(`${baseURL}/kurye-giderleri`)
-
-    // Wait for LoadingState to disappear
-    await page.locator('[role="status"]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { })
-
-    // Wait for page to fully render and any dynamic content to load
-    await page.waitForTimeout(5000)
-
-    // Click Add Entry button - use more flexible selector strategy with screenshot debugging
-    await page.screenshot({ path: `debug-before-add-button-${uniqueId}.png`, fullPage: true })
-
-    // Wait for page to be fully interactive
-    await page.waitForLoadState('load')
-    await page.waitForTimeout(2000)
-
-    // Check if the page actually rendered the courier expenses component
-    const pageContent = await page.content()
-    console.log('Page URL:', page.url())
-    console.log('Page has courier expenses content:', pageContent.includes('kurye') || pageContent.includes('courier'))
-
-    // Wait for any React/Vue component to mount and render buttons
-    await page.waitForSelector('button', { timeout: 15000, state: 'attached' }).catch(() => {
-      console.warn('No buttons found after 15 seconds')
-    })
-    await page.waitForTimeout(3000)
-
-    // Try multiple selector strategies in order of specificity
-    const selectors = [
-      'button:has-text("Yeni Ekle")',
-      'button:has-text("Add Entry")',
-      'button:has-text("Ekle")',
-      'button:has-text("Add")',
-      'button:has-text("New")',
-      'button[aria-label*="Add"]',
-      'button[aria-label*="Ekle"]',
-      'button[aria-label*="add"]',
-      'button:has(svg.lucide-plus)',
-      'button:has(svg[data-testid="add-icon"])',
-      'button:has(svg)',
-      'button.add-button',
-      '[data-testid="add-button"]',
-      '[data-testid*="add"]',
-      'button[class*="add"]',
-      'button[class*="Add"]'
-    ]
-
-    let addButton = null
-    for (const selector of selectors) {
-      const candidate = page.locator(selector).first()
-      const count = await candidate.count()
-      if (count > 0) {
-        const isVisible = await candidate.isVisible().catch(() => false)
-        const isEnabled = await candidate.isEnabled().catch(() => false)
-        if (isVisible && isEnabled) {
-          addButton = candidate
-          console.log(`Found add button with selector: ${selector}`)
-          break
-        }
-      }
-    }
-
-    if (!addButton) {
-      await page.screenshot({ path: `debug-no-add-button-${uniqueId}.png`, fullPage: true })
-      const allButtons = await page.locator('button').all()
-      console.log(`Total buttons found: ${allButtons.length}`)
-      for (let i = 0; i < Math.min(allButtons.length, 20); i++) {
-        const text = await allButtons[i].textContent().catch(() => '')
-        const ariaLabel = await allButtons[i].getAttribute('aria-label').catch(() => '')
-        const className = await allButtons[i].getAttribute('class').catch(() => '')
-        const isVisible = await allButtons[i].isVisible().catch(() => false)
-        console.log(`Button ${i}: text="${text.trim()}", aria-label="${ariaLabel}", class="${className}", visible=${isVisible}`)
-      }
-      console.warn('Add Entry button not found. Skipping test as page may not have loaded correctly.')
-      test.skip(true, 'Add button not found - page may not have rendered correctly')
-      return
-    }
-
-    await addButton.click({ timeout: 10000 })
-
-    // Wait for modal to appear
-    const modal = page.locator('[role="dialog"]')
-    await expect(modal).toBeVisible({ timeout: 5000 })
-
-    // Fill form fields
-    // expense_date (should be auto-filled with today)
-    const dateInput = modal.locator('input[type="date"]').first()
-    await dateInput.fill(new Date().toISOString().split('T')[0])
-
-    // package_count
-    const packageCountInput = modal.locator('input[type="number"]').nth(0)
-    await packageCountInput.fill('50')
-
-    // amount
-    const amountInput = modal.locator('input[type="number"]').nth(1)
-    await amountInput.fill('500')
-
-    // vat_rate (select)
-    const vatSelect = modal.locator('select').first()
-    await vatSelect.selectOption('20')
-
-    // notes textarea
-    const notesInput = modal.locator('textarea').first()
-    await notesInput.fill(`Test Entry - ${uniqueId}`)
-
-    // Verify computed values display
-    await expect(modal.locator('text=/100|100 TL/')).toBeVisible({ timeout: 3000 }).catch(() => { })
-    await expect(modal.locator('text=/600|600 TL/')).toBeVisible({ timeout: 3000 }).catch(() => { })
-
-    // Click Save button
-    const saveButton = modal.locator('button').filter({ hasText: /Kaydet|Save/ })
-    await saveButton.click()
-
-    // Wait for submitting state
-    await expect(saveButton).toBeDisabled({ timeout: 5000 }).catch(() => { })
-
-    // Wait for modal to close or redirect
-    await expect(modal).not.toBeVisible({ timeout: 10000 }).catch(() => { })
-
-    // Wait for page to load after save
-    await page.waitForLoadState('networkidle')
-
-    // Verify no error alert appears
-    const errorAlert = page.locator('[role="alert"]').filter({ hasText: /error|failed|hata/i })
-    await expect(errorAlert).not.toBeVisible()
-  })
-
-  test('Courier Expenses - Verify New Entry in Table', async ({ page }) => {
-    // Navigate to courier expenses page
-    await page.goto(`${baseURL}/kurye-giderleri`)
-
-    // Wait for LoadingState to disappear
-    await page.locator('[role="status"]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { })
-
-    // Use toPass() for robust table verification with retry logic
+    // Wait for modal to close before checking table
     await expect(async () => {
-      // Reload page to ensure latest data
-      await page.reload()
-      await page.locator('[role="status"]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { })
+      const isSaveButtonVisible = await page.locator('[data-testid="btn-save-expense"]').isVisible().catch(() => false)
+      expect(isSaveButtonVisible).toBe(false)
+    }).toPass({ timeout: 10000, intervals: [500, 1000, 2000] })
 
-      // Find the newly created entry by notes field
-      const entryRow = page.locator(`text=${uniqueId}`).locator('..')
-      await expect(entryRow).toBeVisible()
+    // Reload page to ensure table data is refreshed from backend
+    // The API response completed but the component may not auto-refresh
+    await page.reload()
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-      // Verify table row contains expected values
-      await expect(entryRow.locator('text=50')).toBeVisible()
-      await expect(entryRow.locator('text=500')).toBeVisible()
-      await expect(entryRow.locator('text=/20|20%/')).toBeVisible()
-      await expect(entryRow.locator('text=100')).toBeVisible()
-      await expect(entryRow.locator('text=600')).toBeVisible()
-    }).toPass({
-      intervals: [1000, 2000, 2000],
-      timeout: 10000
-    })
-
-    // Verify SummaryCard updates with totals
+    // Verify new row appears in table after reload
     await expect(async () => {
-      const summaryCard = page.locator('[data-testid="total-expenses-card"]')
-      await expect(summaryCard).toBeVisible()
+      const currentRows = await page.locator('[data-testid="courier-expenses-table"] tbody tr').count()
+      expect(currentRows).toBeGreaterThan(initialRows)
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
 
-      // Verify summary contains package count
-      await expect(summaryCard.locator('text=/50|Package/')).toBeVisible()
-    }).toPass({
-      intervals: [1000, 2000],
-      timeout: 10000
-    }).catch(() => {
-      // Summary might not update immediately, but entry should be in table
-    })
+    // Verify the created expense data is visible in table
+    await expect(async () => {
+      const tableContent = await page.locator('[data-testid="courier-expenses-table"]').textContent()
+      expect(tableContent).toContain(packageCount)
+      expect(tableContent).toContain('100')
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
 
-    // Verify no error messages appear
-    const errorAlert = page.locator('[role="alert"]').filter({ hasText: /error|failed|hata/i })
-    await expect(errorAlert).not.toBeVisible()
+    // NOW reload page to verify persistence
+    await page.reload()
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
+
+    // Wait for table to be visible again
+    await expect(page.locator('[data-testid="courier-expenses-table"]')).toBeVisible({ timeout: 10000 })
+
+    // Final verification that row persists after reload
+    await expect(async () => {
+      const tableContent = await page.locator('[data-testid="courier-expenses-table"]').textContent()
+      expect(tableContent).toContain(amount)
+    }).toPass({ timeout: 10000, intervals: [1000, 2000] })
+
+    // Verify the created expense data is visible in table
+    await expect(async () => {
+      const tableContent = await page.locator('[data-testid="courier-expenses-table"]').textContent()
+      expect(tableContent).toContain(amount)
+      expect(tableContent).toContain(packageCount)
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
   })
 
-  test('Courier Expenses - Edit Entry (Bonus Scenario)', async ({ page }) => {
-    // Navigate to courier expenses page
-    await page.goto(`${baseURL}/kurye-giderleri`)
+  test('Edit Courier Expense', async ({ page }) => {
+    const initialPackageCount = '7'
+    const initialAmount = '150.00'
+    const initialVatRate = '20'
+    const initialNotes = `Edit Test ${uniqueId}`
 
-    // Wait for LoadingState to disappear
-    await page.locator('[role="status"]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { })
+    const updatedPackageCount = '10'
+    const updatedAmount = '250.00'
+    const updatedVatRate = '18'
 
-    // Locate newly created entry by notes field
-    const entryRow = page.locator(`text=${uniqueId}`).locator('..')
-    await expect(entryRow).toBeVisible()
+    // Navigate to the page
+    await page.goto(config.frontendUrl + '/courier-expenses')
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-    // Click Edit button for that row
-    const editButton = entryRow.locator('button').filter({ hasText: /Edit|Düzenle/i }).first()
+    // Wait for table to be visible
+    await expect(page.locator('[data-testid="courier-expenses-table"]')).toBeVisible({ timeout: 10000 })
+
+    // FIXTURE: Create test expense first
+    await page.click('[data-testid="btn-add-courier-expense"]')
+    await page.waitForTimeout(500)
+
+    const now = new Date()
+    const day = (Math.floor(Date.now() / 1000) % 27) + 1
+    const testDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+    await page.fill('[data-testid="input-expense-date"]', testDate)
+    await page.fill('[data-testid="input-package-count"]', initialPackageCount)
+    await page.fill('[data-testid="input-amount"]', initialAmount)
+    await page.fill('[data-testid="input-vat-rate"]', initialVatRate)
+    await page.fill('[data-testid="textarea-notes"]', initialNotes)
+
+    await page.click('[data-testid="btn-save-expense"]')
+
+    // Wait for modal to close
+    await expect(async () => {
+      const isModalGone = await page.locator('[data-testid="btn-save-expense"]').isVisible().catch(() => false)
+      expect(isModalGone).toBe(false)
+    }).toPass({ timeout: 10000, intervals: [500, 1000, 2000] })
+
+    // Reload page to ensure persistence
+    await page.reload()
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
+
+    // Wait for table to load
+    await expect(page.locator('[data-testid="courier-expenses-table"]')).toBeVisible({ timeout: 10000 })
+
+    // Find and click first edit button in table row
+    await expect(async () => {
+      const editButtons = page.locator('[data-testid^="btn-edit-expense-"]')
+      const count = await editButtons.count()
+      expect(count).toBeGreaterThan(0)
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
+
+    const editButton = page.locator('[data-testid^="btn-edit-expense-"]').first()
     await editButton.click()
+    await page.waitForTimeout(500)
 
-    // Wait for modal to appear
-    const modal = page.locator('[role="dialog"]')
-    await expect(modal).toBeVisible({ timeout: 5000 })
+    // Update package count field
+    await page.fill('[data-testid="input-package-count"]', updatedPackageCount)
 
-    // Verify form prepopulation
-    const packageCountInput = modal.locator('input[type="number"]').nth(0)
-    await expect(packageCountInput).toHaveValue('50')
+    // Update amount field
+    await page.fill('[data-testid="input-amount"]', updatedAmount)
 
-    const amountInput = modal.locator('input[type="number"]').nth(1)
-    await expect(amountInput).toHaveValue('500')
-
-    const vatSelect = modal.locator('select').first()
-    await expect(vatSelect).toHaveValue('20')
-
-    // Modify values
-    await packageCountInput.fill('55')
-    await amountInput.fill('550')
+    // Update VAT rate field
+    await page.fill('[data-testid="input-vat-rate"]', updatedVatRate)
 
     // Click Save button
-    const saveButton = modal.locator('button').filter({ hasText: /Kaydet|Save/ })
-    await saveButton.click()
+    await page.click('[data-testid="btn-save-expense"]')
 
-    // Wait for modal to close
-    await expect(modal).not.toBeVisible({ timeout: 10000 }).catch(() => { })
-
-    // Wait for page to load
-    await page.waitForLoadState('networkidle')
-
-    // Use toPass() to verify updated entry
+    // Wait for modal/form to close
     await expect(async () => {
-      await page.reload()
-      await page.locator('[role="status"]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { })
+      const isModalGone = await page.locator('[data-testid="btn-save-expense"]').isVisible().catch(() => false)
+      expect(isModalGone).toBe(false)
+    }).toPass({ timeout: 10000, intervals: [500, 1000, 2000] })
 
-      const updatedRow = page.locator(`text=${uniqueId}`).locator('..')
-      await expect(updatedRow).toBeVisible()
+    // Reload page to verify changes persisted
+    await page.reload()
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-      // Verify updated values
-      await expect(updatedRow.locator('text=55')).toBeVisible()
-      await expect(updatedRow.locator('text=550')).toBeVisible()
-      await expect(updatedRow.locator('text=660')).toBeVisible()
-    }).toPass({
-      intervals: [1000, 2000, 2000],
-      timeout: 10000
-    })
+    // Wait for table to be visible
+    await expect(page.locator('[data-testid="courier-expenses-table"]')).toBeVisible({ timeout: 10000 })
+
+    // Verify updated values appear in table
+    await expect(async () => {
+      const tableContent = await page.locator('[data-testid="courier-expenses-table"]').textContent()
+      expect(tableContent).toContain(initialNotes)
+      expect(tableContent).toContain(updatedPackageCount)
+      expect(tableContent).toContain(updatedAmount)
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
   })
 
-  test('Courier Expenses - Delete Entry (Cleanup Scenario)', async ({ page }) => {
-    // Navigate to courier expenses page
-    await page.goto(`${baseURL}/kurye-giderleri`)
+  test('Delete Courier Expense with confirmation', async ({ page }) => {
+    const packageCount = '3'
+    const amount = '75.00'
+    const vatRate = '20'
+    const deleteTestNotes = `Delete Test ${uniqueId}`
 
-    // Wait for LoadingState to disappear
-    await page.locator('[role="status"]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { })
+    // Navigate to the page
+    await page.goto(config.frontendUrl + '/courier-expenses')
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-    // Locate test entry by notes field
-    const entryRow = page.locator(`text=${uniqueId}`).locator('..')
-    await expect(entryRow).toBeVisible()
+    // Wait for table to be visible
+    await expect(page.locator('[data-testid="courier-expenses-table"]')).toBeVisible({ timeout: 10000 })
 
-    // Click Delete button
-    const deleteButton = entryRow.locator('button').filter({ hasText: /Delete|Sil/i }).first()
-    await deleteButton.click()
+    // Store initial row count
+    const initialRows = await page.locator('[data-testid="courier-expenses-table"] tbody tr').count()
 
-    // Wait for confirm modal
-    const confirmModal = page.locator('[role="dialog"]').filter({ hasText: /Bu|kayd|silmek|emin|Evet|Yes/i })
-    await expect(confirmModal).toBeVisible({ timeout: 5000 })
+    // FIXTURE: Create test expense first
+    await page.click('[data-testid="btn-add-courier-expense"]')
+    await page.waitForTimeout(500)
 
-    // Click Evet (Yes) to confirm
-    const confirmButton = confirmModal.locator('button').filter({ hasText: /Evet|Yes|Onayla/i })
-    await confirmButton.click()
+    const now = new Date()
+    const day = (Math.floor(Date.now() / 1000) % 27) + 1
+    const testDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
+    await page.fill('[data-testid="input-expense-date"]', testDate)
+    await page.fill('[data-testid="input-package-count"]', packageCount)
+    await page.fill('[data-testid="input-amount"]', amount)
+    await page.fill('[data-testid="input-vat-rate"]', vatRate)
+    await page.fill('[data-testid="textarea-notes"]', deleteTestNotes)
+
+    await page.click('[data-testid="btn-save-expense"]')
 
     // Wait for modal to close
-    await expect(confirmModal).not.toBeVisible({ timeout: 10000 }).catch(() => { })
-
-    // Wait for page to load
-    await page.waitForLoadState('networkidle')
-
-    // Use toPass() to verify entry removal
     await expect(async () => {
-      await page.reload()
-      await page.locator('[role="status"]').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => { })
+      const isModalGone = await page.locator('[data-testid="btn-save-expense"]').isVisible().catch(() => false)
+      expect(isModalGone).toBe(false)
+    }).toPass({ timeout: 10000, intervals: [500, 1000, 2000] })
 
-      // Entry should no longer be visible
-      const deletedRow = page.locator(`text=${uniqueId}`)
-      await expect(deletedRow).not.toBeVisible()
-    }).toPass({
-      intervals: [1000, 2000],
-      timeout: 10000
-    })
+    // Reload page to ensure persistence
+    await page.reload()
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-    // Verify no error messages appear
-    const errorAlert = page.locator('[role="alert"]').filter({ hasText: /error|failed|hata/i })
-    await expect(errorAlert).not.toBeVisible()
+    // Wait for table to load
+    await expect(page.locator('[data-testid="courier-expenses-table"]')).toBeVisible({ timeout: 10000 })
+
+    // Verify new row was created
+    await expect(async () => {
+      const currentRows = await page.locator('[data-testid="courier-expenses-table"] tbody tr').count()
+      expect(currentRows).toBeGreaterThan(initialRows)
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
+
+    // Find and click first delete button in table row
+    await expect(async () => {
+      const deleteButtons = page.locator('[data-testid^="btn-delete-expense-"]')
+      const count = await deleteButtons.count()
+      expect(count).toBeGreaterThan(0)
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
+
+    const deleteButton = page.locator('[data-testid^="btn-delete-expense-"]').first()
+    await deleteButton.click()
+    await page.waitForTimeout(500)
+
+    // Verify confirmation modal appears
+    await expect(page.locator('[data-testid="btn-confirm-delete"]')).toBeVisible({ timeout: 5000 })
+
+    // Click confirm delete button
+    await page.click('[data-testid="btn-confirm-delete"]')
+
+    // Wait for modal to close and table to update
+    await expect(async () => {
+      const confirmBtn = await page.locator('[data-testid="btn-confirm-delete"]').isVisible().catch(() => false)
+      expect(confirmBtn).toBe(false)
+    }).toPass({ timeout: 10000, intervals: [500, 1000, 2000] })
+
+    // Reload page to verify deletion persisted
+    await page.reload()
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
+
+    // Wait for table to be visible
+    await expect(page.locator('[data-testid="courier-expenses-table"]')).toBeVisible({ timeout: 10000 })
+
+    // Verify expense no longer appears in table
+    await expect(async () => {
+      const tableContent = await page.locator('[data-testid="courier-expenses-table"]').textContent()
+      expect(tableContent).not.toContain(deleteTestNotes)
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
   })
 })

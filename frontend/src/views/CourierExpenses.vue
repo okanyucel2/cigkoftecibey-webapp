@@ -240,7 +240,7 @@ async function submitBulkForm() {
   <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 class="text-2xl font-display font-bold text-gray-900">Kurye Giderleri</h1>
+      <h1 data-testid="heading-courier-expenses" class="text-2xl font-display font-bold text-gray-900">Kurye Giderleri</h1>
     </div>
 
     <!-- Error -->
@@ -250,10 +250,10 @@ async function submitBulkForm() {
     <div class="flex items-center justify-between flex-wrap gap-4">
       <MonthYearFilter v-model="filterValue" :years="years" />
       <div class="flex gap-2">
-        <button @click="openBulkModal" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
+        <button data-testid="btn-bulk-entry" @click="openBulkModal" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
           Toplu Giris
         </button>
-        <button @click="openAddModal" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
+        <button data-testid="btn-add-courier-expense" @click="openAddModal" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
           + Kayit Ekle
         </button>
       </div>
@@ -262,20 +262,24 @@ async function submitBulkForm() {
     <!-- Summary Cards -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
       <SummaryCard
+        data-testid="total-packages-card"
         label="Toplam Paket"
         :value="formatNumber(summary?.total_packages || 0)"
         variant="primary"
       />
       <SummaryCard
+        data-testid="total-amount-card"
         label="KDV Haric Tutar"
         :value="formatCurrency(summary?.total_amount || 0)"
       />
       <SummaryCard
+        data-testid="total-vat-card"
         label="KDV Tutari"
         :value="formatCurrency(summary?.total_vat || 0)"
         variant="warning"
       />
       <SummaryCard
+        data-testid="total-expenses-card"
         label="KDV Dahil Toplam"
         :value="formatCurrency(summary?.total_with_vat || 0)"
         variant="success"
@@ -313,7 +317,7 @@ async function submitBulkForm() {
       </div>
 
       <div v-else class="overflow-x-auto">
-        <table class="w-full">
+        <table data-testid="courier-expenses-table" class="w-full">
           <thead class="bg-gray-50">
             <tr>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tarih</th>
@@ -344,12 +348,14 @@ async function submitBulkForm() {
               <td class="px-4 py-3 text-right">
                 <div class="flex justify-end gap-2">
                   <button
+                    :data-testid="`btn-edit-expense-${expense.id}`"
                     @click="openEditModal(expense)"
                     class="text-blue-600 hover:text-blue-800 text-sm"
                   >
                     Duzenle
                   </button>
                   <button
+                    :data-testid="`btn-delete-expense-${expense.id}`"
                     @click="deleteExpense(expense.id)"
                     class="text-red-500 hover:text-red-700 text-sm"
                   >
@@ -389,6 +395,7 @@ async function submitBulkForm() {
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Tarih *</label>
           <input
+            data-testid="input-expense-date"
             v-model="form.expense_date"
             type="date"
             class="w-full border rounded-lg px-3 py-2"
@@ -399,6 +406,7 @@ async function submitBulkForm() {
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Paket Sayisi *</label>
           <input
+            data-testid="input-package-count"
             v-model.number="form.package_count"
             type="number"
             min="0"
@@ -412,6 +420,7 @@ async function submitBulkForm() {
           <div class="relative">
             <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">TL</span>
             <input
+              data-testid="input-amount"
               v-model.number="form.amount"
               type="number"
               step="0.01"
@@ -425,6 +434,7 @@ async function submitBulkForm() {
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">KDV Orani (%)</label>
           <input
+            data-testid="input-vat-rate"
             v-model.number="form.vat_rate"
             type="number"
             step="0.01"
@@ -448,6 +458,7 @@ async function submitBulkForm() {
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Not (opsiyonel)</label>
           <input
+            data-testid="textarea-notes"
             v-model="form.notes"
             type="text"
             class="w-full border rounded-lg px-3 py-2"
@@ -457,6 +468,7 @@ async function submitBulkForm() {
 
         <div class="flex gap-3 pt-2">
           <button
+            data-testid="btn-cancel-expense"
             type="button"
             @click="showModal = false"
             class="flex-1 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
@@ -464,6 +476,7 @@ async function submitBulkForm() {
             Iptal
           </button>
           <button
+            data-testid="btn-save-expense"
             type="submit"
             :disabled="submitting"
             class="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"

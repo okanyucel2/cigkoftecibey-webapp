@@ -47,6 +47,7 @@ export default defineConfig({
   },
   server: {
     port: 5174,
+    host: true, // Listen on all interfaces (IPv4 + IPv6) for Playwright E2E tests
     proxy: {
       '/api': {
         target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8000',
