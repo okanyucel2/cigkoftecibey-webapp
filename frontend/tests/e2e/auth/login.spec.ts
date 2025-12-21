@@ -79,4 +79,34 @@ test.describe('🔐 Login', () => {
     }
   });
 
+  test('Verify API login endpoint works', async ({ request }) => {
+    // Test the API login directly (used by other tests for bypass)
+    const loginRes = await request.post(config.backendUrl + '/api/auth/login-json', {
+      data: {
+        email: config.auth.email,
+        password: config.auth.password
+      }
+    })
+
+    expect(loginRes.ok()).toBe(true)
+
+    const data = await loginRes.json()
+    expect(data.access_token).toBeDefined()
+    expect(data.access_token.length).toBeGreaterThan(10)
+
+    console.log('API Login verified - token obtained')
+  })
+
+  test('Verify API login rejects invalid credentials', async ({ request }) => {
+    const loginRes = await request.post(config.backendUrl + '/api/auth/login-json', {
+      data: {
+        email: 'invalid@test.com',
+        password: 'wrongpassword'
+      }
+    })
+
+    expect(loginRes.ok()).toBe(false)
+    expect(loginRes.status()).toBe(401)
+  })
+
 });
