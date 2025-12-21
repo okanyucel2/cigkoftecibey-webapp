@@ -150,13 +150,47 @@ Each upgraded test file will have:
 
 **Phase 3B Results:** 1/2 tests passed, 1 skipped
 
-#### Phase 3C: Full Rewrite (Pending - separate session)
+#### Phase 3C: Full Rewrite ✅ COMPLETED (2025-12-21)
 
-| File | Status | Notes |
-|------|--------|-------|
-| unified-sales.spec.ts | ⏳ | Uses UI login, needs full rewrite |
-| dashboard.spec.ts | ⏳ | Uses UI login, needs full rewrite |
-| production.spec.ts | ⏳ | Uses UI login, needs full rewrite |
+| File | API Login | data-testid | Fixtures | Persistence | Unique Data | Smoke Tag |
+|------|-----------|-------------|----------|-------------|-------------|-----------|
+| unified-sales.spec.ts | ✅ | ⚠️ | ✅ | ✅ | ✅ (702x) | ✅ |
+| dashboard.spec.ts | ✅ | ⚠️ | ✅ | ✅ | ✅ (902x) | ✅ |
+| production.spec.ts | ✅ | ⚠️ | ✅ | ✅ | ✅ (302x) | ✅ |
+
+**Phase 3C Results:** 9/9 tests passed
+
+---
+
+## 📊 FINAL SUMMARY
+
+**Total Test Files Upgraded:** 13/13
+
+| Phase | Files | Tests Passed |
+|-------|-------|--------------|
+| Phase 1 | login, staff-meals, purchases | 14/18 |
+| Phase 2 | invitation-codes, sgk, settings | 9/9 |
+| Phase 3A | courier-expenses, personnel | 5/5 |
+| Phase 3B | dashboard-functional, business-expenses | 1/2 (1 skipped) |
+| Phase 3C | unified-sales, dashboard, production | 9/9 |
+
+**Complete Prefix Table:**
+
+| Prefix | File |
+|--------|------|
+| 101x | courier-expenses.spec.ts |
+| 102x | business-expenses.spec.ts (skipped) |
+| 201x | staff-meals.spec.ts |
+| 301x | purchases.spec.ts |
+| 302x | production.spec.ts |
+| 401x | settings.spec.ts |
+| 501x | sgk.spec.ts |
+| 601x | invitation-codes.spec.ts |
+| 701x | personnel.spec.ts |
+| 702x | unified-sales.spec.ts |
+| 800x | login.spec.ts |
+| 901x | dashboard-functional.spec.ts |
+| 902x | dashboard.spec.ts |
 
 ---
 
