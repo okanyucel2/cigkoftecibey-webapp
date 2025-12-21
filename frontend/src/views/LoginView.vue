@@ -9,6 +9,7 @@
             v-model="email"
             type="email"
             required
+            data-testid="input-email"
             class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>
@@ -18,15 +19,17 @@
             v-model="password"
             type="password"
             required
+            data-testid="input-password"
             class="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
           />
         </div>
-        <div v-if="error" class="text-red-500 text-sm p-2 bg-red-50 rounded">
+        <div v-if="error" data-testid="login-error-message" class="text-red-500 text-sm p-2 bg-red-50 rounded">
           {{ error }}
         </div>
         <button
           type="submit"
           :disabled="isLoading"
+          data-testid="btn-login"
           class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors disabled:opacity-50"
         >
           {{ isLoading ? 'Logging in...' : 'Login' }}

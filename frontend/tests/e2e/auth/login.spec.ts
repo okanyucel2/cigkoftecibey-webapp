@@ -8,15 +8,15 @@ test.describe('🔐 Login', () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to login page
     await page.goto('/login');
-    // Wait for the form to be visible
-    await expect(page.locator('form')).toBeVisible({ timeout: 10000 });
+    // Wait for the email input to be visible (more specific than just 'form')
+    await expect(page.locator('[data-testid="input-email"]')).toBeVisible({ timeout: 10000 });
   });
 
   test('Verify login page UI elements', async ({ page }) => {
-    // Check for essential inputs and buttons
-    await expect(page.locator('input[type="email"]')).toBeVisible();
-    await expect(page.locator('input[type="password"]')).toBeVisible();
-    const loginButton = page.locator('button[type="submit"]');
+    // Check for essential inputs and buttons using data-testid selectors
+    await expect(page.locator('[data-testid="input-email"]')).toBeVisible();
+    await expect(page.locator('[data-testid="input-password"]')).toBeVisible();
+    const loginButton = page.locator('[data-testid="btn-login"]');
     await expect(loginButton).toBeVisible();
 
     // Check if the page title contains "Login" or "Giriş" (Turkish equivalent)
@@ -25,13 +25,13 @@ test.describe('🔐 Login', () => {
   });
 
   test('Verify error message for incorrect credentials', async ({ page }) => {
-    // Fill with invalid data
-    await page.fill('input[type="email"]', 'wrong@example.com');
-    await page.fill('input[type="password"]', 'incorrect123');
-    await page.click('button[type="submit"]');
+    // Fill with invalid data using data-testid selectors
+    await page.fill('[data-testid="input-email"]', 'wrong@example.com');
+    await page.fill('[data-testid="input-password"]', 'incorrect123');
+    await page.click('[data-testid="btn-login"]');
 
-    // Look for error message - using robust data-testid
-    const errorMsg = page.locator('[data-testid="error-message"]').first();
+    // Look for error message - using updated data-testid
+    const errorMsg = page.locator('[data-testid="login-error-message"]');
     await expect(errorMsg).toBeVisible({ timeout: 10000 });
 
     // Check for common error texts (case-insensitive)
@@ -43,11 +43,11 @@ test.describe('🔐 Login', () => {
     // Use standardized credentials from test_config.ts
     console.log(`Attempting login with: ${config.auth.email}`);
 
-    await page.fill('input[type="email"]', config.auth.email);
-    await page.fill('input[type="password"]', config.auth.password);
+    await page.fill('[data-testid="input-email"]', config.auth.email);
+    await page.fill('[data-testid="input-password"]', config.auth.password);
 
     // Trigger login
-    await page.click('button[type="submit"]');
+    await page.click('[data-testid="btn-login"]');
 
     // Wait for navigation or success indicator
     // Wait for navigation or success indicator (allow root or dashboard)
@@ -62,7 +62,7 @@ test.describe('🔐 Login', () => {
 
 
   test('Test password visibility toggle', async ({ page }) => {
-    const passwordInput = page.locator('input[type="password"]');
+    const passwordInput = page.locator('[data-testid="input-password"]');
     const toggleButton = page.locator('.password-toggle, .toggle-password, [aria-label*="password"]').first();
 
     if (await toggleButton.isVisible()) {
