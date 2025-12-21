@@ -1,3 +1,5 @@
+// Genesis Auto-Fix Version: 10 (Last: 2025-12-21 16:50:16)
+
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { StaffMeal, StaffMealSummary } from '@/types'
@@ -153,15 +155,15 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
   <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 class="text-2xl font-display font-bold text-gray-900">Personel Yemek</h1>
+      <h1 class="text-2xl font-display font-bold text-gray-900" data-testid="heading-staff-meals">Personel Yemek</h1>
       <div class="flex gap-3 items-center flex-wrap">
-        <MonthYearFilter v-model="filterValue" :years="years" />
-        <button
-          @click="openAddForm"
-          class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-        >
-          + Yeni Kayit
-        </button>
+        <MonthYearFilter v-model="filterValue" :years="years" />      <button
+        @click="openAddForm"
+        data-testid="btn-add-staff-meal"
+        class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
+      >
+        + Yeni Kayit
+      </button>
       </div>
     </div>
 
@@ -192,7 +194,7 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
     </div>
 
     <!-- Table -->
-    <div class="bg-white rounded-lg shadow overflow-hidden">
+    <div class="bg-white rounded-lg shadow overflow-hidden" data-testid="staff-meals-table">
       <LoadingState v-if="loading" />
 
       <div v-else-if="meals.length === 0" class="p-8 text-center text-gray-500">
@@ -231,12 +233,14 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
               <div class="flex items-center justify-center gap-2">
                 <button
                   @click="openEditForm(meal)"
+                  data-testid="btn-edit-staff-meal"
                   class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1"
                 >
                   Duzenle
                 </button>
                 <button
                   @click="deleteMeal(meal.id)"
+                  data-testid="btn-delete-staff-meal"
                   class="text-red-600 hover:text-red-800 text-sm px-2 py-1"
                 >
                   Sil
@@ -260,6 +264,7 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
           <input
             v-model="form.meal_date"
             type="date"
+            data-testid="input-meal-date"
             class="w-full border rounded-lg px-3 py-2"
             required
           />
@@ -272,6 +277,7 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
             type="number"
             step="0.01"
             min="0"
+            data-testid="input-unit-price"
             class="w-full border rounded-lg px-3 py-2"
             required
           />
@@ -283,6 +289,7 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
             v-model.number="form.staff_count"
             type="number"
             min="1"
+            data-testid="input-staff-count"
             class="w-full border rounded-lg px-3 py-2"
             required
           />
@@ -295,12 +302,13 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
 
         <div>
           <label class="block text-sm font-medium text-gray-700 mb-1">Not</label>
-          <input
+          <textarea
             v-model="form.notes"
-            type="text"
+            data-testid="textarea-notes"
             class="w-full border rounded-lg px-3 py-2"
             placeholder="Opsiyonel not..."
-          />
+            rows="3"
+          ></textarea>
         </div>
 
         <div class="flex justify-end gap-3 pt-4">
@@ -313,6 +321,7 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
           </button>
           <button
             type="submit"
+            data-testid="btn-save-staff-meal"
             :disabled="submitting"
             class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
           >

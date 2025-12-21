@@ -1,8 +1,8 @@
 
 import { test, expect } from '@playwright/test';
-import { config } from './test_config';
+import { config } from '../_config/test_config';
 
-test.describe('Unified Sales UI @smoke', () => {
+test.describe('💰 Satış Girişi', () => {
 
     test.beforeEach(async ({ page }) => {
         page.on('console', msg => console.log(`BROWSER LOG: ${msg.text()}`));

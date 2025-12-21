@@ -1,8 +1,8 @@
 
 import { test, expect } from '@playwright/test';
-import { config } from '../test_config';
+import { config } from '../_config/test_config';
 
-test.describe('Dashboard Data Integrity (Functional)', () => {
+test.describe('📊 Dashboard Functional', () => {
 
     test.beforeEach(async ({ page }) => {
         // Log console for debugging

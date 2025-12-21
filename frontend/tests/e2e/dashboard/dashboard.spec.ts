@@ -1,10 +1,10 @@
 
 import { test, expect } from '@playwright/test';
-import { config } from './test_config';
+import { config } from '../_config/test_config';
 
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Dashboard Data Integrity Validation', () => {
+test.describe('📊 Dashboard KPI', () => {
   test.setTimeout(120000);
 
   test('validates KPI calculations against seeded transactions', async ({ page }) => {

@@ -1,10 +1,10 @@
 // Genesis Auto-Fix Version: 5 (Last: 2025-12-21 00:40:43)
 import { test, expect } from '@playwright/test'
-import { config } from './test_config'
+import { config } from '../_config/test_config'
 
 test.describe.configure({ mode: 'serial' })
 
-test.describe('Expenses - Happy Path (Add & Verify)', () => {
+test.describe('💸 İşletme Giderleri', () => {
   const baseURL = config.frontendUrl
 
   test.beforeEach(async ({ page }) => {

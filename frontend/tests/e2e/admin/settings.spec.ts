@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { config } from './test_config';
+import { config } from '../_config/test_config';
 
-test.describe('Settings UI @smoke', () => {
+test.describe('⚙️ Sistem Ayarları', () => {
 
     test.beforeEach(async ({ page }) => {
         page.on('console', msg => console.log(`BROWSER LOG: ${msg.text()}`));

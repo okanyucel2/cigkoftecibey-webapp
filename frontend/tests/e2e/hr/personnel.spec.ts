@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
-import { config } from './test_config';
+import { config } from '../_config/test_config';
 
 test.describe.configure({ mode: 'serial' });
 
-test.describe('Personnel Management - Create Personnel', () => {
+test.describe('👥 Personel Yönetimi', () => {
 
   test.beforeEach(async ({ page, request }) => {
     test.setTimeout(60000);

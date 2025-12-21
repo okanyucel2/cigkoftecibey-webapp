@@ -1,7 +1,8 @@
+// Pre-flight check: Authentication must work before deploy
 import { test, expect } from '@playwright/test';
-import { config } from './test_config';
+import { config } from '../_config/test_config';
 
-test.describe('Login Page Tests @smoke', () => {
+test.describe('🔐 Login', () => {
 
   test.beforeEach(async ({ page }) => {
     // Navigate to login page

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { config } from './test_config';
+import { config } from '../_config/test_config';
 
-test.describe('SGK ve Prim Yönetimi', () => {
+test.describe('📋 SGK ve Prim', () => {
     // Login before each test
     test.beforeEach(async ({ page }) => {
         await page.goto('/login');
