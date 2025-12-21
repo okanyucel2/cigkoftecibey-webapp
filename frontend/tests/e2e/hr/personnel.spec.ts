@@ -1,9 +1,15 @@
+// @smoke
+// Pre-flight check: Personnel management CRUD operations
 import { test, expect } from '@playwright/test';
 import { config } from '../_config/test_config';
 
 test.describe.configure({ mode: 'serial' });
 
 test.describe('👥 Personel Yönetimi', () => {
+  // Unique prefix 701x for personnel (700-799 range)
+  const uniquePrefix = '701'
+  const uniqueSuffix = Date.now().toString().slice(-4)
+  const uniqueId = `${uniquePrefix}_${uniqueSuffix}`
 
   test.beforeEach(async ({ page, request }) => {
     test.setTimeout(60000);
@@ -42,9 +48,8 @@ test.describe('👥 Personel Yönetimi', () => {
   });
 
   test('Create Personnel - Happy Path', async ({ page }) => {
-    const uniqueId = Date.now().toString();
     const uniqueName = `Test Employee ${uniqueId}`;
-    const testSalary = '5000';
+    const testSalary = '7011';  // 701 prefix + operation 1
 
     await page.goto(config.frontendUrl + '/personnel');
     await page.waitForLoadState('networkidle');
@@ -87,8 +92,10 @@ test.describe('👥 Personel Yönetimi', () => {
       const personnelList = page.locator('[data-testid="personnel-list"]');
       const rows = personnelList.locator('tr:has-text("' + uniqueName + '")');
       await expect(rows.first()).toBeVisible();
-      const salaryCell = rows.first().locator('text=/5[,.]?000/');
+      const salaryCell = rows.first().locator('text=/7[,.]?011|7011/');
       await expect(salaryCell).toBeVisible();
     }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] });
+
+    console.log('Personnel created and verified:', uniqueName);
   });
 });

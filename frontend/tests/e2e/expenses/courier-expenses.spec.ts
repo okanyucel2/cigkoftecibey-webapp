@@ -1,4 +1,5 @@
-// Genesis Auto-Fix Version: 45 (Last: 2025-12-21 15:28:15)
+// @smoke @critical
+// Pre-flight check: Courier expense CRUD operations (Genesis Gold Standard)
 import { test, expect } from '@playwright/test'
 
 test.describe.configure({ mode: 'serial' })
@@ -6,8 +7,10 @@ test.describe.configure({ mode: 'serial' })
 import { config } from '../_config/test_config'
 
 test.describe('🛵 Kurye Giderleri', () => {
-  const baseURL = config.frontendUrl
-  const uniqueId = Date.now().toString()
+  // Unique prefix 101x for courier-expenses (100-199 range)
+  const uniquePrefix = '101'
+  const uniqueSuffix = Date.now().toString().slice(-4)
+  const uniqueId = `${uniquePrefix}_${uniqueSuffix}`
 
   test.beforeEach(async ({ page, request }) => {
     test.setTimeout(60000)
