@@ -109,7 +109,7 @@ onMounted(() => {
 
       <!-- Login Form -->
       <div class="card">
-        <div v-if="error" data-testid="error-message"
+        <div v-if="error" data-testid="login-error-message"
           class="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
           {{ error }}
         </div>
@@ -139,17 +139,17 @@ onMounted(() => {
               <label for="email" class="block text-sm font-medium text-gray-700 mb-1">
                 Email
               </label>
-              <input id="email" v-model="email" type="email" required class="input" placeholder="ornek@email.com" />
+              <input id="email" v-model="email" type="email" required class="input" placeholder="ornek@email.com" data-testid="input-email" />
             </div>
 
             <div>
               <label for="password" class="block text-sm font-medium text-gray-700 mb-1">
                 Sifre
               </label>
-              <input id="password" v-model="password" type="password" required class="input" placeholder="••••••••" />
+              <input id="password" v-model="password" type="password" required class="input" placeholder="••••••••" data-testid="input-password" />
             </div>
 
-            <button type="submit" :disabled="authStore.loading" class="w-full btn btn-primary h-11">
+            <button type="submit" :disabled="authStore.loading" class="w-full btn btn-primary h-11" data-testid="btn-login">
               <span v-if="authStore.loading">Giris yapiliyor...</span>
               <span v-else>Giris Yap</span>
             </button>
