@@ -1,3 +1,5 @@
+// @smoke @critical
+// Pre-flight check: Staff meal CRUD operations
 import { test, expect } from '@playwright/test'
 
 test.describe.configure({ mode: 'serial' })
@@ -6,7 +8,10 @@ import { config } from '../_config/test_config'
 
 test.describe('🍽️ Personel Yemek', () => {
   const baseURL = config.frontendUrl
-  const uniqueId = Date.now().toString()
+  // Unique prefix 201x for staff-meals (200-299 range)
+  const uniquePrefix = '201'
+  const uniqueSuffix = Date.now().toString().slice(-4)
+  const uniqueId = `${uniquePrefix}_${uniqueSuffix}`
 
   test.beforeEach(async ({ page, request }) => {
     test.setTimeout(60000)
@@ -79,7 +84,7 @@ test.describe('🍽️ Personel Yemek', () => {
 
     // Use UNIQUE values that are unlikely to exist in database (for verification)
     const uniqueNotes = `Test Meal ${uniqueId}`
-    const unitPrice = '150'
+    const unitPrice = '2011'  // Prefix 201 + operation 1 (create)
     const staffCount = '5'
 
     // Navigate to the page
@@ -144,8 +149,8 @@ test.describe('🍽️ Personel Yemek', () => {
     const day = (Math.floor(Date.now() / 1000) % 27) + 1
     const testDate = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`
     const uniqueNotes = `Edit Test ${uniqueId}`
-    const initialStaffCount = '5'
-    const updatedStaffCount = '10'
+    const initialStaffCount = '2021'  // Prefix 202 + operation 1
+    const updatedStaffCount = '2022'  // Prefix 202 + operation 2
 
     // Navigate to the page
     await page.goto(config.frontendUrl + '/staff-meals')
