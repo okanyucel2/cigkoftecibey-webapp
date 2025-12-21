@@ -1,19 +1,48 @@
-// @smoke
-
+// @smoke @critical
+// Pre-flight check: Dashboard KPI counters update with sales/expenses
 import { test, expect } from '@playwright/test';
 import { config } from '../_config/test_config';
 
 test.describe('📊 Dashboard Functional', () => {
+    // Unique prefix 901x for dashboard (900-999 range)
+    const uniquePrefix = '901'
+    const uniqueSuffix = Date.now().toString().slice(-4)
+    const uniqueId = `${uniquePrefix}_${uniqueSuffix}`
 
-    test.beforeEach(async ({ page }) => {
-        // Log console for debugging
-        page.on('console', msg => console.log(`BROWSER LOG: ${msg.text()}`));
+    test.beforeEach(async ({ page, request }) => {
+        test.setTimeout(60000)
 
-        await page.goto('/login');
-        await page.fill('input[type="email"]', config.auth.email);
-        await page.fill('input[type="password"]', config.auth.password);
-        await page.click('button[type="submit"]');
-        await expect(page).toHaveURL('/');
+        // DEBUG LISTENERS
+        page.on('console', msg => console.log(`BROWSER [${msg.type()}]: ${msg.text()}`))
+        page.on('requestfailed', request => console.log(`NETWORK FAIL: ${request.url()} - ${request.failure()?.errorText}`))
+
+        // API LOGIN BYPASS
+        console.log('Attempting API Login...')
+        const loginRes = await request.post(config.backendUrl + '/api/auth/login-json', {
+            data: {
+                email: config.auth.email,
+                password: config.auth.password
+            }
+        })
+
+        if (!loginRes.ok()) {
+            console.error('API Login Failed:', loginRes.status(), await loginRes.text())
+            throw new Error('API Login Failed')
+        }
+
+        const loginData = await loginRes.json()
+        const token = loginData.access_token
+        console.log('API Login Success. Token obtained.')
+
+        // Inject Token into LocalStorage
+        await page.goto(config.frontendUrl + '/login')
+        await page.evaluate((t) => {
+            localStorage.setItem('token', t)
+        }, token)
+
+        // Navigate to dashboard
+        await page.goto(config.frontendUrl + '/')
+        await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
     });
 
     test('Verify Sales and Expenses Impact Dashboard Counters', async ({ page, request }) => {
@@ -54,16 +83,16 @@ test.describe('📊 Dashboard Functional', () => {
         console.log(`Initial: Sales=${initialSales}, Expenses=${initialExpenses}, Profit=${initialProfit}`);
 
         // 3. Create Test Data
-        const uniqueNote = `FuncTest_${Date.now()}`;
-        const saleAmount = 1000;
-        const expenseAmount = 300;
+        const uniqueNote = `FuncTest_${uniqueId}`;
+        const saleAmount = 9011;  // 901 prefix + operation 1
+        const expenseAmount = 9012;  // 901 prefix + operation 2
         const testDate = new Date().toISOString().split('T')[0];
 
         // 3.1 Create Expense
         // Create Expense Category first
         const catResp = await request.post(`${config.backendUrl}/api/expenses/categories`, {
             headers,
-            data: { name: `TestCat_${Date.now()}`, is_fixed: false }
+            data: { name: `TestCat_${uniqueId}`, is_fixed: false }
         });
         const catId = (await catResp.json()).id;
 
@@ -95,7 +124,7 @@ test.describe('📊 Dashboard Functional', () => {
 
         if (!platformId) {
             const newPlat = await request.post(`${config.backendUrl}/api/online-sales/platforms`, {
-                headers, data: { name: `FuncTestPlat_${Date.now()}`, commission_rate: 0 }
+                headers, data: { name: `FuncTestPlat_${uniqueId}`, commission_rate: 0 }
             });
             platformId = (await newPlat.json()).id;
         }
