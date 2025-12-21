@@ -1,3 +1,4 @@
+// @smoke
 // Pre-flight check: Authentication must work before deploy
 import { test, expect } from '@playwright/test';
 import { config } from '../_config/test_config';
