@@ -130,6 +130,34 @@ Each upgraded test file will have:
 
 **Phase 2 Results:** 9/9 tests passed
 
+### Phase 3 Progress ✅ COMPLETED (2025-12-21)
+
+#### Phase 3A: Quick Wins (already compliant, add tags)
+
+| File | API Login | data-testid | Fixtures | Persistence | Unique Data | Smoke Tag |
+|------|-----------|-------------|----------|-------------|-------------|-----------|
+| courier-expenses.spec.ts | ✅ | ✅ | ✅ | ✅ | ✅ (101x) | ✅ |
+| personnel.spec.ts | ✅ | ✅ | ✅ | ✅ | ✅ (701x) | ✅ |
+
+**Phase 3A Results:** 5/5 tests passed
+
+#### Phase 3B: API Login Bypass
+
+| File | API Login | data-testid | Fixtures | Persistence | Unique Data | Smoke Tag | Notes |
+|------|-----------|-------------|----------|-------------|-------------|-----------|-------|
+| dashboard-functional.spec.ts | ✅ | ⚠️ | ✅ | ✅ | ✅ (901x) | ✅ | Uses CSS classes |
+| business-expenses.spec.ts | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ (102x) | ✅ | SKIPPED: ExpenseForm needs data-testid |
+
+**Phase 3B Results:** 1/2 tests passed, 1 skipped
+
+#### Phase 3C: Full Rewrite (Pending - separate session)
+
+| File | Status | Notes |
+|------|--------|-------|
+| unified-sales.spec.ts | ⏳ | Uses UI login, needs full rewrite |
+| dashboard.spec.ts | ⏳ | Uses UI login, needs full rewrite |
+| production.spec.ts | ⏳ | Uses UI login, needs full rewrite |
+
 ---
 
 ## 6. Reference: Best Example
