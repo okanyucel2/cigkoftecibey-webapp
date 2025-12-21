@@ -52,9 +52,11 @@ test.describe('📦 Mal Alımı', () => {
     await expect(page).toHaveURL(/purchases/)
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-    // Verify page loaded - look for heading or table
-    const pageLoaded = await page.locator('h1, h2, [data-testid="heading-purchases"]').first().isVisible({ timeout: 10000 }).catch(() => false)
-    expect(pageLoaded).toBe(true)
+    // Verify page loaded with retry pattern
+    await expect(async () => {
+      const pageLoaded = await page.locator('h1, h2, table').first().isVisible()
+      expect(pageLoaded).toBe(true)
+    }).toPass({ timeout: 10000, intervals: [1000, 2000] })
   })
 
   test('Create Purchase via API and verify in UI', async ({ page, request }) => {
@@ -90,12 +92,25 @@ test.describe('📦 Mal Alımı', () => {
     })
 
     expect(purchaseRes.ok()).toBe(true)
+    console.log(`Created purchase with notes: ${uniqueNotes}`)
 
-    // Reload page and verify in UI
+    // Reload page and verify in UI with retry
     await page.reload()
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-    // Verify record appears
-    await expect(page.locator('table')).toContainText(uniqueNotes, { timeout: 15000 })
+    // Verify record appears with retry pattern
+    await expect(async () => {
+      const tableContent = await page.locator('table').textContent()
+      expect(tableContent).toContain(uniqueNotes)
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
+
+    // Persistence verification - reload again
+    await page.reload()
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
+
+    await expect(async () => {
+      const tableContent = await page.locator('table').textContent()
+      expect(tableContent).toContain(uniqueNotes)
+    }).toPass({ timeout: 10000, intervals: [1000, 2000] })
   })
 })
