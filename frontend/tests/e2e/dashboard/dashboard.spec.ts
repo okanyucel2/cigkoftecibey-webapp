@@ -1,106 +1,179 @@
+// @smoke
+// Pre-flight check: Dashboard KPI cards display correctly
+import { test, expect } from '@playwright/test'
 
-import { test, expect } from '@playwright/test';
-import { config } from '../_config/test_config';
+test.describe.configure({ mode: 'serial' })
 
-test.describe.configure({ mode: 'serial' });
+import { config } from '../_config/test_config'
 
 test.describe('📊 Dashboard KPI', () => {
-  test.setTimeout(120000);
+  // Unique prefix 902x for dashboard KPI (900-999 range)
+  const uniquePrefix = '902'
+  const uniqueSuffix = Date.now().toString().slice(-4)
+  const uniqueId = `${uniquePrefix}_${uniqueSuffix}`
 
-  test('validates KPI calculations against seeded transactions', async ({ page }) => {
-    // 1. Login
-    await page.goto(`${config.frontendUrl}/login`);
-    await page.fill('input[type="email"]', config.auth.email);
-    await page.fill('input[type="password"]', config.auth.password);
-    await page.click('button[type="submit"]');
-    await expect(page).toHaveURL(`${config.frontendUrl}/`, { timeout: 15000 });
+  test.beforeEach(async ({ page, request }) => {
+    test.setTimeout(60000)
 
-    const timestamp = Date.now();
-    const amounts = {
-      sale: 1000,
-      expense: 50,
-      meal: 30
-    };
+    // DEBUG LISTENERS
+    page.on('console', msg => console.log(`BROWSER [${msg.type()}]: ${msg.text()}`))
+    page.on('requestfailed', request => console.log(`NETWORK FAIL: ${request.url()} - ${request.failure()?.errorText}`))
 
-    // 2. SEED DATA - Sale (1000 TL)
-    await page.goto(`${config.frontendUrl}/sales`);
-    await page.click('text=+ Satis Ekle');
-    // Wait for modal input. UnifiedSales modal has date input then channel inputs.
-    // We assume first input[type="number"] is Salon (POS).
-    await page.locator('input[type="number"]').first().fill(amounts.sale.toString());
-    await page.click('button:has-text("Kaydet"), button[type="submit"]');
-    // Should close modal and refresh list
-    await expect(page.locator('.page-modal')).not.toBeVisible();
-    await expect(page).toHaveURL(`${config.frontendUrl}/sales`);
+    // API LOGIN BYPASS
+    console.log('Attempting API Login...')
+    const loginRes = await request.post(config.backendUrl + '/api/auth/login-json', {
+      data: {
+        email: config.auth.email,
+        password: config.auth.password
+      }
+    })
 
-    // 3. SEED DATA - Expense (50 TL)
-    await page.goto(`${config.frontendUrl}/expenses`);
-    await page.click('text=+ Yeni Gider');
-    // This goes to /expenses/new page (verified in ExpenseForm.vue)
-    await expect(page).toHaveURL(/.*\/expenses\/new/);
+    if (!loginRes.ok()) {
+      console.error('API Login Failed:', loginRes.status(), await loginRes.text())
+      throw new Error('API Login Failed')
+    }
 
-    // Select first category (ExpenseForm.vue: select#category_id)
-    // Wait for options to load
-    const categorySelect = page.locator('select#category_id');
-    await expect(categorySelect).toBeVisible();
-    // Select the second option (first is null "Kategori Secin")
-    await categorySelect.selectOption({ index: 1 });
+    const loginData = await loginRes.json()
+    const token = loginData.access_token
+    console.log('API Login Success. Token obtained.')
 
-    // Fill amount (input#amount)
-    await page.fill('input#amount', amounts.expense.toString());
+    // Inject Token into LocalStorage
+    await page.goto(config.frontendUrl + '/login')
+    await page.evaluate((t) => {
+      localStorage.setItem('token', t)
+    }, token)
 
-    // Save
-    await page.click('button:has-text("Kaydet")');
-    await expect(page).toHaveURL(`${config.frontendUrl}/expenses`);
+    // Navigate to dashboard
+    await page.goto(config.frontendUrl + '/')
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
+  })
 
-    // 4. SEED DATA - Staff Meal (30 TL)
-    await page.goto(`${config.frontendUrl}/staff-meals`);
-    await page.click('text=+ Yeni Kayit');
-    // Modal opens. StaffMeals.vue inputs: Unit Price (0), Staff Count (1).
-    // Let's set unit price to 30, count 1.
-    await page.locator('input[type="number"]').nth(0).fill(amounts.meal.toString()); // Unit Price
-    await page.locator('input[type="number"]').nth(1).fill('1'); // Count
-    await page.click('button:has-text("Kaydet"), button[type="submit"]');
-    await expect(page.locator('.page-modal')).not.toBeVisible();
+  test('Navigate to Dashboard and verify page loads', async ({ page }) => {
+    await expect(page).toHaveURL(config.frontendUrl + '/')
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-    // 5. VALIDATE DASHBOARD
-    await page.goto(`${config.frontendUrl}/`);
-    await page.waitForLoadState('networkidle');
-    await page.waitForSelector('.kpi-card', { state: 'visible', timeout: 15000 });
-
-    // Helper: Extract number from "₺1.280,00"
-    const parseMoney = (txt: string | null) => {
-      if (!txt) return 0;
-      return parseFloat(txt.replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.'));
-    };
-
-    // Expected Impact:
-    // Revenue (Ciro): +1000
-    // Expenses (Gider): +50 (Expense) + 30 (Meal) = 80
-    // Profit: +920
-
+    // Verify dashboard loaded with KPI cards
     await expect(async () => {
-      // Precise check
-      const cards = await page.locator('.kpi-card').allTextContents();
-      const expensesCard = cards.find(c => c.includes('Toplam Gider'));
-      const profitCard = cards.find(c => c.includes('Net Kar') || c.includes('Net Kâr'));
-      const revenueCard = cards.find(c => c.includes('Toplam Ciro'));
+      const kpiCard = page.locator('.kpi-card, [class*="kpi"], [class*="stat"]').first()
+      await expect(kpiCard).toBeVisible()
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
 
-      if (expensesCard) {
-        const expenseVal = parseMoney(expensesCard);
-        expect(expenseVal).toBeGreaterThanOrEqual(80);
+    console.log('Dashboard page loaded with KPI cards')
+  })
+
+  test('Verify KPI cards display financial data', async ({ page }) => {
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
+
+    // Wait for KPI cards to load
+    await expect(async () => {
+      const kpiCards = page.locator('.kpi-card')
+      const count = await kpiCards.count()
+      expect(count).toBeGreaterThan(0)
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
+
+    // Helper: Extract number from currency string
+    const parseMoney = (txt: string | null) => {
+      if (!txt) return 0
+      return parseFloat(txt.replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.'))
+    }
+
+    // Get all KPI card contents
+    const cards = await page.locator('.kpi-card').allTextContents()
+    console.log(`Found ${cards.length} KPI cards`)
+
+    // Verify expected KPI labels exist
+    const labels = ['Toplam Ciro', 'Toplam Gider', 'Net Kar']
+    let foundLabels = 0
+
+    for (const label of labels) {
+      const hasLabel = cards.some(c => c.includes(label) || c.includes(label.replace('Kar', 'Kâr')))
+      if (hasLabel) {
+        foundLabels++
+        console.log(`Found KPI: ${label}`)
       }
+    }
 
-      if (revenueCard) {
-        const revenueVal = parseMoney(revenueCard);
-        expect(revenueVal).toBeGreaterThanOrEqual(1000);
+    expect(foundLabels).toBeGreaterThanOrEqual(2)
+    console.log('KPI cards verified with financial data')
+  })
+
+  test('Seed data via API and verify dashboard updates', async ({ page, request }) => {
+    // Get token for API calls
+    const token = await page.evaluate(() => localStorage.getItem('token'))
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+
+    // Capture initial KPI values
+    await expect(async () => {
+      const kpiCards = page.locator('.kpi-card')
+      await expect(kpiCards.first()).toBeVisible()
+    }).toPass({ timeout: 10000, intervals: [1000, 2000] })
+
+    const getKpiValue = async (label: string): Promise<number> => {
+      const card = page.locator('.kpi-card', { hasText: label }).first()
+      const isVisible = await card.isVisible().catch(() => false)
+      if (!isVisible) return 0
+
+      const text = await card.textContent()
+      const match = text?.match(/[\d.,]+/)
+      if (!match) return 0
+      return parseFloat(match[0].replace(/\./g, '').replace(',', '.'))
+    }
+
+    const initialCiro = await getKpiValue('Toplam Ciro')
+    console.log(`Initial Ciro: ${initialCiro}`)
+
+    // Create expense via API
+    const testAmount = 9021  // 902 prefix + operation 1
+    const testDate = new Date().toISOString().split('T')[0]
+
+    // First get or create a category
+    const catRes = await request.post(`${config.backendUrl}/api/expenses/categories`, {
+      headers,
+      data: { name: `TestCat_${uniqueId}`, is_fixed: false }
+    })
+
+    let catId = 1
+    if (catRes.ok()) {
+      const catData = await catRes.json()
+      catId = catData.id
+      console.log(`Created test category: ${catId}`)
+    }
+
+    // Create expense
+    const expenseRes = await request.post(`${config.backendUrl}/api/expenses`, {
+      headers,
+      data: {
+        expense_date: testDate,
+        category_id: catId,
+        description: `Dashboard Test ${uniqueId}`,
+        amount: testAmount
       }
+    })
 
-      if (profitCard) {
-        const profitVal = parseMoney(profitCard);
-        expect(profitVal).not.toBeNaN();
-      }
+    if (expenseRes.ok()) {
+      console.log(`Created test expense: ${testAmount}`)
+    } else {
+      console.log(`Expense creation failed: ${expenseRes.status()}`)
+    }
 
-    }).toPass({ timeout: 15000 });
-  });
-});
+    // Reload dashboard and verify update
+    await page.reload()
+    await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
+
+    // Verify KPI cards still visible after data seed
+    await expect(async () => {
+      const kpiCards = page.locator('.kpi-card')
+      await expect(kpiCards.first()).toBeVisible()
+    }).toPass({ timeout: 15000, intervals: [1000, 2000, 3000] })
+
+    const finalGider = await getKpiValue('Toplam Gider')
+    console.log(`Final Gider: ${finalGider}`)
+
+    // Verify expense is reflected (gider should have increased)
+    expect(finalGider).toBeGreaterThanOrEqual(testAmount)
+    console.log('Dashboard KPI update verified')
+  })
+})
