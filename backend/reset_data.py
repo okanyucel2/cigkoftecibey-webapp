@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """Reset transactional data while keeping master data (users, branches, products, categories)"""
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

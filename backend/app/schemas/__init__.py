@@ -576,8 +576,8 @@ class OnlinePlatformUpdate(BaseModel):
 class OnlinePlatformResponse(OnlinePlatformBase):
     id: int
     branch_id: Optional[int] = None
-    channel_type: str = "online"  # pos_salon, pos_telefon, online
-    is_system: bool = False  # True for Salon/Telefon (cannot be deleted)
+    channel_type: str = "online"  # pos_visa, pos_nakit, online
+    is_system: bool = False  # True for Visa/Nakit (cannot be deleted)
     is_active: bool
 
     class Config:

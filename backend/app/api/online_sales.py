@@ -37,7 +37,7 @@ def get_channels_grouped(db: DBSession, ctx: CurrentBranchContext):
             "is_system": p.is_system,
             "display_order": p.display_order
         }
-        if p.channel_type in ('pos_salon', 'pos_telefon'):
+        if p.channel_type in ('pos_visa', 'pos_nakit'):
             pos_channels.append(channel_data)
         else:
             online_channels.append(channel_data)
@@ -93,11 +93,11 @@ def delete_platform(platform_id: int, db: DBSession, ctx: CurrentBranchContext):
     if not platform:
         raise HTTPException(status_code=404, detail="Platform bulunamadi")
 
-    # Sistem kanalları silinemez (Salon, Telefon Paket)
+    # Sistem kanalları silinemez (Visa, Nakit)
     if platform.is_system:
         raise HTTPException(
             status_code=400,
-            detail="Sistem kanallari silinemez (Salon, Telefon Paket)"
+            detail="Sistem kanallari silinemez (Visa, Nakit)"
         )
 
     # Bu platforma ait satış var mı kontrol et

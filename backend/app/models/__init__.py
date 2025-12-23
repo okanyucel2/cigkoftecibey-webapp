@@ -330,8 +330,8 @@ class OnlinePlatform(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     branch_id: Mapped[Optional[int]] = mapped_column(ForeignKey("branches.id"), nullable=True)  # NULL = global
     name: Mapped[str] = mapped_column(String(100))
-    channel_type: Mapped[str] = mapped_column(String(20), default="online")  # pos_salon, pos_telefon, online
-    is_system: Mapped[bool] = mapped_column(Boolean, default=False)  # True for Salon/Telefon (cannot be deleted)
+    channel_type: Mapped[str] = mapped_column(String(20), default="online")  # pos_visa, pos_nakit, online
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False)  # True for Visa/Nakit (cannot be deleted)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 

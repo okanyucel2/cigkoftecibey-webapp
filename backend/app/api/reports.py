@@ -43,9 +43,9 @@ def get_dashboard_stats(db: DBSession, ctx: CurrentBranchContext):
 
     for sale in channel_sales:
         amount = Decimal(str(sale.total))
-        if sale.channel_type == 'pos_salon':
+        if sale.channel_type == 'pos_visa':
             today_salon = amount
-        elif sale.channel_type == 'pos_telefon':
+        elif sale.channel_type == 'pos_nakit':
             today_telefon = amount
         elif sale.channel_type == 'online':
             if amount > 0:
@@ -182,9 +182,9 @@ def get_daily_summary(
 
         for row in day_sales_query:
             amount = Decimal(str(row.total))
-            if row.channel_type == 'pos_salon':
+            if row.channel_type == 'pos_visa':
                 day_salon = amount
-            elif row.channel_type == 'pos_telefon':
+            elif row.channel_type == 'pos_nakit':
                 day_telefon = amount
             elif row.channel_type == 'online':
                 day_online = amount

@@ -548,8 +548,8 @@ async function submitBulkPeriodForm() {
 
 // Channel colors
 function getChannelColor(channel: any): string {
-  if (channel.channel_type === 'pos_salon') return 'bg-blue-500'
-  if (channel.channel_type === 'pos_telefon') return 'bg-orange-500'
+  if (channel.channel_type === 'pos_visa') return 'bg-blue-500'
+  if (channel.channel_type === 'pos_nakit') return 'bg-emerald-500'
   // Online platforms
   const colors = ['bg-green-500', 'bg-red-500', 'bg-purple-500', 'bg-pink-500', 'bg-indigo-500']
   const index = channels.value.online.findIndex(c => c.id === channel.id)
@@ -557,8 +557,8 @@ function getChannelColor(channel: any): string {
 }
 
 function getChannelTextColor(channel: any): string {
-  if (channel.channel_type === 'pos_salon') return 'text-blue-600'
-  if (channel.channel_type === 'pos_telefon') return 'text-orange-600'
+  if (channel.channel_type === 'pos_visa') return 'text-blue-600'
+  if (channel.channel_type === 'pos_nakit') return 'text-emerald-600'
   const colors = ['text-green-600', 'text-red-600', 'text-purple-600', 'text-pink-600', 'text-indigo-600']
   const index = channels.value.online.findIndex(c => c.id === channel.id)
   return colors[index % colors.length]
@@ -596,7 +596,7 @@ function getChannelTextColor(channel: any): string {
           Toplu Giris
         </button>
         <button @click="openAddModal" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
-          + Satis Ekle
+          + Kasa Girisi
         </button>
       </div>
     </div>
@@ -638,9 +638,9 @@ function getChannelTextColor(channel: any): string {
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <!-- POS Toplam -->
       <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-lg shadow p-4 text-white">
-        <p class="text-blue-100 text-sm">POS Toplam</p>
+        <p class="text-blue-100 text-sm">Kasa Toplam</p>
         <p class="text-2xl font-bold">{{ formatCurrency(posTotals) }}</p>
-        <p class="text-blue-100 text-xs mt-1">Salon + Telefon</p>
+        <p class="text-blue-100 text-xs mt-1">Visa + Nakit</p>
       </div>
 
       <!-- Online Toplam -->
@@ -767,9 +767,9 @@ function getChannelTextColor(channel: any): string {
             />
           </div>
 
-          <!-- POS Satislari -->
+          <!-- Kasa Satislari -->
           <div class="space-y-3">
-            <label class="block text-sm font-medium text-gray-700 border-b pb-2">POS Satislari</label>
+            <label class="block text-sm font-medium text-gray-700 border-b pb-2">Kasa Satislari</label>
             <div
               v-for="channel in channels.pos"
               :key="channel.id"
@@ -792,7 +792,7 @@ function getChannelTextColor(channel: any): string {
               </div>
             </div>
             <div class="flex justify-end text-sm text-gray-500">
-              POS Toplam: <span class="font-bold text-blue-600 ml-2">{{ formatCurrency(formPosTotal) }}</span>
+              Kasa Toplam: <span class="font-bold text-blue-600 ml-2">{{ formatCurrency(formPosTotal) }}</span>
             </div>
           </div>
 
@@ -1090,9 +1090,9 @@ function getChannelTextColor(channel: any): string {
           <!-- Kanal Girisleri -->
           <div class="flex-1 overflow-auto p-4">
             <div class="max-w-2xl mx-auto space-y-6">
-              <!-- POS Kanallari -->
+              <!-- Kasa Kanallari -->
               <div>
-                <h3 class="text-sm font-medium text-gray-500 mb-3">POS Satislari</h3>
+                <h3 class="text-sm font-medium text-gray-500 mb-3">Kasa Satislari</h3>
                 <div class="space-y-3">
                   <div
                     v-for="channel in channels.pos"
@@ -1119,7 +1119,7 @@ function getChannelTextColor(channel: any): string {
                   </div>
                 </div>
                 <div class="mt-2 text-right text-sm">
-                  <span class="text-gray-500">POS Toplam: </span>
+                  <span class="text-gray-500">Kasa Toplam: </span>
                   <span class="font-bold text-blue-600">{{ formatCurrency(bulkPeriodPosTotal) }}</span>
                 </div>
               </div>

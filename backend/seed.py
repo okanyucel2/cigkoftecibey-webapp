@@ -222,11 +222,12 @@ def seed_database():
 
         # Online Platforms (with system channels) - check for duplicates
         online_platforms = [
-            {"name": "Salon", "channel_type": "pos_salon", "is_system": True, "display_order": 1},
-            {"name": "Telefon Paket", "channel_type": "pos_telefon", "is_system": True, "display_order": 2},
-            {"name": "Trendyol", "channel_type": "online", "is_system": False, "display_order": 3},
-            {"name": "Getir", "channel_type": "online", "is_system": False, "display_order": 4},
+            {"name": "Visa", "channel_type": "pos_visa", "is_system": True, "display_order": 1},
+            {"name": "Nakit", "channel_type": "pos_nakit", "is_system": True, "display_order": 2},
+            {"name": "Getir", "channel_type": "online", "is_system": False, "display_order": 3},
+            {"name": "Trendyol", "channel_type": "online", "is_system": False, "display_order": 4},
             {"name": "Yemek Sepeti", "channel_type": "online", "is_system": False, "display_order": 5},
+            {"name": "Migros Yemek", "channel_type": "online", "is_system": False, "display_order": 6},
         ]
         created_count = 0
         for platform_data in online_platforms:
