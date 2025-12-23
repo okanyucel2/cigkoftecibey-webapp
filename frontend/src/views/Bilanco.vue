@@ -202,9 +202,9 @@ const monthlyMax = computed(() => {
       <div class="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1 pt-3 border-t border-gray-100">
         <span>Mal Alımı {{ formatCurrency(stats.today_breakdown.mal_alimi) }}</span>
         <span class="text-gray-300">•</span>
-        <span>Gider {{ formatCurrency(stats.today_breakdown.gider) }}</span>
+        <span>İşletme Giderleri {{ formatCurrency(stats.today_breakdown.gider) }}</span>
         <span class="text-gray-300">•</span>
-        <span>Staff {{ formatCurrency(stats.today_breakdown.staff) }}</span>
+        <span>Personel Yemekleri {{ formatCurrency(stats.today_breakdown.staff) }}</span>
         <span class="text-gray-300">•</span>
         <span>Kurye {{ formatCurrency(stats.today_breakdown.kurye) }}</span>
         <span class="text-gray-300">•</span>
@@ -289,9 +289,9 @@ const monthlyMax = computed(() => {
       <div class="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1 pt-3 border-t border-gray-100">
         <span>Mal Alımı {{ formatCurrency(stats.yesterday_breakdown.mal_alimi) }}</span>
         <span class="text-gray-300">•</span>
-        <span>Gider {{ formatCurrency(stats.yesterday_breakdown.gider) }}</span>
+        <span>İşletme Giderleri {{ formatCurrency(stats.yesterday_breakdown.gider) }}</span>
         <span class="text-gray-300">•</span>
-        <span>Staff {{ formatCurrency(stats.yesterday_breakdown.staff) }}</span>
+        <span>Personel Yemekleri {{ formatCurrency(stats.yesterday_breakdown.staff) }}</span>
         <span class="text-gray-300">•</span>
         <span>Kurye {{ formatCurrency(stats.yesterday_breakdown.kurye) }}</span>
         <span class="text-gray-300">•</span>
