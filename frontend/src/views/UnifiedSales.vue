@@ -569,7 +569,7 @@ function getChannelTextColor(channel: any): string {
   <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 class="text-2xl font-display font-bold text-gray-900">Gunluk Satis Girisi</h1>
+      <h1 class="text-2xl font-display font-bold text-gray-900">Kasa Hareketleri</h1>
     </div>
 
     <!-- Error -->

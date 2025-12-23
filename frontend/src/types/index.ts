@@ -148,6 +148,23 @@ export interface DaySummary {
 }
 
 export interface BilancoStats {
+  // Bugün (şu ana kadar)
+  today_date: string
+  today_day_name: string  // "Pazartesi"
+  today_revenue: number
+  today_expenses: number
+  today_profit: number
+  today_breakdown: {
+    visa: number
+    nakit: number
+    online: number
+    mal_alimi: number
+    gider: number
+    staff: number
+    kurye: number
+    parttime: number
+  }
+
   // Dün
   yesterday_date: string
   yesterday_day_name: string  // "Pazartesi"

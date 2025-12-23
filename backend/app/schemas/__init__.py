@@ -305,6 +305,14 @@ class DaySummary(BaseModel):
     amount: Decimal = Decimal("0")
 
 class BilancoStats(BaseModel):
+    # Bugün (şu ana kadar)
+    today_date: date
+    today_day_name: str  # "Pazartesi"
+    today_revenue: Decimal = Decimal("0")
+    today_expenses: Decimal = Decimal("0")
+    today_profit: Decimal = Decimal("0")
+    today_breakdown: dict[str, Decimal] = {}  # {"visa": x, "nakit": y, "online": z, ...}
+
     # Dün
     yesterday_date: date
     yesterday_day_name: str  # "Pazartesi"

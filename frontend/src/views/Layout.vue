@@ -13,7 +13,7 @@ const branchSelectorOpen = ref(false)
 
 const menuItems = [
   { path: '/', name: 'Bilanço', icon: '📊' },
-  { path: '/sales', name: 'Satis Girisi', icon: '💰' },
+  { path: '/sales', name: 'Kasa Hareketleri', icon: '💰' },
   { path: '/production', name: 'Uretim/Legen', icon: '🥙' },
   { path: '/purchases', name: 'Mal Alimi', icon: '📦' },
   { path: '/staff-meals', name: 'Personel Yemek', icon: '🍽️' },

@@ -402,10 +402,60 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
 
     # Tüm tarih aralığını kapsayan min/max tarihler
     min_date = min(last_week_start, last_month_start, day_before_yesterday)
-    max_date = yesterday
+    max_date = today  # Include today
 
     # BATCH QUERY: Tüm verileri tek seferde çek (6 query)
     daily_data = fetch_daily_data(db, branch_id, min_date, max_date)
+
+    # ===== BUGÜN =====
+    today_data = daily_data.get(today, {
+        "revenue": Decimal("0"), "purchases": Decimal("0"),
+        "expenses": Decimal("0"), "courier": Decimal("0"),
+        "parttime": Decimal("0"), "staff": Decimal("0")
+    })
+    today_revenue = today_data["revenue"]
+    today_expenses = get_day_total_expenses(today_data)
+    today_profit = today_revenue - today_expenses
+    today_day_name = TURKISH_DAYS[today.weekday()]
+
+    # Bugün kanal bazlı detay (Visa, Nakit, Online platformlar)
+    today_channel_sales = db.query(
+        OnlinePlatform.name,
+        OnlinePlatform.channel_type,
+        func.coalesce(func.sum(OnlineSale.amount), 0).label('total')
+    ).outerjoin(
+        OnlineSale,
+        and_(
+            OnlineSale.platform_id == OnlinePlatform.id,
+            OnlineSale.branch_id == branch_id,
+            OnlineSale.sale_date == today
+        )
+    ).filter(
+        OnlinePlatform.is_active == True
+    ).group_by(
+        OnlinePlatform.name,
+        OnlinePlatform.channel_type
+    ).all()
+
+    today_breakdown = {
+        "visa": Decimal("0"),
+        "nakit": Decimal("0"),
+        "online": Decimal("0"),
+        "mal_alimi": today_data["purchases"],
+        "gider": today_data["expenses"],
+        "staff": today_data["staff"],
+        "kurye": today_data["courier"],
+        "parttime": today_data["parttime"]
+    }
+
+    for row in today_channel_sales:
+        amount = Decimal(str(row.total))
+        if row.channel_type == 'pos_visa':
+            today_breakdown["visa"] = amount
+        elif row.channel_type == 'pos_nakit':
+            today_breakdown["nakit"] = amount
+        elif row.channel_type == 'online':
+            today_breakdown["online"] += amount
 
     # ===== DÜN =====
     yesterday_data = daily_data.get(yesterday, {
@@ -531,6 +581,12 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
     last_month_profit = last_month_revenue - last_month_expenses
 
     return BilancoStats(
+        today_date=today,
+        today_day_name=today_day_name,
+        today_revenue=today_revenue,
+        today_expenses=today_expenses,
+        today_profit=today_profit,
+        today_breakdown=today_breakdown,
         yesterday_date=yesterday,
         yesterday_day_name=yesterday_day_name,
         yesterday_revenue=yesterday_revenue,

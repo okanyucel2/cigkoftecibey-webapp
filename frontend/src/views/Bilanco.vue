@@ -104,6 +104,89 @@ const monthlyMax = computed(() => {
     <!-- AI Asistan -->
     <SmartInsightCard />
 
+    <!-- Bölüm 0: Bugün (Şu Ana Kadar) -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
+          <span class="text-xl">⏰</span>
+          Bugün ({{ formatDate(stats.today_date) }}, {{ stats.today_day_name }})
+        </h2>
+        <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">Anlık</span>
+      </div>
+
+      <!-- Kasa Detayları -->
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+        <!-- Visa -->
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+          <p class="text-xs text-blue-600 font-medium flex items-center gap-1">
+            <span>💳</span> Visa
+          </p>
+          <p class="text-xl font-bold text-blue-700">{{ formatCurrency(stats.today_breakdown.visa) }}</p>
+        </div>
+
+        <!-- Nakit -->
+        <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 border border-emerald-200">
+          <p class="text-xs text-emerald-600 font-medium flex items-center gap-1">
+            <span>💵</span> Nakit
+          </p>
+          <p class="text-xl font-bold text-emerald-700">{{ formatCurrency(stats.today_breakdown.nakit) }}</p>
+        </div>
+
+        <!-- Online -->
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+          <p class="text-xs text-purple-600 font-medium flex items-center gap-1">
+            <span>📱</span> Online
+          </p>
+          <p class="text-xl font-bold text-purple-700">{{ formatCurrency(stats.today_breakdown.online) }}</p>
+        </div>
+      </div>
+
+      <!-- Özet Kartları -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <!-- Toplam Ciro -->
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+          <p class="text-sm text-green-600 font-medium flex items-center gap-1">
+            <span>💰</span> Toplam Ciro
+          </p>
+          <p class="text-2xl font-bold text-green-700">{{ formatCurrency(stats.today_revenue) }}</p>
+        </div>
+
+        <!-- Toplam Gider -->
+        <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200">
+          <p class="text-sm text-orange-600 font-medium flex items-center gap-1">
+            <span>📦</span> Toplam Gider
+          </p>
+          <p class="text-2xl font-bold text-orange-700">{{ formatCurrency(stats.today_expenses) }}</p>
+        </div>
+
+        <!-- Net Kar -->
+        <div :class="[
+          'rounded-xl p-4 border',
+          stats.today_profit >= 0
+            ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200'
+            : 'bg-gradient-to-br from-red-50 to-red-100 border-red-200'
+        ]">
+          <p :class="['text-sm font-medium flex items-center gap-1', stats.today_profit >= 0 ? 'text-blue-600' : 'text-red-600']">
+            <span>📈</span> Net Kâr
+          </p>
+          <p :class="['text-2xl font-bold', stats.today_profit >= 0 ? 'text-blue-700' : 'text-red-700']">
+            {{ formatCurrency(stats.today_profit) }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Gider Detayları -->
+      <div class="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1 pt-3 border-t border-gray-100">
+        <span>Mal Alımı {{ formatCurrency(stats.today_breakdown.mal_alimi) }}</span>
+        <span class="text-gray-300">•</span>
+        <span>Gider {{ formatCurrency(stats.today_breakdown.gider) }}</span>
+        <span class="text-gray-300">•</span>
+        <span>Staff {{ formatCurrency(stats.today_breakdown.staff) }}</span>
+        <span class="text-gray-300">•</span>
+        <span>Kurye {{ formatCurrency(stats.today_breakdown.kurye) }}</span>
+      </div>
+    </div>
+
     <!-- Bölüm 1: Dün Özeti -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
       <div class="flex items-center justify-between mb-4">
@@ -172,7 +255,7 @@ const monthlyMax = computed(() => {
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
         <button @click="router.push('/sales')" class="btn btn-primary flex items-center justify-center gap-2">
           <span>💳</span>
-          <span>Satış Gir</span>
+          <span>Kasa Girişi</span>
         </button>
         <button @click="router.push('/purchases/new')" class="btn btn-secondary flex items-center justify-center gap-2">
           <span>📦</span>
