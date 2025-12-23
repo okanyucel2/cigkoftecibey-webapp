@@ -272,7 +272,7 @@ def fetch_channel_breakdown(db: DBSession, branch_id: int, start_date: date, end
 def fetch_daily_data(db: DBSession, branch_id: int, start_date: date, end_date: date) -> dict:
     """
     Belirli bir tarih aralığı için tüm günlük verileri tek seferde çeker.
-    ~200 query yerine 6 query kullanır (batch optimization).
+    ~200 query yerine 7 query kullanır (batch optimization).
 
     Returns:
         {
@@ -282,7 +282,8 @@ def fetch_daily_data(db: DBSession, branch_id: int, start_date: date, end_date: 
                 "expenses": Decimal,
                 "courier": Decimal,
                 "parttime": Decimal,
-                "staff": Decimal
+                "staff": Decimal,
+                "production": Decimal
             }
         }
     """
@@ -297,7 +298,8 @@ def fetch_daily_data(db: DBSession, branch_id: int, start_date: date, end_date: 
             "expenses": Decimal("0"),
             "courier": Decimal("0"),
             "parttime": Decimal("0"),
-            "staff": Decimal("0")
+            "staff": Decimal("0"),
+            "production": Decimal("0")
         }
         current += timedelta(days=1)
 
@@ -382,6 +384,17 @@ def fetch_daily_data(db: DBSession, branch_id: int, start_date: date, end_date: 
         if row.meal_date in result:
             result[row.meal_date]["staff"] = row.total or Decimal("0")
 
+    # Query 7: Production (Üretim/Leğen)
+    production_rows = db.query(DailyProduction).filter(
+        DailyProduction.branch_id == branch_id,
+        DailyProduction.production_date >= start_date,
+        DailyProduction.production_date <= end_date
+    ).all()
+
+    for row in production_rows:
+        if row.production_date in result:
+            result[row.production_date]["production"] = row.total_cost or Decimal("0")
+
     return result
 
 
@@ -389,7 +402,8 @@ def get_day_total_expenses(data: dict) -> Decimal:
     """Günlük toplam gideri hesapla (revenue hariç tüm alanlar)"""
     return (
         data["purchases"] + data["expenses"] +
-        data["courier"] + data["parttime"] + data["staff"]
+        data["courier"] + data["parttime"] + data["staff"] +
+        data["production"]
     )
 
 
@@ -452,7 +466,8 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
     today_data = daily_data.get(today, {
         "revenue": Decimal("0"), "purchases": Decimal("0"),
         "expenses": Decimal("0"), "courier": Decimal("0"),
-        "parttime": Decimal("0"), "staff": Decimal("0")
+        "parttime": Decimal("0"), "staff": Decimal("0"),
+        "production": Decimal("0")
     })
     today_revenue = today_data["revenue"]
     today_expenses = get_day_total_expenses(today_data)
@@ -486,7 +501,8 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
         "gider": today_data["expenses"],
         "staff": today_data["staff"],
         "kurye": today_data["courier"],
-        "parttime": today_data["parttime"]
+        "parttime": today_data["parttime"],
+        "uretim": today_data["production"]
     }
 
     for row in today_channel_sales:
@@ -502,7 +518,8 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
     yesterday_data = daily_data.get(yesterday, {
         "revenue": Decimal("0"), "purchases": Decimal("0"),
         "expenses": Decimal("0"), "courier": Decimal("0"),
-        "parttime": Decimal("0"), "staff": Decimal("0")
+        "parttime": Decimal("0"), "staff": Decimal("0"),
+        "production": Decimal("0")
     })
     yesterday_revenue = yesterday_data["revenue"]
     yesterday_expenses = get_day_total_expenses(yesterday_data)
@@ -518,7 +535,8 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
         "gider": yesterday_data["expenses"],
         "staff": yesterday_data["staff"],
         "kurye": yesterday_data["courier"],
-        "parttime": yesterday_data["parttime"]
+        "parttime": yesterday_data["parttime"],
+        "uretim": yesterday_data["production"]
     }
 
     prev_data = daily_data.get(day_before_yesterday, {"revenue": Decimal("0")})
@@ -591,7 +609,8 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
         day_data = daily_data.get(current, {
             "revenue": Decimal("0"), "purchases": Decimal("0"),
             "expenses": Decimal("0"), "courier": Decimal("0"),
-            "parttime": Decimal("0"), "staff": Decimal("0")
+            "parttime": Decimal("0"), "staff": Decimal("0"),
+            "production": Decimal("0")
         })
         rev = day_data["revenue"]
         exp = get_day_total_expenses(day_data)
@@ -627,7 +646,8 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
             day_data = daily_data.get(current, {
                 "revenue": Decimal("0"), "purchases": Decimal("0"),
                 "expenses": Decimal("0"), "courier": Decimal("0"),
-                "parttime": Decimal("0"), "staff": Decimal("0")
+                "parttime": Decimal("0"), "staff": Decimal("0"),
+                "production": Decimal("0")
             })
             last_month_revenue += day_data["revenue"]
             last_month_expenses += get_day_total_expenses(day_data)

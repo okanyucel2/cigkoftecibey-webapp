@@ -207,6 +207,8 @@ const monthlyMax = computed(() => {
         <span>Staff {{ formatCurrency(stats.today_breakdown.staff) }}</span>
         <span class="text-gray-300">•</span>
         <span>Kurye {{ formatCurrency(stats.today_breakdown.kurye) }}</span>
+        <span class="text-gray-300">•</span>
+        <span>Üretim {{ formatCurrency(stats.today_breakdown.uretim) }}</span>
       </div>
     </div>
 
@@ -292,6 +294,8 @@ const monthlyMax = computed(() => {
         <span>Staff {{ formatCurrency(stats.yesterday_breakdown.staff) }}</span>
         <span class="text-gray-300">•</span>
         <span>Kurye {{ formatCurrency(stats.yesterday_breakdown.kurye) }}</span>
+        <span class="text-gray-300">•</span>
+        <span>Üretim {{ formatCurrency(stats.yesterday_breakdown.uretim) }}</span>
       </div>
     </div>
 

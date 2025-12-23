@@ -163,6 +163,7 @@ export interface BilancoStats {
     staff: number
     kurye: number
     parttime: number
+    uretim: number
   }
 
   // Dün
@@ -181,6 +182,7 @@ export interface BilancoStats {
     staff: number
     kurye: number
     parttime: number
+    uretim: number
   }
 
   // Bu Hafta
