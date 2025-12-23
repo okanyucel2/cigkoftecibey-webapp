@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     GOOGLE_CLIENT_ID: str = ""
     GOOGLE_API_KEY: str = ""
 
+    # Anthropic (Claude Vision for OCR)
+    ANTHROPIC_API_KEY: str = ""
+
     # CORS
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",

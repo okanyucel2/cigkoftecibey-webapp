@@ -11,6 +11,8 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 
+from app.config import settings
+
 
 def parse_pos_image(image_content: bytes, media_type: str = "image/jpeg") -> dict:
     """
@@ -23,7 +25,7 @@ def parse_pos_image(image_content: bytes, media_type: str = "image/jpeg") -> dic
 
     Returns structured data with confidence score.
     """
-    client = anthropic.Anthropic()
+    client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
 
     image_base64 = base64.standard_b64encode(image_content).decode("utf-8")
 
