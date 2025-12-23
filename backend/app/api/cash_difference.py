@@ -10,7 +10,8 @@ from app.api.deps import DBSession, CurrentBranchContext
 from app.models import CashDifference, Expense, ExpenseCategory
 from app.schemas import (
     CashDifferenceCreate, CashDifferenceUpdate, CashDifferenceResponse,
-    CashDifferenceSummary, ExcelParseResult, POSParseResult
+    CashDifferenceSummary, ExcelParseResult, POSParseResult,
+    CashDifferenceImportRequest
 )
 from app.utils.excel_parser import parse_kasa_raporu
 from app.utils.pos_ocr import parse_pos_image
@@ -87,65 +88,64 @@ async def parse_pos_image_file(
 
 @router.post("/import", response_model=CashDifferenceResponse)
 def import_cash_difference(
-    data: CashDifferenceCreate,
+    request: CashDifferenceImportRequest,
     db: DBSession,
     ctx: CurrentBranchContext,
-    import_expenses: bool = Query(default=True),
-    expenses: list[dict] = []
+    import_expenses: bool = Query(default=True)
 ):
     """Import parsed data and create CashDifference record"""
     existing = db.query(CashDifference).filter(
         CashDifference.branch_id == ctx.current_branch_id,
-        CashDifference.difference_date == data.difference_date
+        CashDifference.difference_date == request.difference_date
     ).first()
 
     if existing:
-        raise HTTPException(status_code=400, detail=f"{data.difference_date} icin zaten kayit var")
+        raise HTTPException(status_code=400, detail=f"{request.difference_date} icin zaten kayit var")
 
-    diff_total = data.pos_total - data.kasa_total
+    diff_total = request.pos_total - request.kasa_total
     severity = calculate_severity(diff_total)
 
     record = CashDifference(
         branch_id=ctx.current_branch_id,
-        difference_date=data.difference_date,
-        kasa_visa=data.kasa_visa,
-        kasa_nakit=data.kasa_nakit,
-        kasa_trendyol=data.kasa_trendyol,
-        kasa_getir=data.kasa_getir,
-        kasa_yemeksepeti=data.kasa_yemeksepeti,
-        kasa_migros=data.kasa_migros,
-        kasa_total=data.kasa_total,
-        pos_visa=data.pos_visa,
-        pos_nakit=data.pos_nakit,
-        pos_trendyol=data.pos_trendyol,
-        pos_getir=data.pos_getir,
-        pos_yemeksepeti=data.pos_yemeksepeti,
-        pos_migros=data.pos_migros,
-        pos_total=data.pos_total,
+        difference_date=request.difference_date,
+        kasa_visa=request.kasa_visa,
+        kasa_nakit=request.kasa_nakit,
+        kasa_trendyol=request.kasa_trendyol,
+        kasa_getir=request.kasa_getir,
+        kasa_yemeksepeti=request.kasa_yemeksepeti,
+        kasa_migros=request.kasa_migros,
+        kasa_total=request.kasa_total,
+        pos_visa=request.pos_visa,
+        pos_nakit=request.pos_nakit,
+        pos_trendyol=request.pos_trendyol,
+        pos_getir=request.pos_getir,
+        pos_yemeksepeti=request.pos_yemeksepeti,
+        pos_migros=request.pos_migros,
+        pos_total=request.pos_total,
         status="pending",
         severity=severity,
-        excel_file_url=data.excel_file_url,
-        pos_image_url=data.pos_image_url,
-        ocr_confidence_score=data.ocr_confidence_score,
+        excel_file_url=request.excel_file_url,
+        pos_image_url=request.pos_image_url,
+        ocr_confidence_score=request.ocr_confidence_score,
         created_by=ctx.user.id
     )
 
     db.add(record)
 
-    if import_expenses and expenses:
+    if import_expenses and request.expenses:
         uncategorized = db.query(ExpenseCategory).filter(
             ExpenseCategory.name == "Kategorize Edilmemis"
         ).first()
 
         if uncategorized:
-            for exp in expenses:
-                if exp.get("amount", 0) > 0:
+            for exp in request.expenses:
+                if exp.amount > 0:
                     expense = Expense(
                         branch_id=ctx.current_branch_id,
                         category_id=uncategorized.id,
-                        expense_date=data.difference_date,
-                        description=exp.get("description", "Excel'den aktarildi"),
-                        amount=Decimal(str(exp["amount"])),
+                        expense_date=request.difference_date,
+                        description=exp.description or "Excel'den aktarildi",
+                        amount=exp.amount,
                         created_by=ctx.user.id
                     )
                     db.add(expense)

@@ -842,6 +842,17 @@ class CashDifferenceCreate(CashDifferenceBase):
     ocr_confidence_score: Optional[Decimal] = None
 
 
+class ExpenseItem(BaseModel):
+    """Single expense item from Excel import"""
+    description: str
+    amount: Decimal
+
+
+class CashDifferenceImportRequest(CashDifferenceCreate):
+    """Request body for import endpoint - includes expenses"""
+    expenses: list[ExpenseItem] = []
+
+
 class CashDifferenceUpdate(BaseModel):
     status: Optional[str] = None
     resolution_note: Optional[str] = None

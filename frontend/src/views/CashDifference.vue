@@ -4,6 +4,7 @@ import type { CashDifference, CashDifferenceSummary } from '@/types'
 import { cashDifferenceApi } from '@/services/api'
 import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
 import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+import CashDifferenceImport from './CashDifferenceImport.vue'
 
 // Use composables
 const { formatCurrency, formatDate } = useFormatters()
@@ -24,6 +25,22 @@ const statusForm = ref({
   status: 'pending' as 'pending' | 'reviewed' | 'resolved' | 'flagged',
   resolution_note: ''
 })
+
+// Import Modal
+const showImportModal = ref(false)
+
+function openImportModal() {
+  showImportModal.value = true
+}
+
+function closeImportModal() {
+  showImportModal.value = false
+}
+
+async function handleImportSuccess() {
+  showImportModal.value = false
+  await loadData()
+}
 
 // Month/Year filter value for v-model
 const filterValue = computed({
@@ -210,13 +227,13 @@ const channelComparison = computed(() => {
         </h1>
         <p class="text-sm text-gray-500 mt-1">Kasa ve POS farklarini goruntuleyin ve yonetin</p>
       </div>
-      <router-link
-        to="/kasa-farki/import"
+      <button
+        @click="openImportModal"
         class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
         data-testid="btn-import"
       >
         + Veri Yukle
-      </router-link>
+      </button>
     </div>
 
     <!-- Error -->
@@ -477,5 +494,20 @@ const channelComparison = computed(() => {
       @confirm="confirmModal.handleConfirm"
       @cancel="confirmModal.handleCancel"
     />
+
+    <!-- Import Modal -->
+    <PageModal
+      :show="showImportModal"
+      title="Kasa Farki - Veri Yukleme"
+      size="xl"
+      @close="closeImportModal"
+    >
+      <div class="p-6">
+        <CashDifferenceImport
+          @success="handleImportSuccess"
+          @cancel="closeImportModal"
+        />
+      </div>
+    </PageModal>
   </div>
 </template>
