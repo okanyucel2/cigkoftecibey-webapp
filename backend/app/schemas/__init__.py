@@ -815,3 +815,95 @@ class CourierExpenseBulkEntry(BaseModel):
 
 class CourierExpenseBulkCreate(BaseModel):
     entries: list[CourierExpenseBulkEntry]
+
+
+# Cash Difference (Kasa Farki)
+class CashDifferenceBase(BaseModel):
+    difference_date: date
+    kasa_visa: Decimal = Decimal("0")
+    kasa_nakit: Decimal = Decimal("0")
+    kasa_trendyol: Decimal = Decimal("0")
+    kasa_getir: Decimal = Decimal("0")
+    kasa_yemeksepeti: Decimal = Decimal("0")
+    kasa_migros: Decimal = Decimal("0")
+    kasa_total: Decimal = Decimal("0")
+    pos_visa: Decimal = Decimal("0")
+    pos_nakit: Decimal = Decimal("0")
+    pos_trendyol: Decimal = Decimal("0")
+    pos_getir: Decimal = Decimal("0")
+    pos_yemeksepeti: Decimal = Decimal("0")
+    pos_migros: Decimal = Decimal("0")
+    pos_total: Decimal = Decimal("0")
+
+
+class CashDifferenceCreate(CashDifferenceBase):
+    excel_file_url: Optional[str] = None
+    pos_image_url: Optional[str] = None
+    ocr_confidence_score: Optional[Decimal] = None
+
+
+class CashDifferenceUpdate(BaseModel):
+    status: Optional[str] = None
+    resolution_note: Optional[str] = None
+
+
+class CashDifferenceResponse(CashDifferenceBase):
+    id: int
+    branch_id: int
+    status: str
+    severity: str
+    resolution_note: Optional[str] = None
+    resolved_by: Optional[int] = None
+    resolved_at: Optional[datetime] = None
+    excel_file_url: Optional[str] = None
+    pos_image_url: Optional[str] = None
+    ocr_confidence_score: Optional[Decimal] = None
+    created_by: int
+    created_at: datetime
+    # Computed diffs
+    diff_visa: Decimal
+    diff_nakit: Decimal
+    diff_trendyol: Decimal
+    diff_getir: Decimal
+    diff_yemeksepeti: Decimal
+    diff_migros: Decimal
+    diff_total: Decimal
+
+    class Config:
+        from_attributes = True
+
+
+class CashDifferenceSummary(BaseModel):
+    total_records: int
+    pending_count: int
+    resolved_count: int
+    critical_count: int
+    total_diff: Decimal
+    period_start: date
+    period_end: date
+
+
+class ExcelParseResult(BaseModel):
+    """Result of parsing Excel Kasa Raporu"""
+    date: date
+    visa: Decimal
+    nakit: Decimal
+    trendyol: Decimal
+    getir: Decimal
+    yemeksepeti: Decimal
+    migros: Decimal
+    total: Decimal
+    expenses: list[dict]  # [{description: str, amount: Decimal}]
+
+
+class POSParseResult(BaseModel):
+    """Result of parsing POS image via OCR"""
+    date: date
+    visa: Decimal
+    nakit: Decimal
+    trendyol: Decimal
+    getir: Decimal
+    yemeksepeti: Decimal
+    migros: Decimal
+    total: Decimal
+    confidence_score: Decimal
