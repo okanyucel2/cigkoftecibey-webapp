@@ -7,7 +7,8 @@ import type {
   Employee, MonthlyPayroll, PayrollSummary, PartTimeCost, PartTimeCostSummary,
   OnlinePlatform, OnlineSale, DailySalesEntry, DailySalesResponse, OnlineSalesSummary,
   InvitationCode, InvitationCodeValidation, GoogleAuthResponse,
-  CourierExpense, CourierExpenseSummary
+  CourierExpense, CourierExpenseSummary,
+  CashDifference, CashDifferenceSummary, ExcelParseResult, POSParseResult
 } from '@/types'
 
 // Render production URL - fallback for when env var isn't set at build time
@@ -500,6 +501,65 @@ export const invitationCodesApi = {
 // AI Insights
 export const aiApi = {
   getDailyBrief: (forceRefresh = false) => api.get('/ai/daily-brief', { params: { force_refresh: forceRefresh } })
+}
+
+// Cash Difference (Kasa Farki)
+export const cashDifferenceApi = {
+  parseExcel: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post<ExcelParseResult>('/cash-difference/parse-excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+
+  parsePOSImage: (file: File) => {
+    const formData = new FormData()
+    formData.append('file', file)
+    return api.post<POSParseResult>('/cash-difference/parse-pos-image', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+
+  import: (data: {
+    difference_date: string
+    kasa_visa: number
+    kasa_nakit: number
+    kasa_trendyol: number
+    kasa_getir: number
+    kasa_yemeksepeti: number
+    kasa_migros: number
+    kasa_total: number
+    pos_visa: number
+    pos_nakit: number
+    pos_trendyol: number
+    pos_getir: number
+    pos_yemeksepeti: number
+    pos_migros: number
+    pos_total: number
+    excel_file_url?: string
+    pos_image_url?: string
+    ocr_confidence_score?: number
+  }, expenses?: Array<{ description: string; amount: number }>) =>
+    api.post<CashDifference>('/cash-difference/import', { ...data, expenses }),
+
+  getAll: (params?: {
+    start_date?: string
+    end_date?: string
+    status?: string
+    month?: number
+    year?: number
+  }) => api.get<CashDifference[]>('/cash-difference', { params }),
+
+  getById: (id: number) => api.get<CashDifference>(`/cash-difference/${id}`),
+
+  getSummary: (params?: { month?: number; year?: number }) =>
+    api.get<CashDifferenceSummary>('/cash-difference/summary', { params }),
+
+  update: (id: number, data: { status?: string; resolution_note?: string }) =>
+    api.put<CashDifference>(`/cash-difference/${id}`, data),
+
+  delete: (id: number) => api.delete(`/cash-difference/${id}`)
 }
 
 export default api
