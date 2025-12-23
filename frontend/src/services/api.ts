@@ -1,7 +1,7 @@
 import axios from 'axios'
 import type {
   User, Branch, ChannelsGrouped, TodaySalesResponse,
-  Supplier, Purchase, ExpenseCategory, Expense, DashboardStats,
+  Supplier, Purchase, ExpenseCategory, Expense, DashboardStats, BilancoStats,
   DailyProduction, ProductionSummary, PurchaseProductGroup,
   StaffMeal, StaffMealSummary,
   Employee, MonthlyPayroll, PayrollSummary, PartTimeCost, PartTimeCostSummary,
@@ -219,6 +219,7 @@ export const expensesApi = {
 // Reports
 export const reportsApi = {
   getDashboard: () => api.get<DashboardStats>('/reports/dashboard'),
+  getBilanco: () => api.get<BilancoStats>('/reports/bilanco'),
   getDailySummary: (startDate?: string, endDate?: string) =>
     api.get('/reports/daily-summary', { params: { start_date: startDate, end_date: endDate } })
 }
