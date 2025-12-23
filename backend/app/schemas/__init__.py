@@ -329,6 +329,7 @@ class BilancoStats(BaseModel):
     this_week_daily: list[DaySummary] = []
     this_week_best_day: Optional[DaySummary] = None
     this_week_worst_day: Optional[DaySummary] = None
+    this_week_breakdown: dict[str, Decimal] = {}  # {"visa": x, "nakit": y, "online": z}
 
     # Geçen Hafta
     last_week_start: date
@@ -336,6 +337,7 @@ class BilancoStats(BaseModel):
     last_week_total: Decimal = Decimal("0")
     last_week_daily: list[DaySummary] = []
     week_vs_week_pct: Decimal = Decimal("0")  # % değişim
+    last_week_breakdown: dict[str, Decimal] = {}  # {"visa": x, "nakit": y, "online": z}
 
     # Bu Ay
     this_month_name: str  # "Aralık 2025"
@@ -347,11 +349,13 @@ class BilancoStats(BaseModel):
     this_month_daily_avg: Decimal = Decimal("0")
     this_month_forecast: Decimal = Decimal("0")
     this_month_chart: list[DaySummary] = []
+    this_month_breakdown: dict[str, Decimal] = {}  # {"visa": x, "nakit": y, "online": z}
 
     # Geçen Ay (aynı dönem karşılaştırması için)
     last_month_revenue: Decimal = Decimal("0")
     last_month_expenses: Decimal = Decimal("0")
     last_month_profit: Decimal = Decimal("0")
+    last_month_breakdown: dict[str, Decimal] = {}  # {"visa": x, "nakit": y, "online": z}
 
 
 # Daily Production (Günlük Üretim/Legen Takibi)

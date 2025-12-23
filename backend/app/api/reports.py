@@ -228,6 +228,47 @@ TURKISH_MONTHS = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
                   "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
 
 
+def fetch_channel_breakdown(db: DBSession, branch_id: int, start_date: date, end_date: date) -> dict:
+    """
+    Belirli bir tarih aralığı için kanal bazlı satış toplamlarını çeker.
+    Returns:
+        {"visa": Decimal, "nakit": Decimal, "online": Decimal}
+    """
+    channel_sales = db.query(
+        OnlinePlatform.channel_type,
+        func.coalesce(func.sum(OnlineSale.amount), 0).label('total')
+    ).outerjoin(
+        OnlineSale,
+        and_(
+            OnlineSale.platform_id == OnlinePlatform.id,
+            OnlineSale.branch_id == branch_id,
+            OnlineSale.sale_date >= start_date,
+            OnlineSale.sale_date <= end_date
+        )
+    ).filter(
+        OnlinePlatform.is_active == True
+    ).group_by(
+        OnlinePlatform.channel_type
+    ).all()
+
+    breakdown = {
+        "visa": Decimal("0"),
+        "nakit": Decimal("0"),
+        "online": Decimal("0")
+    }
+
+    for row in channel_sales:
+        amount = Decimal(str(row.total))
+        if row.channel_type == 'pos_visa':
+            breakdown["visa"] = amount
+        elif row.channel_type == 'pos_nakit':
+            breakdown["nakit"] = amount
+        elif row.channel_type == 'online':
+            breakdown["online"] = amount
+
+    return breakdown
+
+
 def fetch_daily_data(db: DBSession, branch_id: int, start_date: date, end_date: date) -> dict:
     """
     Belirli bir tarih aralığı için tüm günlük verileri tek seferde çeker.
@@ -466,8 +507,13 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
     yesterday_revenue = yesterday_data["revenue"]
     yesterday_expenses = get_day_total_expenses(yesterday_data)
     yesterday_profit = yesterday_revenue - yesterday_expenses
+
+    # Dün kanal bazlı breakdown
+    yesterday_channel = fetch_channel_breakdown(db, branch_id, yesterday, yesterday)
     yesterday_breakdown = {
-        "online": yesterday_data["revenue"],
+        "visa": yesterday_channel["visa"],
+        "nakit": yesterday_channel["nakit"],
+        "online": yesterday_channel["online"],
         "mal_alimi": yesterday_data["purchases"],
         "gider": yesterday_data["expenses"],
         "staff": yesterday_data["staff"],
@@ -508,6 +554,9 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
         this_week_best = None
         this_week_worst = None
 
+    # Bu hafta kanal bazlı breakdown
+    this_week_breakdown = fetch_channel_breakdown(db, branch_id, this_week_start, this_week_end)
+
     # ===== GEÇEN HAFTA =====
     last_week_daily = []
     last_week_total = Decimal("0")
@@ -527,6 +576,9 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
         week_vs_week_pct = ((this_week_total - last_week_total) / last_week_total) * 100
     else:
         week_vs_week_pct = Decimal("0")
+
+    # Geçen hafta kanal bazlı breakdown
+    last_week_breakdown = fetch_channel_breakdown(db, branch_id, last_week_start, last_week_end)
 
     # ===== BU AY =====
     this_month_name = f"{TURKISH_MONTHS[today.month]} {today.year}"
@@ -562,6 +614,9 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
         this_month_daily_avg = Decimal("0")
         this_month_forecast = Decimal("0")
 
+    # Bu ay kanal bazlı breakdown (düne kadar)
+    this_month_breakdown = fetch_channel_breakdown(db, branch_id, this_month_start, yesterday) if this_month_days_passed > 0 else {"visa": Decimal("0"), "nakit": Decimal("0"), "online": Decimal("0")}
+
     # ===== GEÇEN AY =====
     last_month_revenue = Decimal("0")
     last_month_expenses = Decimal("0")
@@ -579,6 +634,9 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
             current += timedelta(days=1)
 
     last_month_profit = last_month_revenue - last_month_expenses
+
+    # Geçen ay kanal bazlı breakdown (aynı dönem)
+    last_month_breakdown = fetch_channel_breakdown(db, branch_id, last_month_start, last_month_compare_end) if this_month_days_passed > 0 else {"visa": Decimal("0"), "nakit": Decimal("0"), "online": Decimal("0")}
 
     return BilancoStats(
         today_date=today,
@@ -600,11 +658,13 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
         this_week_daily=this_week_daily,
         this_week_best_day=this_week_best,
         this_week_worst_day=this_week_worst,
+        this_week_breakdown=this_week_breakdown,
         last_week_start=last_week_start,
         last_week_end=last_week_end,
         last_week_total=last_week_total,
         last_week_daily=last_week_daily,
         week_vs_week_pct=week_vs_week_pct,
+        last_week_breakdown=last_week_breakdown,
         this_month_name=this_month_name,
         this_month_days_passed=this_month_days_passed,
         this_month_days_total=this_month_days_total,
@@ -614,7 +674,9 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
         this_month_daily_avg=this_month_daily_avg,
         this_month_forecast=this_month_forecast,
         this_month_chart=this_month_chart,
+        this_month_breakdown=this_month_breakdown,
         last_month_revenue=last_month_revenue,
         last_month_expenses=last_month_expenses,
-        last_month_profit=last_month_profit
+        last_month_profit=last_month_profit,
+        last_month_breakdown=last_month_breakdown
     )

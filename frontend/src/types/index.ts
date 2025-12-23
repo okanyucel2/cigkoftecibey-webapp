@@ -173,6 +173,8 @@ export interface BilancoStats {
   yesterday_profit: number
   yesterday_vs_previous_pct: number
   yesterday_breakdown: {
+    visa: number
+    nakit: number
     online: number
     mal_alimi: number
     gider: number
@@ -188,6 +190,11 @@ export interface BilancoStats {
   this_week_daily: DaySummary[]
   this_week_best_day: DaySummary | null
   this_week_worst_day: DaySummary | null
+  this_week_breakdown: {
+    visa: number
+    nakit: number
+    online: number
+  }
 
   // Geçen Hafta
   last_week_start: string
@@ -195,6 +202,11 @@ export interface BilancoStats {
   last_week_total: number
   last_week_daily: DaySummary[]
   week_vs_week_pct: number
+  last_week_breakdown: {
+    visa: number
+    nakit: number
+    online: number
+  }
 
   // Bu Ay
   this_month_name: string  // "Aralık 2025"
@@ -206,11 +218,21 @@ export interface BilancoStats {
   this_month_daily_avg: number
   this_month_forecast: number
   this_month_chart: DaySummary[]
+  this_month_breakdown: {
+    visa: number
+    nakit: number
+    online: number
+  }
 
   // Geçen Ay
   last_month_revenue: number
   last_month_expenses: number
   last_month_profit: number
+  last_month_breakdown: {
+    visa: number
+    nakit: number
+    online: number
+  }
 }
 
 export interface StaffMeal {
