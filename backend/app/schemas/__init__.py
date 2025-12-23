@@ -298,6 +298,54 @@ class DashboardStats(BaseModel):
     week_sales: list[dict]
 
 
+# Bilanço Dashboard
+class DaySummary(BaseModel):
+    day_name: str  # "Pzt", "Sal", etc.
+    date: date
+    amount: Decimal = Decimal("0")
+
+class BilancoStats(BaseModel):
+    # Dün
+    yesterday_date: date
+    yesterday_day_name: str  # "Pazartesi"
+    yesterday_revenue: Decimal = Decimal("0")
+    yesterday_expenses: Decimal = Decimal("0")
+    yesterday_profit: Decimal = Decimal("0")
+    yesterday_vs_previous_pct: Decimal = Decimal("0")  # % değişim
+    yesterday_breakdown: dict[str, Decimal] = {}  # {"online": x, "mal_alimi": y, ...}
+
+    # Bu Hafta
+    this_week_start: date
+    this_week_end: date
+    this_week_total: Decimal = Decimal("0")
+    this_week_daily: list[DaySummary] = []
+    this_week_best_day: Optional[DaySummary] = None
+    this_week_worst_day: Optional[DaySummary] = None
+
+    # Geçen Hafta
+    last_week_start: date
+    last_week_end: date
+    last_week_total: Decimal = Decimal("0")
+    last_week_daily: list[DaySummary] = []
+    week_vs_week_pct: Decimal = Decimal("0")  # % değişim
+
+    # Bu Ay
+    this_month_name: str  # "Aralık 2025"
+    this_month_days_passed: int
+    this_month_days_total: int
+    this_month_revenue: Decimal = Decimal("0")
+    this_month_expenses: Decimal = Decimal("0")
+    this_month_profit: Decimal = Decimal("0")
+    this_month_daily_avg: Decimal = Decimal("0")
+    this_month_forecast: Decimal = Decimal("0")
+    this_month_chart: list[DaySummary] = []
+
+    # Geçen Ay (aynı dönem karşılaştırması için)
+    last_month_revenue: Decimal = Decimal("0")
+    last_month_expenses: Decimal = Decimal("0")
+    last_month_profit: Decimal = Decimal("0")
+
+
 # Daily Production (Günlük Üretim/Legen Takibi)
 class DailyProductionCreate(BaseModel):
     production_date: date
