@@ -101,8 +101,31 @@ const monthlyMax = computed(() => {
   </div>
 
   <div v-else-if="stats" class="space-y-6">
-    <!-- AI Asistan -->
-    <SmartInsightCard />
+    <!-- Hızlı İşlemler -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+        <span class="text-xl">🚀</span>
+        Hızlı İşlemler
+      </h2>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <button @click="router.push('/sales')" class="btn btn-primary flex items-center justify-center gap-2">
+          <span>💳</span>
+          <span>Kasa Girişi</span>
+        </button>
+        <button @click="router.push('/purchases/new')" class="btn btn-secondary flex items-center justify-center gap-2">
+          <span>📦</span>
+          <span>Mal Alımı</span>
+        </button>
+        <button @click="router.push('/expenses/new')" class="btn btn-secondary flex items-center justify-center gap-2">
+          <span>💸</span>
+          <span>Gider Ekle</span>
+        </button>
+        <button @click="router.push('/production')" class="btn btn-secondary flex items-center justify-center gap-2">
+          <span>🥙</span>
+          <span>Üretim Gir</span>
+        </button>
+      </div>
+    </div>
 
     <!-- Bölüm 0: Bugün (Şu Ana Kadar) -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
@@ -269,32 +292,6 @@ const monthlyMax = computed(() => {
         <span>Staff {{ formatCurrency(stats.yesterday_breakdown.staff) }}</span>
         <span class="text-gray-300">•</span>
         <span>Kurye {{ formatCurrency(stats.yesterday_breakdown.kurye) }}</span>
-      </div>
-    </div>
-
-    <!-- Hızlı İşlemler -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-      <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-        <span class="text-xl">🚀</span>
-        Hızlı İşlemler
-      </h2>
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <button @click="router.push('/sales')" class="btn btn-primary flex items-center justify-center gap-2">
-          <span>💳</span>
-          <span>Kasa Girişi</span>
-        </button>
-        <button @click="router.push('/purchases/new')" class="btn btn-secondary flex items-center justify-center gap-2">
-          <span>📦</span>
-          <span>Mal Alımı</span>
-        </button>
-        <button @click="router.push('/expenses/new')" class="btn btn-secondary flex items-center justify-center gap-2">
-          <span>💸</span>
-          <span>Gider Ekle</span>
-        </button>
-        <button @click="router.push('/production')" class="btn btn-secondary flex items-center justify-center gap-2">
-          <span>🥙</span>
-          <span>Üretim Gir</span>
-        </button>
       </div>
     </div>
 
@@ -499,5 +496,8 @@ const monthlyMax = computed(() => {
         <span>Tahmini Ay Sonu: <strong class="text-emerald-600">{{ formatCurrency(stats.this_month_forecast) }}</strong></span>
       </div>
     </div>
+
+    <!-- AI Asistan -->
+    <SmartInsightCard />
   </div>
 </template>
