@@ -20,6 +20,7 @@ const menuItems = [
   { path: '/personnel', name: 'Personel Yonetimi', icon: '👥' },
   { path: '/courier-expenses', name: 'Kurye Giderleri', icon: '🛵' },
   { path: '/expenses', name: 'Isletme Giderleri', icon: '💸' },
+  { path: '/kasa-farki', name: 'Kasa Farki', icon: '💵' },
 ]
 
 // Versiyon bilgileri (build sirasinda enjekte edilir)

@@ -78,6 +78,16 @@ const router = createRouter({
           component: () => import('@/views/CourierExpenses.vue')
         },
         {
+          path: 'kasa-farki',
+          name: 'CashDifference',
+          component: () => import('@/views/CashDifference.vue')
+        },
+        {
+          path: 'kasa-farki/import',
+          name: 'CashDifferenceImport',
+          component: () => import('@/views/CashDifferenceImport.vue')
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/Settings.vue'),
