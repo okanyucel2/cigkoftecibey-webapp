@@ -212,16 +212,6 @@ async function submitImport() {
   }
 }
 
-// Reset form
-function resetForm() {
-  excelFile.value = null
-  posImageFile.value = null
-  excelFileName.value = ''
-  posImageFileName.value = ''
-  excelData.value = null
-  posData.value = null
-  error.value = ''
-}
 </script>
 
 <template>
