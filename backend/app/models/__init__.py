@@ -155,6 +155,7 @@ class ExpenseCategory(Base):
     branch_id: Mapped[Optional[int]] = mapped_column(ForeignKey("branches.id"), nullable=True)  # NULL = global
     name: Mapped[str] = mapped_column(String(100))
     is_fixed: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False)  # System categories cannot be deleted
     display_order: Mapped[int] = mapped_column(Integer, default=0)
 
     # Relationships

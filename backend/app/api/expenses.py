@@ -50,6 +50,10 @@ def delete_expense_category(category_id: int, db: DBSession, ctx: CurrentBranchC
     if not category:
         raise HTTPException(status_code=404, detail="Kategori bulunamadi")
 
+    # System categories cannot be deleted
+    if category.is_system:
+        raise HTTPException(status_code=400, detail="Sistem kategorileri silinemez")
+
     # Bu kategoriye ait gider var mi kontrol et
     expense_count = db.query(Expense).filter(Expense.category_id == category_id).count()
     if expense_count > 0:

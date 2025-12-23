@@ -234,6 +234,7 @@ class ExpenseCategoryCreate(ExpenseCategoryBase):
 class ExpenseCategoryResponse(ExpenseCategoryBase):
     id: int
     branch_id: Optional[int] = None
+    is_system: bool = False
 
     class Config:
         from_attributes = True
