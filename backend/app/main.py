@@ -15,7 +15,7 @@ except Exception as e:
     print(f"Warning: Failed to patch bcrypt: {e}", file=sys.stderr)
 
 from app.config import settings
-from app.api import auth, purchases, expenses, reports, production, staff_meals, personnel, online_sales, branches, users, invitation_codes, courier_expenses, ai_insights
+from app.api import auth, purchases, expenses, reports, production, staff_meals, personnel, online_sales, branches, users, invitation_codes, courier_expenses, ai_insights, cash_difference
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -69,6 +69,7 @@ app.include_router(users.router, prefix="/api")
 app.include_router(ai_insights.router, prefix="/api")
 app.include_router(invitation_codes.router, prefix="/api")
 app.include_router(courier_expenses.router, prefix="/api")
+app.include_router(cash_difference.router, prefix="/api")
 
 
 @app.get("/api/health")
