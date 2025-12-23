@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from sqlalchemy import func, and_
 from app.api.deps import DBSession, CurrentBranchContext
-from app.models import CashDifference, Expense, ExpenseCategory
+from app.models import CashDifference, Expense, ExpenseCategory, OnlineSale, OnlinePlatform
 from app.schemas import (
     CashDifferenceCreate, CashDifferenceUpdate, CashDifferenceResponse,
     CashDifferenceSummary, ExcelParseResult, POSParseResult,
@@ -91,9 +91,13 @@ def import_cash_difference(
     request: CashDifferenceImportRequest,
     db: DBSession,
     ctx: CurrentBranchContext,
-    import_expenses: bool = Query(default=True)
+    import_expenses: bool = Query(default=True),
+    sync_to_sales: bool = Query(default=True)
 ):
-    """Import parsed data and create CashDifference record"""
+    """Import parsed data and create CashDifference record.
+
+    Also syncs POS values to online_sales table for dashboard counters.
+    """
     existing = db.query(CashDifference).filter(
         CashDifference.branch_id == ctx.current_branch_id,
         CashDifference.difference_date == request.difference_date
@@ -149,6 +153,46 @@ def import_cash_difference(
                         created_by=ctx.user.id
                     )
                     db.add(expense)
+
+    # Sync POS values to online_sales table
+    if sync_to_sales:
+        platform_mapping = {
+            'pos_visa': 'Visa',
+            'pos_nakit': 'Nakit',
+            'pos_trendyol': 'Trendyol',
+            'pos_getir': 'Getir',
+            'pos_yemeksepeti': 'Yemek Sepeti',
+            'pos_migros': 'Migros Yemek',
+        }
+
+        for field, platform_name in platform_mapping.items():
+            amount = getattr(request, field, None)
+            if amount and amount > 0:
+                platform = db.query(OnlinePlatform).filter(
+                    OnlinePlatform.name == platform_name
+                ).first()
+
+                if platform:
+                    # Upsert: update existing or create new
+                    existing_sale = db.query(OnlineSale).filter(
+                        OnlineSale.branch_id == ctx.current_branch_id,
+                        OnlineSale.sale_date == request.difference_date,
+                        OnlineSale.platform_id == platform.id
+                    ).first()
+
+                    if existing_sale:
+                        existing_sale.amount = amount
+                        existing_sale.notes = "Kasa Farki'ndan guncellendi"
+                    else:
+                        sale = OnlineSale(
+                            branch_id=ctx.current_branch_id,
+                            platform_id=platform.id,
+                            sale_date=request.difference_date,
+                            amount=amount,
+                            notes="Kasa Farki'ndan aktarildi",
+                            created_by=ctx.user.id
+                        )
+                        db.add(sale)
 
     db.commit()
     db.refresh(record)
