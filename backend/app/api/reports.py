@@ -1,10 +1,11 @@
 from datetime import date, timedelta
 from decimal import Decimal
+from calendar import monthrange
 from fastapi import APIRouter
 from sqlalchemy import func, and_
 from app.api.deps import DBSession, CurrentBranchContext
 from app.models import Purchase, Expense, DailyProduction, StaffMeal, OnlineSale, OnlinePlatform, CourierExpense, PartTimeCost
-from app.schemas import DashboardStats
+from app.schemas import DashboardStats, BilancoStats, DaySummary
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -218,3 +219,252 @@ def get_daily_summary(
         current += timedelta(days=1)
 
     return results
+
+
+# Türkçe gün adları
+TURKISH_DAYS = ["Pazartesi", "Salı", "Çarşamba", "Perşembe", "Cuma", "Cumartesi", "Pazar"]
+TURKISH_DAYS_SHORT = ["Pzt", "Sal", "Çar", "Per", "Cum", "Cmt", "Paz"]
+TURKISH_MONTHS = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+                  "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+
+
+def get_day_revenue(db: DBSession, branch_id: int, target_date: date) -> Decimal:
+    """Belirli bir günün toplam cirosunu hesapla"""
+    total = db.query(func.coalesce(func.sum(OnlineSale.amount), 0)).filter(
+        OnlineSale.branch_id == branch_id,
+        OnlineSale.sale_date == target_date
+    ).scalar()
+    return Decimal(str(total))
+
+
+def get_day_expenses(db: DBSession, branch_id: int, target_date: date) -> Decimal:
+    """Belirli bir günün toplam giderlerini hesapla"""
+    purchases = db.query(func.coalesce(func.sum(Purchase.total), 0)).filter(
+        Purchase.branch_id == branch_id,
+        Purchase.purchase_date == target_date
+    ).scalar()
+
+    expenses = db.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
+        Expense.branch_id == branch_id,
+        Expense.expense_date == target_date
+    ).scalar()
+
+    courier = db.query(func.coalesce(func.sum(CourierExpense.amount), 0)).filter(
+        CourierExpense.branch_id == branch_id,
+        CourierExpense.expense_date == target_date
+    ).scalar()
+
+    parttime = db.query(func.coalesce(func.sum(PartTimeCost.amount), 0)).filter(
+        PartTimeCost.branch_id == branch_id,
+        PartTimeCost.cost_date == target_date
+    ).scalar()
+
+    staff_meal = db.query(StaffMeal).filter(
+        StaffMeal.branch_id == branch_id,
+        StaffMeal.meal_date == target_date
+    ).first()
+    staff_cost = staff_meal.total if staff_meal else Decimal("0")
+
+    return Decimal(str(purchases)) + Decimal(str(expenses)) + Decimal(str(courier)) + Decimal(str(parttime)) + staff_cost
+
+
+def get_day_breakdown(db: DBSession, branch_id: int, target_date: date) -> dict:
+    """Belirli bir günün kırılımını döndür"""
+    purchases = db.query(func.coalesce(func.sum(Purchase.total), 0)).filter(
+        Purchase.branch_id == branch_id,
+        Purchase.purchase_date == target_date
+    ).scalar()
+
+    expenses = db.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
+        Expense.branch_id == branch_id,
+        Expense.expense_date == target_date
+    ).scalar()
+
+    courier = db.query(func.coalesce(func.sum(CourierExpense.amount), 0)).filter(
+        CourierExpense.branch_id == branch_id,
+        CourierExpense.expense_date == target_date
+    ).scalar()
+
+    parttime = db.query(func.coalesce(func.sum(PartTimeCost.amount), 0)).filter(
+        PartTimeCost.branch_id == branch_id,
+        PartTimeCost.cost_date == target_date
+    ).scalar()
+
+    staff_meal = db.query(StaffMeal).filter(
+        StaffMeal.branch_id == branch_id,
+        StaffMeal.meal_date == target_date
+    ).first()
+    staff_cost = staff_meal.total if staff_meal else Decimal("0")
+
+    revenue = get_day_revenue(db, branch_id, target_date)
+
+    return {
+        "online": revenue,
+        "mal_alimi": Decimal(str(purchases)),
+        "gider": Decimal(str(expenses)),
+        "staff": staff_cost,
+        "kurye": Decimal(str(courier)),
+        "parttime": Decimal(str(parttime))
+    }
+
+
+@router.get("/bilanco", response_model=BilancoStats)
+def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
+    """Bilanço dashboard - Dün, Bu Hafta, Bu Ay özeti"""
+    today = date.today()
+    yesterday = today - timedelta(days=1)
+    day_before_yesterday = today - timedelta(days=2)
+    branch_id = ctx.current_branch_id
+
+    # ===== DÜN =====
+    yesterday_revenue = get_day_revenue(db, branch_id, yesterday)
+    yesterday_expenses = get_day_expenses(db, branch_id, yesterday)
+    yesterday_profit = yesterday_revenue - yesterday_expenses
+    yesterday_breakdown = get_day_breakdown(db, branch_id, yesterday)
+
+    prev_revenue = get_day_revenue(db, branch_id, day_before_yesterday)
+    if prev_revenue > 0:
+        yesterday_vs_previous_pct = ((yesterday_revenue - prev_revenue) / prev_revenue) * 100
+    else:
+        yesterday_vs_previous_pct = Decimal("0")
+
+    yesterday_day_name = TURKISH_DAYS[yesterday.weekday()]
+
+    # ===== BU HAFTA =====
+    days_since_monday = today.weekday()
+    this_week_start = today - timedelta(days=days_since_monday)
+    this_week_end = yesterday
+
+    this_week_daily = []
+    this_week_total = Decimal("0")
+
+    for i in range(7):
+        day = this_week_start + timedelta(days=i)
+        if day >= today:
+            break
+        amount = get_day_revenue(db, branch_id, day)
+        this_week_daily.append(DaySummary(
+            day_name=TURKISH_DAYS_SHORT[day.weekday()],
+            date=day,
+            amount=amount
+        ))
+        this_week_total += amount
+
+    if this_week_daily:
+        this_week_best = max(this_week_daily, key=lambda x: x.amount)
+        this_week_worst = min(this_week_daily, key=lambda x: x.amount)
+    else:
+        this_week_best = None
+        this_week_worst = None
+
+    # ===== GEÇEN HAFTA =====
+    last_week_start = this_week_start - timedelta(days=7)
+    last_week_end = this_week_start - timedelta(days=1)
+
+    last_week_daily = []
+    last_week_total = Decimal("0")
+
+    for i in range(7):
+        day = last_week_start + timedelta(days=i)
+        amount = get_day_revenue(db, branch_id, day)
+        last_week_daily.append(DaySummary(
+            day_name=TURKISH_DAYS_SHORT[day.weekday()],
+            date=day,
+            amount=amount
+        ))
+        last_week_total += amount
+
+    if last_week_total > 0:
+        week_vs_week_pct = ((this_week_total - last_week_total) / last_week_total) * 100
+    else:
+        week_vs_week_pct = Decimal("0")
+
+    # ===== BU AY =====
+    this_month_start = today.replace(day=1)
+    _, days_in_month = monthrange(today.year, today.month)
+    this_month_name = f"{TURKISH_MONTHS[today.month]} {today.year}"
+    this_month_days_passed = (yesterday - this_month_start).days + 1
+    this_month_days_total = days_in_month
+
+    this_month_revenue = Decimal("0")
+    this_month_expenses = Decimal("0")
+    this_month_chart = []
+
+    current = this_month_start
+    while current < today:
+        rev = get_day_revenue(db, branch_id, current)
+        exp = get_day_expenses(db, branch_id, current)
+        this_month_revenue += rev
+        this_month_expenses += exp
+        this_month_chart.append(DaySummary(
+            day_name=str(current.day),
+            date=current,
+            amount=rev
+        ))
+        current += timedelta(days=1)
+
+    this_month_profit = this_month_revenue - this_month_expenses
+
+    if this_month_days_passed > 0:
+        this_month_daily_avg = this_month_revenue / this_month_days_passed
+        remaining_days = this_month_days_total - this_month_days_passed
+        this_month_forecast = this_month_revenue + (this_month_daily_avg * remaining_days)
+    else:
+        this_month_daily_avg = Decimal("0")
+        this_month_forecast = Decimal("0")
+
+    # ===== GEÇEN AY =====
+    if today.month == 1:
+        last_month_year = today.year - 1
+        last_month_num = 12
+    else:
+        last_month_year = today.year
+        last_month_num = today.month - 1
+
+    last_month_start = date(last_month_year, last_month_num, 1)
+    _, last_month_days = monthrange(last_month_year, last_month_num)
+    last_month_compare_end = last_month_start + timedelta(days=min(this_month_days_passed, last_month_days) - 1)
+
+    last_month_revenue = Decimal("0")
+    last_month_expenses = Decimal("0")
+
+    current = last_month_start
+    while current <= last_month_compare_end:
+        last_month_revenue += get_day_revenue(db, branch_id, current)
+        last_month_expenses += get_day_expenses(db, branch_id, current)
+        current += timedelta(days=1)
+
+    last_month_profit = last_month_revenue - last_month_expenses
+
+    return BilancoStats(
+        yesterday_date=yesterday,
+        yesterday_day_name=yesterday_day_name,
+        yesterday_revenue=yesterday_revenue,
+        yesterday_expenses=yesterday_expenses,
+        yesterday_profit=yesterday_profit,
+        yesterday_vs_previous_pct=yesterday_vs_previous_pct,
+        yesterday_breakdown=yesterday_breakdown,
+        this_week_start=this_week_start,
+        this_week_end=this_week_end,
+        this_week_total=this_week_total,
+        this_week_daily=this_week_daily,
+        this_week_best_day=this_week_best,
+        this_week_worst_day=this_week_worst,
+        last_week_start=last_week_start,
+        last_week_end=last_week_end,
+        last_week_total=last_week_total,
+        last_week_daily=last_week_daily,
+        week_vs_week_pct=week_vs_week_pct,
+        this_month_name=this_month_name,
+        this_month_days_passed=this_month_days_passed,
+        this_month_days_total=this_month_days_total,
+        this_month_revenue=this_month_revenue,
+        this_month_expenses=this_month_expenses,
+        this_month_profit=this_month_profit,
+        this_month_daily_avg=this_month_daily_avg,
+        this_month_forecast=this_month_forecast,
+        this_month_chart=this_month_chart,
+        last_month_revenue=last_month_revenue,
+        last_month_expenses=last_month_expenses,
+        last_month_profit=last_month_profit
+    )
