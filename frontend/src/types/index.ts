@@ -445,3 +445,81 @@ export interface CourierExpenseSummary {
   avg_daily_packages: number
   avg_package_cost: number  // Paket basina ortalama maliyet
 }
+
+// Cash Difference (Kasa Farki) Types
+export interface CashDifference {
+  id: number
+  branch_id: number
+  difference_date: string
+  // Kasa Raporu
+  kasa_visa: number
+  kasa_nakit: number
+  kasa_trendyol: number
+  kasa_getir: number
+  kasa_yemeksepeti: number
+  kasa_migros: number
+  kasa_total: number
+  // POS Hasilat
+  pos_visa: number
+  pos_nakit: number
+  pos_trendyol: number
+  pos_getir: number
+  pos_yemeksepeti: number
+  pos_migros: number
+  pos_total: number
+  // Diffs
+  diff_visa: number
+  diff_nakit: number
+  diff_trendyol: number
+  diff_getir: number
+  diff_yemeksepeti: number
+  diff_migros: number
+  diff_total: number
+  // Meta
+  status: 'pending' | 'reviewed' | 'resolved' | 'flagged'
+  severity: 'ok' | 'warning' | 'critical'
+  resolution_note?: string
+  resolved_by?: number
+  resolved_at?: string
+  // Files
+  excel_file_url?: string
+  pos_image_url?: string
+  ocr_confidence_score?: number
+  // Audit
+  created_by: number
+  created_at: string
+}
+
+export interface CashDifferenceSummary {
+  total_records: number
+  pending_count: number
+  resolved_count: number
+  critical_count: number
+  total_diff: number
+  period_start: string
+  period_end: string
+}
+
+export interface ExcelParseResult {
+  date: string
+  visa: number
+  nakit: number
+  trendyol: number
+  getir: number
+  yemeksepeti: number
+  migros: number
+  total: number
+  expenses: Array<{ description: string; amount: number }>
+}
+
+export interface POSParseResult {
+  date: string
+  visa: number
+  nakit: number
+  trendyol: number
+  getir: number
+  yemeksepeti: number
+  migros: number
+  total: number
+  confidence_score: number
+}
