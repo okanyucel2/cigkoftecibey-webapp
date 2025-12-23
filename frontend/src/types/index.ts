@@ -140,6 +140,62 @@ export interface DashboardStats {
   week_sales: { date: string; day: string; sales: number }[]
 }
 
+// Bilanço Dashboard Types
+export interface DaySummary {
+  day_name: string  // "Pzt", "Sal", etc.
+  date: string
+  amount: number
+}
+
+export interface BilancoStats {
+  // Dün
+  yesterday_date: string
+  yesterday_day_name: string  // "Pazartesi"
+  yesterday_revenue: number
+  yesterday_expenses: number
+  yesterday_profit: number
+  yesterday_vs_previous_pct: number
+  yesterday_breakdown: {
+    online: number
+    mal_alimi: number
+    gider: number
+    staff: number
+    kurye: number
+    parttime: number
+  }
+
+  // Bu Hafta
+  this_week_start: string
+  this_week_end: string
+  this_week_total: number
+  this_week_daily: DaySummary[]
+  this_week_best_day: DaySummary | null
+  this_week_worst_day: DaySummary | null
+
+  // Geçen Hafta
+  last_week_start: string
+  last_week_end: string
+  last_week_total: number
+  last_week_daily: DaySummary[]
+  week_vs_week_pct: number
+
+  // Bu Ay
+  this_month_name: string  // "Aralık 2025"
+  this_month_days_passed: number
+  this_month_days_total: number
+  this_month_revenue: number
+  this_month_expenses: number
+  this_month_profit: number
+  this_month_daily_avg: number
+  this_month_forecast: number
+  this_month_chart: DaySummary[]
+
+  // Geçen Ay
+  last_month_revenue: number
+  last_month_expenses: number
+  last_month_profit: number
+}
+
 export interface StaffMeal {
   id: number
   branch_id: number
