@@ -211,7 +211,7 @@ const channelComparison = computed(() => {
         <p class="text-sm text-gray-500 mt-1">Kasa ve POS farklarini goruntuleyin ve yonetin</p>
       </div>
       <router-link
-        to="/cash-difference/import"
+        to="/kasa-farki/import"
         class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
         data-testid="btn-import"
       >
