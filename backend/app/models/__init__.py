@@ -447,6 +447,79 @@ class CourierExpense(Base):
         return self.amount + self.vat_amount
 
 
+class CashDifference(Base):
+    """Kasa farki takibi - Excel vs POS karsilastirmasi"""
+    __tablename__ = "cash_differences"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
+    difference_date: Mapped[date] = mapped_column(Date, index=True)
+
+    # Kasa Raporu (Excel)
+    kasa_visa: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    kasa_nakit: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    kasa_trendyol: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    kasa_getir: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    kasa_yemeksepeti: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    kasa_migros: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    kasa_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+
+    # POS Hasilat (Gorsel)
+    pos_visa: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    pos_nakit: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    pos_trendyol: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    pos_getir: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    pos_yemeksepeti: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    pos_migros: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+    pos_total: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+
+    # Meta
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending, reviewed, resolved, flagged
+    severity: Mapped[str] = mapped_column(String(20), default="ok")  # ok, warning, critical
+    resolution_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resolved_by: Mapped[Optional[int]] = mapped_column(ForeignKey("users.id"), nullable=True)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+
+    # Files
+    excel_file_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    pos_image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ocr_confidence_score: Mapped[Optional[Decimal]] = mapped_column(Numeric(5, 2), nullable=True)
+
+    # Audit
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, onupdate=datetime.utcnow)
+
+    # Computed properties for diffs
+    @property
+    def diff_visa(self) -> Decimal:
+        return self.pos_visa - self.kasa_visa
+
+    @property
+    def diff_nakit(self) -> Decimal:
+        return self.pos_nakit - self.kasa_nakit
+
+    @property
+    def diff_trendyol(self) -> Decimal:
+        return self.pos_trendyol - self.kasa_trendyol
+
+    @property
+    def diff_getir(self) -> Decimal:
+        return self.pos_getir - self.kasa_getir
+
+    @property
+    def diff_yemeksepeti(self) -> Decimal:
+        return self.pos_yemeksepeti - self.kasa_yemeksepeti
+
+    @property
+    def diff_migros(self) -> Decimal:
+        return self.pos_migros - self.kasa_migros
+
+    @property
+    def diff_total(self) -> Decimal:
+        return self.pos_total - self.kasa_total
+
+
 class DailyInsight(Base):
     """Günlük AI içgörüleri - Caching için"""
     __tablename__ = "daily_insights"
