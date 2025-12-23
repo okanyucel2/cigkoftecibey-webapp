@@ -68,8 +68,10 @@ def get_dashboard_stats(db: DBSession, ctx: CurrentBranchContext):
         Expense.expense_date == today
     ).scalar()
 
-    # Bugünün kurye giderleri (KDV dahil)
-    today_courier_expense = db.query(func.coalesce(func.sum(CourierExpense.total_with_vat), 0)).filter(
+    # Bugünün kurye giderleri (KDV dahil: amount + amount * vat_rate / 100)
+    today_courier_expense = db.query(
+        func.coalesce(func.sum(CourierExpense.amount + CourierExpense.amount * CourierExpense.vat_rate / 100), 0)
+    ).filter(
         CourierExpense.branch_id == branch_id,
         CourierExpense.expense_date == today
     ).scalar()
@@ -345,10 +347,10 @@ def fetch_daily_data(db: DBSession, branch_id: int, start_date: date, end_date: 
         if row[0] in result:
             result[row[0]]["expenses"] = Decimal(str(row[1] or 0))
 
-    # Query 4: Courier (KDV dahil)
+    # Query 4: Courier (KDV dahil: amount + amount * vat_rate / 100)
     courier_rows = db.query(
         CourierExpense.expense_date,
-        func.sum(CourierExpense.total_with_vat)
+        func.sum(CourierExpense.amount + CourierExpense.amount * CourierExpense.vat_rate / 100)
     ).filter(
         CourierExpense.branch_id == branch_id,
         CourierExpense.expense_date >= start_date,
