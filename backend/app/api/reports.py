@@ -364,12 +364,24 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
     day_before_yesterday = today - timedelta(days=2)
     branch_id = ctx.current_branch_id
 
-    # Tarih aralıklarını hesapla
+    # Tarih aralıklarını hesapla (Hafta: Pazartesi-Pazar)
     days_since_monday = today.weekday()
-    this_week_start = today - timedelta(days=days_since_monday)
-    this_week_end = yesterday
-    last_week_start = this_week_start - timedelta(days=7)
-    last_week_end = this_week_start - timedelta(days=1)
+
+    if days_since_monday == 0:
+        # Bugün Pazartesi - henüz tamamlanmış gün yok
+        # "Bu Hafta" olarak geçen haftayı göster (Pzt-Paz biten dün)
+        this_week_start = today - timedelta(days=7)  # Geçen Pazartesi
+        this_week_end = yesterday  # Dün (Pazar)
+        # "Geçen Hafta" = ondan önceki hafta
+        last_week_start = this_week_start - timedelta(days=7)
+        last_week_end = this_week_start - timedelta(days=1)
+    else:
+        # Normal durum: bu hafta Pazartesi'den düne kadar
+        this_week_start = today - timedelta(days=days_since_monday)
+        this_week_end = yesterday
+        # Geçen hafta: önceki Pazartesi'den Pazar'a
+        last_week_start = this_week_start - timedelta(days=7)
+        last_week_end = this_week_start - timedelta(days=1)
 
     this_month_start = today.replace(day=1)
     _, days_in_month = monthrange(today.year, today.month)
