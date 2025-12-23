@@ -12,7 +12,7 @@ const sidebarOpen = ref(window.innerWidth >= 1024)
 const branchSelectorOpen = ref(false)
 
 const menuItems = [
-  { path: '/', name: 'Dashboard', icon: '📊' },
+  { path: '/', name: 'Bilanço', icon: '📊' },
   { path: '/sales', name: 'Satis Girisi', icon: '💰' },
   { path: '/production', name: 'Uretim/Legen', icon: '🥙' },
   { path: '/purchases', name: 'Mal Alimi', icon: '📦' },
