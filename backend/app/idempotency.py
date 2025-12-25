@@ -5,7 +5,7 @@ Idempotency Key Support
 Prevents duplicate submissions by caching responses.
 Uses in-memory store for simplicity (can upgrade to Redis later).
 """
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from typing import Any, Optional
 from dataclasses import dataclass
 from threading import Lock
@@ -39,7 +39,7 @@ class IdempotencyStore:
             cached = self._store[key]
 
             # Check expiration
-            if datetime.utcnow() > cached.expires_at:
+            if datetime.now(UTC) > cached.expires_at:
                 del self._store[key]
                 return None
 
@@ -48,7 +48,7 @@ class IdempotencyStore:
     def save(self, key: str, response: Any) -> None:
         """Save response for key"""
         with self._lock:
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             self._store[key] = CachedResponse(
                 response=response,
                 created_at=now,
@@ -58,7 +58,7 @@ class IdempotencyStore:
     def cleanup(self) -> int:
         """Remove expired entries, return count removed"""
         with self._lock:
-            now = datetime.utcnow()
+            now = datetime.now(UTC)
             expired = [k for k, v in self._store.items() if now > v.expires_at]
             for k in expired:
                 del self._store[k]
