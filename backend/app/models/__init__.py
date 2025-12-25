@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional
-from sqlalchemy import String, Integer, Numeric, Boolean, DateTime, Date, ForeignKey, Text
+from sqlalchemy import String, Integer, Numeric, Boolean, DateTime, Date, ForeignKey, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -552,6 +552,45 @@ class DailyInsight(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     # Unique constraint on (branch_id, date) is handled at DB level
+
+
+class ImportHistory(Base):
+    """Track all imports with audit trail"""
+    __tablename__ = "import_history"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
+    import_type: Mapped[str] = mapped_column(String(50))  # kasa_raporu, pos_image, expenses, etc
+    import_date: Mapped[date] = mapped_column(Date)  # The date the data is for
+    source_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="pending")  # pending, completed, failed, undone
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSON, nullable=True)  # Use metadata_ to avoid Python reserved word
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    # Relationships
+    items: Mapped[list["ImportHistoryItem"]] = relationship(
+        back_populates="import_history",
+        cascade="all, delete-orphan"
+    )
+    branch: Mapped["Branch"] = relationship()
+    creator: Mapped["User"] = relationship()
+
+
+class ImportHistoryItem(Base):
+    """Individual entities created/modified by an import"""
+    __tablename__ = "import_history_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    import_history_id: Mapped[int] = mapped_column(ForeignKey("import_history.id", ondelete="CASCADE"))
+    entity_type: Mapped[str] = mapped_column(String(50))  # expense, cash_difference, online_sale, etc
+    entity_id: Mapped[int] = mapped_column(Integer)  # ID of the created/modified entity
+    action: Mapped[str] = mapped_column(String(20))  # created, updated, deleted
+    data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Snapshot of data for undo
+
+    # Relationships
+    import_history: Mapped["ImportHistory"] = relationship(back_populates="items")
 
 
 
