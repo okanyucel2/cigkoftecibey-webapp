@@ -562,4 +562,25 @@ export const cashDifferenceApi = {
   delete: (id: number) => api.delete(`/cash-difference/${id}`)
 }
 
+// Import History API
+export const importHistoryApi = {
+  getAll: (params?: { import_type?: string; start_date?: string; end_date?: string }) =>
+    api.get<any[]>('/import-history', { params }),
+
+  getById: (id: number) =>
+    api.get<any>(`/import-history/${id}`),
+
+  undo: (id: number) =>
+    api.post(`/import-history/${id}/undo`),
+}
+
+// Categorization API
+export const categorizationApi = {
+  suggest: (description: string, amount?: number) =>
+    api.post<any[]>('/categorization/suggest', { description, amount }),
+
+  suggestBatch: (expenses: Array<{ description: string; amount?: number }>) =>
+    api.post('/categorization/suggest-batch', { expenses }),
+}
+
 export default api

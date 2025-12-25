@@ -83,6 +83,12 @@ const router = createRouter({
           component: () => import('@/views/CashDifference.vue')
         },
         {
+          path: 'import',
+          name: 'import-hub',
+          component: () => import('@/views/ImportHub.vue'),
+          meta: { requiresAuth: true }
+        },
+        {
           path: 'settings',
           name: 'settings',
           component: () => import('@/views/Settings.vue'),
