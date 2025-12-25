@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { ExcelParseResult, POSParseResult } from '@/types'
-import { cashDifferenceApi } from '@/services/api'
+import type { ExcelParseResult, POSParseResult, ExpenseCategory } from '@/types'
+import { cashDifferenceApi, categorizationApi, expenseCategoriesApi } from '@/services/api'
 import { useFormatters } from '@/composables'
 import { ErrorAlert, LoadingState } from '@/components/ui'
 
@@ -33,6 +33,10 @@ const excelData = ref<ExcelParseResult | null>(null)
 const posData = ref<POSParseResult | null>(null)
 const parsingExcel = ref(false)
 const parsingPOS = ref(false)
+
+// Categories
+const categories = ref<ExpenseCategory[]>([])
+const loadingCategories = ref(false)
 
 // Computed: check if both files are parsed and ready
 const canSubmit = computed(() => excelData.value && posData.value && !loading.value)
@@ -128,6 +132,44 @@ function handlePOSDragLeave() {
   posDragOver.value = false
 }
 
+// Load categories
+async function loadCategories() {
+  loadingCategories.value = true
+  try {
+    const { data } = await expenseCategoriesApi.getAll()
+    categories.value = data
+  } catch (e: any) {
+    console.error('Failed to load categories:', e)
+  } finally {
+    loadingCategories.value = false
+  }
+}
+
+// Get categorization suggestions
+async function getCategorizationSuggestions() {
+  if (!excelData.value?.expenses || excelData.value.expenses.length === 0) return
+
+  try {
+    const response = await categorizationApi.suggestBatch(
+      excelData.value.expenses.map(e => ({
+        description: e.description,
+        amount: e.amount
+      }))
+    )
+
+    // Merge suggestions into expenses
+    response.data.forEach((suggestion: any, index: number) => {
+      if (excelData.value!.expenses[index]) {
+        excelData.value!.expenses[index].suggested_category = suggestion.suggested_category
+        excelData.value!.expenses[index].suggested_category_id = suggestion.category_id
+        excelData.value!.expenses[index].category_id = suggestion.category_id
+      }
+    })
+  } catch (error) {
+    console.error('Failed to get category suggestions:', error)
+  }
+}
+
 // Parse Excel
 async function parseExcel() {
   if (!excelFile.value) {
@@ -141,6 +183,16 @@ async function parseExcel() {
   try {
     const response = await cashDifferenceApi.parseExcel(excelFile.value)
     excelData.value = response.data
+
+    // Load categories if not already loaded
+    if (categories.value.length === 0) {
+      await loadCategories()
+    }
+
+    // Get AI category suggestions for expenses
+    if (excelData.value.expenses && excelData.value.expenses.length > 0) {
+      await getCategorizationSuggestions()
+    }
   } catch (e: any) {
     console.error('Excel parse error:', e)
     error.value = e.response?.data?.detail || 'Excel dosyasi okunamadi'
@@ -386,15 +438,27 @@ async function submitImport() {
 
       <!-- Expenses Preview -->
       <div v-if="excelData.expenses && excelData.expenses.length > 0" class="px-4 py-3 border-t bg-gray-50">
-        <h3 class="text-xs font-semibold text-gray-700 mb-2">Giderler (Excel'den)</h3>
-        <div class="space-y-1">
+        <h3 class="text-xs font-semibold text-gray-700 mb-3">Giderler (Excel'den)</h3>
+        <div class="space-y-2">
           <div
             v-for="(exp, idx) in excelData.expenses"
             :key="idx"
-            class="flex justify-between text-xs"
+            class="grid grid-cols-3 gap-2 items-center text-xs"
           >
-            <span class="text-gray-600">{{ exp.description }}</span>
-            <span class="font-medium text-gray-900">{{ formatCurrency(exp.amount) }}</span>
+            <span class="text-gray-600 truncate" :title="exp.description">{{ exp.description }}</span>
+            <select
+              v-model="exp.category_id"
+              class="border rounded px-2 py-1 text-xs"
+              data-testid="select-category"
+            >
+              <option v-if="exp.suggested_category" :value="exp.suggested_category_id">
+                {{ exp.suggested_category }} (Onerilen)
+              </option>
+              <option v-for="cat in categories" :key="cat.id" :value="cat.id">
+                {{ cat.name }}
+              </option>
+            </select>
+            <span class="font-medium text-gray-900 text-right">{{ formatCurrency(exp.amount) }}</span>
           </div>
         </div>
       </div>

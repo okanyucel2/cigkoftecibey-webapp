@@ -509,7 +509,13 @@ export interface ExcelParseResult {
   yemeksepeti: number
   migros: number
   total: number
-  expenses: Array<{ description: string; amount: number }>
+  expenses: Array<{
+    description: string
+    amount: number
+    category_id?: number
+    suggested_category?: string
+    suggested_category_id?: number
+  }>
 }
 
 export interface POSParseResult {
