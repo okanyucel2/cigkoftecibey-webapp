@@ -7,7 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Header
 from sqlalchemy import func, and_
 from app.api.deps import DBSession, CurrentBranchContext
-from app.models import CashDifference, Expense, ExpenseCategory, OnlineSale, OnlinePlatform
+from app.models import CashDifference, Expense, ExpenseCategory, OnlineSale, OnlinePlatform, ImportHistory, ImportHistoryItem
 from app.schemas import (
     CashDifferenceCreate, CashDifferenceUpdate, CashDifferenceResponse,
     CashDifferenceSummary, ExcelParseResult, POSParseResult,
@@ -143,6 +143,7 @@ def import_cash_difference(
     )
 
     db.add(record)
+    db.flush()  # Flush to get record.id
 
     if import_expenses and request.expenses:
         uncategorized = db.query(ExpenseCategory).filter(
@@ -201,6 +202,92 @@ def import_cash_difference(
                             created_by=ctx.user.id
                         )
                         db.add(sale)
+
+    # Track import in history
+    history = ImportHistory(
+        branch_id=ctx.current_branch_id,
+        import_type="kasa_raporu",
+        import_date=request.difference_date,
+        source_filename=None,  # Could be added from request if available
+        status="completed",
+        import_metadata={
+            "ocr_confidence": float(request.ocr_confidence_score) if request.ocr_confidence_score else None,
+            "kasa_total": float(request.kasa_total),
+            "pos_total": float(request.pos_total),
+            "diff_total": float(request.pos_total - request.kasa_total)
+        },
+        created_by=ctx.user.id
+    )
+    db.add(history)
+    db.flush()  # Get the history.id
+
+    # Track the cash difference record
+    db.add(ImportHistoryItem(
+        import_history_id=history.id,
+        entity_type="cash_difference",
+        entity_id=record.id,
+        action="created",
+        data={"difference_date": str(request.difference_date)}
+    ))
+
+    # Track any expenses that were created during the import
+    if import_expenses and request.expenses:
+        # Get the expenses we just created for this date
+        created_expenses = db.query(Expense).filter(
+            Expense.branch_id == ctx.current_branch_id,
+            Expense.expense_date == request.difference_date,
+            Expense.created_by == ctx.user.id
+        ).order_by(Expense.id.desc()).limit(len(request.expenses)).all()
+
+        for expense in created_expenses:
+            db.add(ImportHistoryItem(
+                import_history_id=history.id,
+                entity_type="expense",
+                entity_id=expense.id,
+                action="created",
+                data={
+                    "description": expense.description,
+                    "amount": float(expense.amount)
+                }
+            ))
+
+    # Track online sales that were synced
+    if sync_to_sales:
+        # Track the sales we just created/updated
+        platform_mapping = {
+            'pos_visa': 'Visa',
+            'pos_nakit': 'Nakit',
+            'pos_trendyol': 'Trendyol',
+            'pos_getir': 'Getir',
+            'pos_yemeksepeti': 'Yemek Sepeti',
+            'pos_migros': 'Migros Yemek',
+        }
+
+        for field, platform_name in platform_mapping.items():
+            amount = getattr(request, field, None)
+            if amount and amount > 0:
+                platform = db.query(OnlinePlatform).filter(
+                    OnlinePlatform.name == platform_name
+                ).first()
+
+                if platform:
+                    sale = db.query(OnlineSale).filter(
+                        OnlineSale.branch_id == ctx.current_branch_id,
+                        OnlineSale.sale_date == request.difference_date,
+                        OnlineSale.platform_id == platform.id
+                    ).first()
+
+                    if sale:
+                        db.add(ImportHistoryItem(
+                            import_history_id=history.id,
+                            entity_type="online_sale",
+                            entity_id=sale.id,
+                            action="created",  # We track both creates and updates as 'created' for import context
+                            data={
+                                "platform": platform_name,
+                                "amount": float(amount)
+                            }
+                        ))
 
     db.commit()
     db.refresh(record)
