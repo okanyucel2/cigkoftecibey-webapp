@@ -1,7 +1,7 @@
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, ConfigDict
 
 
 # Auth
@@ -918,3 +918,36 @@ class POSParseResult(BaseModel):
     migros: Decimal
     total: Decimal
     confidence_score: Decimal
+
+
+# Import History
+class ImportHistoryItemResponse(BaseModel):
+    id: int
+    entity_type: str
+    entity_id: int
+    action: str
+    data: dict | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ImportHistoryResponse(BaseModel):
+    id: int
+    branch_id: int
+    import_type: str
+    import_date: date
+    source_filename: str | None = None
+    status: str
+    error_message: str | None = None
+    import_metadata: dict | None = None  # Note: matches model field name
+    created_at: datetime
+    items: list[ImportHistoryItemResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ImportHistoryCreate(BaseModel):
+    import_type: str
+    import_date: date
+    source_filename: str | None = None
+    import_metadata: dict | None = None
