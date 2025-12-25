@@ -72,19 +72,31 @@ def undo_import(
     if not record:
         raise HTTPException(status_code=404, detail="Import not found or already undone")
 
-    # Delete created entities (simplified - expand for each entity type)
+    # Entity type to model mapping with branch validation
     from app.models import Expense, CashDifference, OnlineSale
 
-    for item in record.items:
-        if item.action == "created":
-            if item.entity_type == "expense":
-                db.query(Expense).filter(Expense.id == item.entity_id).delete()
-            elif item.entity_type == "cash_difference":
-                db.query(CashDifference).filter(CashDifference.id == item.entity_id).delete()
-            elif item.entity_type == "online_sale":
-                db.query(OnlineSale).filter(OnlineSale.id == item.entity_id).delete()
+    entity_models = {
+        "expense": Expense,
+        "cash_difference": CashDifference,
+        "online_sale": OnlineSale,
+    }
 
-    record.status = "undone"
-    db.commit()
+    try:
+        items_deleted = 0
+        for item in record.items:
+            if item.action == "created" and item.entity_type in entity_models:
+                model = entity_models[item.entity_type]
+                # Validate branch ownership before deleting
+                deleted = db.query(model).filter(
+                    model.id == item.entity_id,
+                    model.branch_id == ctx.current_branch_id
+                ).delete()
+                items_deleted += deleted
 
-    return {"message": "Import undone successfully", "items_reverted": len(record.items)}
+        record.status = "undone"
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail=f"Failed to undo import: {str(e)}")
+
+    return {"message": "Import undone successfully", "items_reverted": items_deleted}
