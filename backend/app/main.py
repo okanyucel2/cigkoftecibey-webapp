@@ -15,6 +15,8 @@ except Exception as e:
     print(f"Warning: Failed to patch bcrypt: {e}", file=sys.stderr)
 
 from app.config import settings
+from app.middleware import RequestLoggingMiddleware
+from app.logging_config import setup_logging
 from app.api import auth, purchases, expenses, reports, production, staff_meals, personnel, online_sales, branches, users, invitation_codes, courier_expenses, ai_insights, cash_difference
 
 app = FastAPI(
@@ -54,6 +56,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Request logging middleware
+app.add_middleware(RequestLoggingMiddleware)
 
 # Routers
 app.include_router(auth.router, prefix="/api")
