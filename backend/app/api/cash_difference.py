@@ -4,7 +4,7 @@ Cash Difference API - Kasa Farki Takibi
 from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Header
 from sqlalchemy import func, and_
 from app.api.deps import DBSession, CurrentBranchContext
 from app.models import CashDifference, Expense, ExpenseCategory, OnlineSale, OnlinePlatform
@@ -15,6 +15,7 @@ from app.schemas import (
 )
 from app.utils.excel_parser import parse_kasa_raporu
 from app.utils.pos_ocr import parse_pos_image
+from app.idempotency import check_idempotency, save_idempotency
 
 router = APIRouter(prefix="/cash-difference", tags=["cash-difference"])
 
@@ -92,12 +93,19 @@ def import_cash_difference(
     db: DBSession,
     ctx: CurrentBranchContext,
     import_expenses: bool = Query(default=True),
-    sync_to_sales: bool = Query(default=True)
+    sync_to_sales: bool = Query(default=True),
+    x_idempotency_key: str | None = Header(default=None, alias="X-Idempotency-Key")
 ):
     """Import parsed data and create CashDifference record.
 
     Also syncs POS values to online_sales table for dashboard counters.
     """
+    # Check idempotency cache first
+    if x_idempotency_key:
+        cached = check_idempotency(x_idempotency_key)
+        if cached:
+            return cached
+
     existing = db.query(CashDifference).filter(
         CashDifference.branch_id == ctx.current_branch_id,
         CashDifference.difference_date == request.difference_date
@@ -196,7 +204,15 @@ def import_cash_difference(
 
     db.commit()
     db.refresh(record)
-    return record
+
+    # Convert to response model for caching
+    response = CashDifferenceResponse.model_validate(record)
+
+    # Save to idempotency cache
+    if x_idempotency_key:
+        save_idempotency(x_idempotency_key, response)
+
+    return response
 
 
 @router.get("", response_model=list[CashDifferenceResponse])
