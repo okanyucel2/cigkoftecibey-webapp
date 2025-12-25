@@ -951,3 +951,5 @@ class ImportHistoryCreate(BaseModel):
     import_date: date
     source_filename: str | None = None
     import_metadata: dict | None = None
+
+    model_config = ConfigDict(from_attributes=True)
