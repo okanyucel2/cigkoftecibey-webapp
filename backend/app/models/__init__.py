@@ -1,4 +1,4 @@
-from datetime import datetime, date
+from datetime import datetime, date, UTC
 from decimal import Decimal
 from typing import Optional
 from sqlalchemy import String, Integer, Numeric, Boolean, DateTime, Date, ForeignKey, Text, JSON
@@ -14,7 +14,7 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(100))
     code: Mapped[str] = mapped_column(String(20), unique=True, index=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Relationships
     branches: Mapped[list["Branch"]] = relationship(back_populates="organization")
@@ -33,7 +33,7 @@ class Branch(Base):
     address: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Relationships
     organization: Mapped[Optional["Organization"]] = relationship(back_populates="branches")
@@ -56,7 +56,7 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(50), default="owner")  # owner, manager, cashier
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     is_super_admin: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Google Auth fields
     google_id: Mapped[Optional[str]] = mapped_column(String(100), unique=True, nullable=True)
@@ -93,7 +93,7 @@ class Purchase(Base):
     total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Relationships
     branch: Mapped["Branch"] = relationship(back_populates="purchases")
@@ -172,7 +172,7 @@ class Expense(Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Relationships
     branch: Mapped["Branch"] = relationship(back_populates="expenses")
@@ -205,7 +205,7 @@ class DailyProduction(Base):
     legen_cost: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=1040)  # 1 Legenin Maliyeti
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Hesaplanan alanlar (property olarak)
     @property
@@ -232,7 +232,7 @@ class StaffMeal(Base):
     staff_count: Mapped[int] = mapped_column(Integer)  # Personel adedi
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     @property
     def total(self) -> Decimal:
@@ -255,7 +255,7 @@ class Employee(Base):
     payment_type: Mapped[str] = mapped_column(String(20), default="monthly")  # monthly/weekly
     is_part_time: Mapped[bool] = mapped_column(Boolean, default=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Relationships
     payrolls: Mapped[list["MonthlyPayroll"]] = relationship(back_populates="employee")
@@ -288,7 +288,7 @@ class MonthlyPayroll(Base):
 
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Relationships
     employee: Mapped["Employee"] = relationship(back_populates="payrolls")
@@ -321,7 +321,7 @@ class PartTimeCost(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
 
 class OnlinePlatform(Base):
@@ -351,7 +351,7 @@ class OnlineSale(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(12, 2))
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, onupdate=datetime.utcnow)
 
     # Relationships
@@ -367,7 +367,7 @@ class UserBranch(Base):
     branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id", ondelete="CASCADE"), index=True)
     role: Mapped[str] = mapped_column(String(50), default="owner")  # owner, manager, cashier
     is_default: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="user_branches")
@@ -387,7 +387,7 @@ class InvitationCode(Base):
     used_count: Mapped[int] = mapped_column(Integer, default=0)
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Relationships
@@ -434,7 +434,7 @@ class CourierExpense(Base):
     vat_rate: Mapped[Decimal] = mapped_column(Numeric(5, 2), default=20)  # KDV oranı (%)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     @property
     def vat_amount(self) -> Decimal:
@@ -487,7 +487,7 @@ class CashDifference(Base):
 
     # Audit
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, onupdate=datetime.utcnow)
 
     # Computed properties for diffs
@@ -549,7 +549,7 @@ class DailyInsight(Base):
     branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
     date: Mapped[date] = mapped_column(Date)
     content: Mapped[str] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Unique constraint on (branch_id, date) is handled at DB level
 
@@ -565,9 +565,9 @@ class ImportHistory(Base):
     source_filename: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="pending")  # pending, completed, failed, undone
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    metadata_: Mapped[Optional[dict]] = mapped_column("metadata", JSON, nullable=True)  # Use metadata_ to avoid Python reserved word
+    import_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)  # Extra info like OCR confidence
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     # Relationships
     items: Mapped[list["ImportHistoryItem"]] = relationship(

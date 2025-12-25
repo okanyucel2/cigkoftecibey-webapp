@@ -28,7 +28,7 @@ def upgrade() -> None:
         sa.Column('source_filename', sa.String(255), nullable=True),
         sa.Column('status', sa.String(20), nullable=False, server_default='pending'),
         sa.Column('error_message', sa.Text(), nullable=True),
-        sa.Column('metadata', sa.JSON(), nullable=True),
+        sa.Column('import_metadata', sa.JSON(), nullable=True),
         sa.Column('created_by', sa.Integer(), nullable=False),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.func.now()),
         sa.ForeignKeyConstraint(['branch_id'], ['branches.id']),
