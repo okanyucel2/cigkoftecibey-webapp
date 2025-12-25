@@ -519,6 +519,27 @@ class CashDifference(Base):
     def diff_total(self) -> Decimal:
         return self.pos_total - self.kasa_total
 
+    # Relationships
+    items: Mapped[list["CashDifferenceItem"]] = relationship(
+        back_populates="cash_difference",
+        cascade="all, delete-orphan"
+    )
+
+
+class CashDifferenceItem(Base):
+    """Normalized cash difference amounts per platform"""
+    __tablename__ = "cash_difference_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    cash_difference_id: Mapped[int] = mapped_column(ForeignKey("cash_differences.id", ondelete="CASCADE"))
+    platform_id: Mapped[int] = mapped_column(ForeignKey("online_platforms.id"))
+    source_type: Mapped[str] = mapped_column(String(10))  # 'kasa' or 'pos'
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), default=0)
+
+    # Relationships
+    cash_difference: Mapped["CashDifference"] = relationship(back_populates="items")
+    platform: Mapped["OnlinePlatform"] = relationship()
+
 
 class DailyInsight(Base):
     """Günlük AI içgörüleri - Caching için"""
