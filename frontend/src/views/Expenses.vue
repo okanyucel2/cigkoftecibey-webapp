@@ -1,17 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import type { Expense, ExpenseCategory } from '@/types'
+import type { Expense, ExpenseCategory, DateRangeValue } from '@/types'
 import { expensesApi, expenseCategoriesApi } from '@/services/api'
 
 // Composables
-import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
+import { useFormatters, useConfirmModal } from '@/composables'
 
 // UI Components
-import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+import { ConfirmModal, ErrorAlert, LoadingState, PageModal, SummaryCard } from '@/components/ui'
+import { UnifiedFilterBar } from '@/components/ui'
+import type { EntityConfig } from '@/components/ui'
 
 // Use composables
 const { formatCurrency, formatDate } = useFormatters()
-const { selectedMonth, selectedYear, years } = useMonthYearFilter()
 const confirmModal = useConfirmModal()
 
 // Data
@@ -23,6 +24,15 @@ const error = ref('')
 // Filters
 const selectedCategoryId = ref<number | null>(null)
 
+// Date Range Filter
+const dateRangeFilter = ref<DateRangeValue>({
+  mode: 'month',
+  start: new Date().toISOString().split('T')[0],
+  end: new Date().toISOString().split('T')[0],
+  month: new Date().getMonth() + 1,
+  year: new Date().getFullYear()
+})
+
 // Category Modal State
 const showCategoryModal = ref(false)
 const showCategoryForm = ref(false)
@@ -33,20 +43,15 @@ const categoryForm = ref({
   is_fixed: false
 })
 
-// Month/Year filter value for v-model
-const filterValue = computed({
-  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
-  set: (val) => {
-    selectedMonth.value = val.month
-    selectedYear.value = val.year
-  }
-})
-
 onMounted(async () => {
   await Promise.all([loadExpenses(), loadCategories()])
 })
 
-watch([selectedMonth, selectedYear, selectedCategoryId], () => {
+watch(() => dateRangeFilter.value, () => {
+  loadExpenses()
+}, { deep: true })
+
+watch(selectedCategoryId, () => {
   loadExpenses()
 })
 
@@ -62,12 +67,9 @@ async function loadCategories() {
 async function loadExpenses() {
   loading.value = true
   try {
-    const startDate = new Date(selectedYear.value, selectedMonth.value - 1, 1)
-    const endDate = new Date(selectedYear.value, selectedMonth.value, 0)
-
     const params: { start_date: string; end_date: string; category_id?: number } = {
-      start_date: startDate.toISOString().split('T')[0],
-      end_date: endDate.toISOString().split('T')[0]
+      start_date: dateRangeFilter.value.start,
+      end_date: dateRangeFilter.value.end
     }
     if (selectedCategoryId.value) {
       params.category_id = selectedCategoryId.value
@@ -148,6 +150,18 @@ async function deleteCategory(id: number) {
   })
 }
 
+// Entity selector config for categories
+const categoryEntities = computed<EntityConfig>(() => ({
+  items: categories.value.map(cat => ({
+    id: cat.id,
+    label: cat.name,
+    icon: cat.is_fixed ? '📌' : '📦'
+  })),
+  allLabel: 'Tüm Kategoriler',
+  showSettings: true,
+  showCount: false
+}))
+
 // Summary calculations
 const totalAmount = computed(() => {
   return expenses.value.reduce((sum, e) => sum + Number(e.amount), 0)
@@ -170,44 +184,28 @@ const variableExpensesTotal = computed(() => {
   <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 class="text-2xl font-display font-bold text-gray-900">Isletme Giderleri</h1>
+      <h1 class="text-2xl font-display font-bold text-gray-900">
+        <span class="mr-2">💸</span> İşletme Giderleri
+      </h1>
     </div>
 
     <!-- Error -->
     <ErrorAlert :message="error" @dismiss="error = ''" />
 
-    <!-- Filters -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-      <div class="flex gap-3 items-center flex-wrap">
-        <MonthYearFilter v-model="filterValue" :years="years" />
-
-        <!-- Category Filter + Settings -->
-        <div class="flex items-center gap-1">
-          <select v-model="selectedCategoryId"
-            class="bg-gray-100 border-none rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-0">
-            <option :value="null">Tum Kategoriler</option>
-            <option v-for="cat in categories" :key="cat.id" :value="cat.id">{{ cat.name }}</option>
-          </select>
-          <button @click="showCategoryModal = true"
-            class="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-lg" title="Kategorileri Yonet">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd"
-                d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z"
-                clip-rule="evenodd" />
-            </svg>
-          </button>
-        </div>
-      </div>
-      <router-link to="/expenses/new" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
-        + Yeni Gider
-      </router-link>
-    </div>
+    <!-- Unified Filter Bar -->
+    <UnifiedFilterBar
+      v-model:date-range="dateRangeFilter"
+      v-model:entity-id="selectedCategoryId"
+      :entities="categoryEntities"
+      :primary-action="{ label: '+ Yeni Gider', icon: 'add', route: '/expenses/new' }"
+      @entity-settings="showCategoryModal = true"
+    />
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
       <SummaryCard label="Sabit Giderler" :value="formatCurrency(fixedExpensesTotal)" variant="purple" />
-      <SummaryCard label="Degisken Giderler" :value="formatCurrency(variableExpensesTotal)" />
-      <SummaryCard label="Toplam Gider" :value="formatCurrency(totalAmount)" :subtext="`${expenses.length} kayit`"
+      <SummaryCard label="Değişken Giderler" :value="formatCurrency(variableExpensesTotal)" />
+      <SummaryCard label="Toplam Gider" :value="formatCurrency(totalAmount)" :subtext="`${expenses.length} kayıt`"
         variant="danger" data-testid="total-expenses-card" />
     </div>
 
@@ -216,7 +214,7 @@ const variableExpensesTotal = computed(() => {
       <LoadingState v-if="loading" />
 
       <div v-else-if="expenses.length === 0" class="p-8 text-center text-gray-500">
-        Bu donemde gider bulunamadi
+        Bu dönemde gider bulunamadı
       </div>
 
       <table v-else class="w-full">
@@ -224,9 +222,9 @@ const variableExpensesTotal = computed(() => {
           <tr>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tarih</th>
             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Kategori</th>
-            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Aciklama</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Açıklama</th>
             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tutar</th>
-            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Islem</th>
+            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">İşlem</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-200">
@@ -241,6 +239,7 @@ const variableExpensesTotal = computed(() => {
                   ? 'bg-purple-100 text-purple-800'
                   : 'bg-gray-100 text-gray-800'
               ]">
+                <span v-if="expense.category?.is_fixed" class="mr-1">📌</span>
                 {{ expense.category?.name || '-' }}
               </span>
             </td>
@@ -269,20 +268,20 @@ const variableExpensesTotal = computed(() => {
             class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div class="flex items-center gap-2">
               <span :class="[
-                'w-3 h-3 rounded-full',
-                cat.is_fixed ? 'bg-purple-500' : 'bg-gray-400'
-              ]"></span>
+                'text-lg',
+                cat.is_fixed ? '' : 'opacity-50'
+              ]">{{ cat.is_fixed ? '📌' : '📦' }}</span>
               <span class="font-medium">{{ cat.name }}</span>
               <span v-if="cat.is_fixed" class="text-xs text-purple-600">(Sabit)</span>
             </div>
             <div class="flex gap-2">
-              <button @click="openCategoryForm(cat)" class="text-blue-600 hover:text-blue-800 text-sm">Duzenle</button>
+              <button @click="openCategoryForm(cat)" class="text-blue-600 hover:text-blue-800 text-sm">Düzenle</button>
               <button @click="deleteCategory(cat.id)" class="text-red-600 hover:text-red-800 text-sm">Sil</button>
             </div>
           </div>
 
           <div v-if="categories.length === 0" class="text-center py-4 text-gray-500">
-            Henuz kategori yok
+            Henüz kategori yok
           </div>
 
           <button @click="openCategoryForm()"
@@ -295,15 +294,15 @@ const variableExpensesTotal = computed(() => {
         <div v-else class="space-y-4">
           <div class="flex items-center gap-2 mb-4">
             <button @click="showCategoryForm = false" class="text-gray-500 hover:text-gray-700">
-              &larr;
+              ←
             </button>
-            <h3 class="font-medium">{{ editingCategoryId ? 'Kategori Duzenle' : 'Yeni Kategori' }}</h3>
+            <h3 class="font-medium">{{ editingCategoryId ? 'Kategori Düzenle' : 'Yeni Kategori' }}</h3>
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Kategori Adi *</label>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Kategori Adı *</label>
             <input v-model="categoryForm.name" type="text" class="w-full border rounded-lg px-3 py-2"
-              placeholder="ornegin: Kira, Elektrik, Temizlik..." />
+              placeholder="örneğin: Kira, Elektrik, Temizlik..." />
           </div>
 
           <div class="flex items-center gap-2">
@@ -316,7 +315,7 @@ const variableExpensesTotal = computed(() => {
           <div class="flex gap-3 pt-2">
             <button @click="showCategoryForm = false"
               class="flex-1 py-2 border rounded-lg text-gray-700 hover:bg-gray-100">
-              Iptal
+              İptal
             </button>
             <button @click="submitCategoryForm" :disabled="categorySubmitting"
               class="flex-1 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50">

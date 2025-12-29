@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
-import type { Purchase, Supplier } from '@/types'
-import { purchasesApi, suppliersApi } from '@/services/api'
+import type { Purchase, Supplier, PurchaseProductGroup, PurchaseProduct } from '@/types'
+import { purchasesApi, suppliersApi, purchaseProductsApi } from '@/services/api'
 
 // Composables
 import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
@@ -41,6 +41,21 @@ const editingSupplierId = ref<number | null>(null)
 const supplierForm = ref({
   name: '',
   phone: ''
+})
+
+// Product Groups modal
+const showProductGroupsModal = ref(false)
+const productGroupsLoading = ref(false)
+const productGroups = ref<PurchaseProductGroup[]>([])
+const editingGroupId = ref<number | null>(null)
+const editingProductId = ref<number | null>(null)
+const groupForm = ref({
+  name: ''
+})
+const productForm = ref({
+  name: '',
+  group_id: null as number | null,
+  default_unit: 'kg'
 })
 
 onMounted(async () => {
@@ -85,6 +100,15 @@ async function loadSuppliers() {
     suppliers.value = data
   } catch (e: any) {
     error.value = e.response?.data?.detail || 'Tedarikciler yuklenemedi'
+  }
+}
+
+async function loadProductGroups() {
+  try {
+    const { data } = await purchaseProductsApi.getGroups()
+    productGroups.value = data
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || 'Urun gruplari yuklenemedi'
   }
 }
 
@@ -147,6 +171,123 @@ function closeSupplierForm() {
   supplierForm.value = { name: '', phone: '' }
 }
 
+// Product Groups functions
+async function openProductGroupsModal() {
+  showProductGroupsModal.value = true
+  await loadProductGroups()
+}
+
+function editGroup(group: PurchaseProductGroup) {
+  editingGroupId.value = group.id
+  groupForm.value = { name: group.name }
+  editingProductId.value = null
+}
+
+async function saveGroup() {
+  if (!groupForm.value.name.trim()) {
+    error.value = 'Grup adi zorunlu'
+    return
+  }
+
+  productGroupsLoading.value = true
+  error.value = ''
+  try {
+    if (editingGroupId.value) {
+      await purchaseProductsApi.updateGroup(editingGroupId.value, groupForm.value)
+    } else {
+      await purchaseProductsApi.createGroup(groupForm.value)
+    }
+    await loadProductGroups()
+    closeGroupForm()
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || 'Grup kaydedilemedi'
+  } finally {
+    productGroupsLoading.value = false
+  }
+}
+
+async function deleteGroup(id: number) {
+  confirmModal.confirm('Bu grubu ve icindeki urunleri silmek istediginize emin misiniz?', async () => {
+    productGroupsLoading.value = true
+    error.value = ''
+    try {
+      await purchaseProductsApi.deleteGroup(id)
+      await loadProductGroups()
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } finally {
+      productGroupsLoading.value = false
+    }
+  })
+}
+
+function closeGroupForm() {
+  editingGroupId.value = null
+  groupForm.value = { name: '' }
+}
+
+// Product functions
+function editProduct(product: PurchaseProduct) {
+  editingProductId.value = product.id
+  productForm.value = {
+    name: product.name,
+    group_id: product.group_id,
+    default_unit: product.default_unit
+  }
+  editingGroupId.value = null
+}
+
+async function saveProduct() {
+  if (!productForm.value.name.trim() || !productForm.value.group_id) {
+    error.value = 'Urun adi ve grup zorunlu'
+    return
+  }
+
+  productGroupsLoading.value = true
+  error.value = ''
+  try {
+    if (editingProductId.value) {
+      await purchaseProductsApi.updateProduct(editingProductId.value, {
+        name: productForm.value.name,
+        group_id: productForm.value.group_id,
+        default_unit: productForm.value.default_unit
+      })
+    } else {
+      await purchaseProductsApi.createProduct({
+        name: productForm.value.name,
+        group_id: productForm.value.group_id,
+        default_unit: productForm.value.default_unit
+      })
+    }
+    await loadProductGroups()
+    closeProductForm()
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || 'Urun kaydedilemedi'
+  } finally {
+    productGroupsLoading.value = false
+  }
+}
+
+async function deleteProduct(id: number) {
+  confirmModal.confirm('Bu urunu silmek istediginize emin misiniz?', async () => {
+    productGroupsLoading.value = true
+    error.value = ''
+    try {
+      await purchaseProductsApi.deleteProduct(id)
+      await loadProductGroups()
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } finally {
+      productGroupsLoading.value = false
+    }
+  })
+}
+
+function closeProductForm() {
+  editingProductId.value = null
+  productForm.value = { name: '', group_id: null, default_unit: 'kg' }
+}
+
 async function deletePurchase(id: number) {
   confirmModal.confirm('Bu mal alimini silmek istediginize emin misiniz?', async () => {
     try {
@@ -172,6 +313,12 @@ async function deletePurchase(id: number) {
           class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
         >
           Tedarikciler ({{ suppliers.length }})
+        </button>
+        <button
+          @click="openProductGroupsModal"
+          class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+        >
+          Urun Gruplari
         </button>
         <router-link to="/purchases/new" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
           + Yeni Alim
@@ -336,6 +483,167 @@ async function deletePurchase(id: number) {
       <template #footer>
         <button
           @click="showSupplierModal = false"
+          class="w-full px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+        >
+          Kapat
+        </button>
+      </template>
+    </PageModal>
+
+    <!-- Product Groups Management Modal -->
+    <PageModal
+      :show="showProductGroupsModal"
+      title="Urun Gruplari Yonetimi"
+      size="xl"
+      @close="showProductGroupsModal = false"
+    >
+      <div class="p-6">
+        <!-- Add/Edit Group Form -->
+        <div class="bg-gray-50 rounded-lg p-4 mb-6">
+          <h3 class="font-medium text-gray-700 mb-3">
+            {{ editingGroupId ? 'Grup Duzenle' : 'Yeni Grup Ekle' }}
+          </h3>
+          <div class="flex gap-2">
+            <input
+              type="text"
+              v-model="groupForm.name"
+              class="flex-1 border rounded-lg px-3 py-2"
+              placeholder="Grup adi (orn: Et Urunleri, Sebze...)"
+            />
+            <button
+              @click="saveGroup"
+              :disabled="productGroupsLoading"
+              class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 disabled:opacity-50"
+            >
+              {{ productGroupsLoading ? 'Kaydediliyor...' : (editingGroupId ? 'Guncelle' : 'Ekle') }}
+            </button>
+            <button
+              v-if="editingGroupId"
+              @click="closeGroupForm"
+              class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+            >
+              Iptal
+            </button>
+          </div>
+        </div>
+
+        <!-- Groups List with Products -->
+        <div class="space-y-6">
+          <div
+            v-for="group in productGroups"
+            :key="group.id"
+            class="border rounded-lg overflow-hidden"
+          >
+            <!-- Group Header -->
+            <div class="bg-gray-50 px-4 py-3 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <h3 class="font-semibold text-gray-900">{{ group.name }}</h3>
+                <span class="text-xs text-gray-500 bg-white px-2 py-1 rounded">
+                  {{ group.products?.length || 0 }} urun
+                </span>
+              </div>
+              <div class="flex gap-2">
+                <button
+                  @click="editGroup(group)"
+                  class="text-blue-600 hover:text-blue-800 text-sm px-2 py-1"
+                >
+                  Duzenle
+                </button>
+                <button
+                  @click="deleteGroup(group.id)"
+                  class="text-red-600 hover:text-red-800 text-sm px-2 py-1"
+                >
+                  Sil
+                </button>
+              </div>
+            </div>
+
+            <!-- Products in Group -->
+            <div class="p-4 bg-white">
+              <!-- Add Product Form -->
+              <div class="flex gap-2 mb-3 p-3 bg-gray-50 rounded-lg">
+                <input
+                  type="text"
+                  v-model="productForm.name"
+                  class="flex-1 border rounded px-2 py-1.5 text-sm"
+                  placeholder="Urun adi (orn: Kırmızı Et)"
+                  :disabled="editingProductId !== null && productForm.group_id !== group.id"
+                />
+                <select
+                  v-model="productForm.default_unit"
+                  class="border rounded px-2 py-1.5 text-sm"
+                  :disabled="editingProductId !== null && productForm.group_id !== group.id"
+                >
+                  <option value="kg">kg</option>
+                  <option value="adet">adet</option>
+                  <option value="litre">litre</option>
+                  <option value="demet">demet</option>
+                  <option value="paket">paket</option>
+                </select>
+                <input
+                  type="hidden"
+                  :value="editingProductId === null && productForm.group_id === null ? group.id : productForm.group_id"
+                />
+                <button
+                  @click="productForm.group_id = group.id; saveProduct()"
+                  :disabled="productGroupsLoading || (editingProductId !== null && productForm.group_id !== group.id)"
+                  class="bg-gray-200 text-gray-700 px-3 py-1.5 rounded text-sm hover:bg-gray-300 disabled:opacity-50"
+                >
+                  {{ editingProductId !== null && productForm.group_id === group.id ? 'Guncelle' : '+ Urun Ekle' }}
+                </button>
+                <button
+                  v-if="editingProductId !== null && productForm.group_id === group.id"
+                  @click="closeProductForm"
+                  class="px-3 py-1.5 border rounded text-sm text-gray-600 hover:bg-gray-100"
+                >
+                  Iptal
+                </button>
+              </div>
+
+              <!-- Products List -->
+              <div v-if="!group.products || group.products.length === 0" class="text-gray-500 text-center py-2 text-sm">
+                Henuz urun eklenmemis
+              </div>
+              <div v-else class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div
+                  v-for="product in group.products.filter(p => p.is_active).sort((a, b) => a.name.localeCompare(b.name, 'tr'))"
+                  :key="product.id"
+                  class="flex items-center justify-between bg-white border rounded px-3 py-2 text-sm hover:bg-gray-50"
+                  :class="{ 'ring-2 ring-red-200': editingProductId === product.id }"
+                >
+                  <div>
+                    <span class="font-medium text-gray-900">{{ product.name }}</span>
+                    <span class="text-xs text-gray-500 ml-2">({{ product.default_unit }})</span>
+                  </div>
+                  <div class="flex gap-2">
+                    <button
+                      @click="editProduct(product)"
+                      class="text-blue-600 hover:text-blue-800"
+                    >
+                      Duzenle
+                    </button>
+                    <button
+                      @click="deleteProduct(product.id)"
+                      class="text-red-600 hover:text-red-800"
+                    >
+                      Sil
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Empty State -->
+          <div v-if="productGroups.length === 0" class="text-gray-500 text-center py-8">
+            Henuz urun grubu eklenmemis. Yukaridan yeni grup olusturabilirsiniz.
+          </div>
+        </div>
+      </div>
+
+      <template #footer>
+        <button
+          @click="showProductGroupsModal = false"
           class="w-full px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
         >
           Kapat

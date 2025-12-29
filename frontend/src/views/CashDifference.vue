@@ -115,15 +115,65 @@ async function updateStatus() {
 }
 
 async function deleteRecord(id: number) {
-  confirmModal.confirm('Bu kaydı silmek istediginizden emin misiniz?', async () => {
-    try {
-      await cashDifferenceApi.delete(id)
-      records.value = records.value.filter(r => r.id !== id)
-      await loadData() // Reload to update summary
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+  try {
+    // First, get preview of what will be deleted
+    const { data: preview } = await cashDifferenceApi.previewDelete(id)
+
+    // Build confirmation message with details
+    let message = `Bu kaydı silmek istediğinizden emin misiniz?\n\n`
+    message += `Tarih: ${preview.cash_difference.difference_date}\n`
+    message += `Kasa Toplam: ₺${preview.cash_difference.kasa_total.toLocaleString('tr-TR')}\n`
+    message += `POS Toplam: ₺${preview.cash_difference.pos_total.toLocaleString('tr-TR')}\n`
+
+    // Show what will be deleted
+    if (preview.summary.total_expenses > 0 || preview.summary.total_sales > 0) {
+      message += `\nSilinecek ilişikili kayıtlar:\n`
+      if (preview.summary.total_expenses > 0) {
+        message += `• ${preview.summary.total_expenses} gider kaydı\n`
+      }
+      if (preview.summary.total_sales > 0) {
+        message += `• ${preview.summary.total_sales} online satış kaydı\n`
+      }
     }
-  })
+
+    // Show what will be skipped (modified after import)
+    if (preview.summary.skipped_expenses > 0 || preview.summary.skipped_sales > 0) {
+      message += `\n⚠️ Değiştirildiği için atlanacak:\n`
+      if (preview.summary.skipped_expenses > 0) {
+        message += `• ${preview.summary.skipped_expenses} gider (düzenlendi)\n`
+      }
+      if (preview.summary.skipped_sales > 0) {
+        message += `• ${preview.summary.skipped_sales} satış (düzenlendi)\n`
+      }
+      message += `\nBu kayıtlar import sonrası değiştirildiği için silinmeyecek.`
+    }
+
+    message += `\n\n⚠️ Bu işlem geri alınamaz!`
+
+    confirmModal.confirm(message, async () => {
+      try {
+        const { data: result } = await cashDifferenceApi.delete(id)
+        records.value = records.value.filter(r => r.id !== id)
+        await loadData() // Reload to update summary
+
+        // Show success message with details
+        let successMsg = result.message || 'Kayıt silindi'
+        if (result.skipped_expenses > 0 || result.skipped_sales > 0) {
+          if (result.skipped_expenses > 0) {
+            successMsg += `\n• ${result.skipped_expenses} gider değiştirildiği için atlandı`
+          }
+          if (result.skipped_sales > 0) {
+            successMsg += `\n• ${result.skipped_sales} satış değiştirildiği için atlandı`
+          }
+        }
+        // Show notification or toast here if available
+      } catch (e: any) {
+        error.value = e.response?.data?.detail || 'Silme başarısız'
+      }
+    })
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || 'Önizleme yüklenemedi'
+  }
 }
 
 // Status badge styling

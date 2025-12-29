@@ -13,8 +13,7 @@ from app.schemas import (
     CashDifferenceSummary, ExcelParseResult, POSParseResult,
     CashDifferenceImportRequest
 )
-from app.utils.excel_parser import parse_kasa_raporu
-from app.utils.pos_ocr import parse_pos_image
+from app.utils.excel_parser import parse_kasa_raporu, parse_hasilat_raporu
 from app.idempotency import check_idempotency, save_idempotency
 
 router = APIRouter(prefix="/cash-difference", tags=["cash-difference"])
@@ -58,20 +57,19 @@ async def parse_excel_file(
         raise HTTPException(status_code=400, detail=f"Excel parse hatasi: {str(e)}")
 
 
-@router.post("/parse-pos-image", response_model=POSParseResult)
-async def parse_pos_image_file(
+@router.post("/parse-hasilat-excel", response_model=POSParseResult)
+async def parse_hasilat_excel_file(
     file: UploadFile = File(...),
     ctx: CurrentBranchContext = None
 ):
-    """Parse POS image using OCR"""
-    allowed_types = ['image/jpeg', 'image/png', 'image/jpg']
-    if file.content_type not in allowed_types:
-        raise HTTPException(status_code=400, detail="Sadece JPEG ve PNG kabul edilir")
+    """Parse Şefim Hasılat Raporu Excel"""
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        raise HTTPException(status_code=400, detail="Sadece Excel dosyalari kabul edilir")
 
     content = await file.read()
 
     try:
-        data = parse_pos_image(content, file.content_type)
+        data = parse_hasilat_raporu(content)
         return POSParseResult(
             date=data["date"],
             visa=data["visa"],
@@ -81,10 +79,10 @@ async def parse_pos_image_file(
             yemeksepeti=data["yemeksepeti"],
             migros=data["migros"],
             total=data["total"],
-            confidence_score=data["confidence_score"]
+            confidence_score=Decimal("1.0")  # Excel parsing is 100% confident
         )
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"OCR hatasi: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Hasılat Excel parse hatasi: {str(e)}")
 
 
 @router.post("/import", response_model=CashDifferenceResponse)
@@ -153,9 +151,11 @@ def import_cash_difference(
         if uncategorized:
             for exp in request.expenses:
                 if exp.amount > 0:
+                    # Use user-selected category_id from import UI, fallback to uncategorized
+                    category_id = exp.category_id if exp.category_id is not None else uncategorized.id
                     expense = Expense(
                         branch_id=ctx.current_branch_id,
-                        category_id=uncategorized.id,
+                        category_id=category_id,
                         expense_date=request.difference_date,
                         description=exp.description or "Excel'den aktarildi",
                         amount=exp.amount,
@@ -417,6 +417,138 @@ def update_cash_difference(
 
 @router.delete("/{record_id}")
 def delete_cash_difference(record_id: int, db: DBSession, ctx: CurrentBranchContext):
+    """Delete cash difference record and all related entities (cascade delete).
+
+    This will delete:
+    - Related expenses created during import (ONLY if not modified after import)
+    - Related online_sales synced during import (ONLY if not modified after import)
+    - Import history tracking records
+
+    SAFETY: Expenses and online_sales that were modified AFTER import will NOT be deleted.
+
+    WARNING: This action cannot be undone.
+    """
+    try:
+        # Get the record
+        record = db.query(CashDifference).filter(
+            CashDifference.id == record_id,
+            CashDifference.branch_id == ctx.current_branch_id
+        ).first()
+
+        if not record:
+            raise HTTPException(status_code=404, detail="Kayit bulunamadi")
+
+        # Find all import history items that created this cash_difference record
+        import_history_items = db.query(ImportHistoryItem).filter(
+            ImportHistoryItem.entity_type == "cash_difference",
+            ImportHistoryItem.entity_id == record_id
+        ).all()
+
+        deleted_expenses = 0
+        deleted_sales = 0
+        skipped_expenses = 0
+        skipped_sales = 0
+        history_ids_to_check = set()
+
+        for item in import_history_items:
+            history_ids_to_check.add(item.import_history_id)
+
+            # Find all related items from the same import (expenses, online_sales)
+            related_items = db.query(ImportHistoryItem).filter(
+                ImportHistoryItem.import_history_id == item.import_history_id,
+                ImportHistoryItem.entity_type.in_(["expense", "online_sale"])
+            ).all()
+
+            for related in related_items:
+                if related.entity_type == "expense":
+                    # Check if expense exists and hasn't been modified
+                    expense = db.query(Expense).filter(
+                        Expense.id == related.entity_id,
+                        Expense.branch_id == ctx.current_branch_id
+                    ).first()
+                    if expense:
+                        # Check if expense was modified after import (updated_at exists and > created_at)
+                        if hasattr(expense, 'updated_at') and expense.updated_at and expense.updated_at > expense.created_at:
+                            # Skip deleting modified expenses
+                            skipped_expenses += 1
+                        else:
+                            db.delete(expense)
+                            deleted_expenses += 1
+
+                elif related.entity_type == "online_sale":
+                    # Check if sale exists and hasn't been modified
+                    sale = db.query(OnlineSale).filter(
+                        OnlineSale.id == related.entity_id,
+                        OnlineSale.branch_id == ctx.current_branch_id
+                    ).first()
+                    if sale:
+                        # Check if sale was modified after import
+                        if hasattr(sale, 'updated_at') and sale.updated_at and sale.updated_at > sale.created_at:
+                            # Skip deleting modified sales
+                            skipped_sales += 1
+                        else:
+                            db.delete(sale)
+                            deleted_sales += 1
+
+                # Delete the import history item
+                db.delete(related)
+
+            # Delete the cash_difference import history item itself
+            db.delete(item)
+
+        # Clean up empty import history records (no items left)
+        for history_id in history_ids_to_check:
+            remaining_items = db.query(ImportHistoryItem).filter(
+                ImportHistoryItem.import_history_id == history_id
+            ).count()
+            if remaining_items == 0:
+                history = db.query(ImportHistory).filter(
+                    ImportHistory.id == history_id
+                ).first()
+                if history:
+                    db.delete(history)
+
+        # Finally, delete the cash_difference record
+        db.delete(record)
+
+        # Commit transaction
+        db.commit()
+
+        result_message = "Kayit silindi"
+        if deleted_expenses > 0 or deleted_sales > 0:
+            result_message += f" ({deleted_expenses} gider, {deleted_sales} satış)"
+        if skipped_expenses > 0 or skipped_sales > 0:
+            result_message += f" - {skipped_expenses} gider, {skipped_sales} satış değiştirildiği için atlandı"
+
+        return {
+            "message": result_message,
+            "deleted_expenses": deleted_expenses,
+            "deleted_sales": deleted_sales,
+            "skipped_expenses": skipped_expenses,
+            "skipped_sales": skipped_sales
+        }
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
+    except Exception as e:
+        # Rollback on any other error
+        db.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Silme sırasında hata oluştu: {str(e)}. İşlem geri alındı."
+        )
+
+
+@router.get("/{record_id}/preview-delete")
+def preview_delete_cash_difference(record_id: int, db: DBSession, ctx: CurrentBranchContext):
+    """Preview what will be deleted when deleting a cash difference record.
+
+    Returns a list of related entities that will be cascade deleted.
+    Use this to show the user what will be affected before confirming deletion.
+
+    NOTE: Expenses and online_sales that were modified AFTER import will NOT be deleted.
+    """
     record = db.query(CashDifference).filter(
         CashDifference.id == record_id,
         CashDifference.branch_id == ctx.current_branch_id
@@ -425,6 +557,99 @@ def delete_cash_difference(record_id: int, db: DBSession, ctx: CurrentBranchCont
     if not record:
         raise HTTPException(status_code=404, detail="Kayit bulunamadi")
 
-    db.delete(record)
-    db.commit()
-    return {"message": "Kayit silindi"}
+    # Find all import history items that created this cash_difference record
+    import_history_items = db.query(ImportHistoryItem).filter(
+        ImportHistoryItem.entity_type == "cash_difference",
+        ImportHistoryItem.entity_id == record_id
+    ).all()
+
+    expenses_to_delete = []
+    expenses_to_skip = []
+    sales_to_delete = []
+    sales_to_skip = []
+    history_ids_to_check = set()
+
+    for item in import_history_items:
+        history_ids_to_check.add(item.import_history_id)
+
+        # Find all related items from the same import
+        related_items = db.query(ImportHistoryItem).filter(
+            ImportHistoryItem.import_history_id == item.import_history_id,
+            ImportHistoryItem.entity_type.in_(["expense", "online_sale"])
+        ).all()
+
+        for related in related_items:
+            if related.entity_type == "expense":
+                expense = db.query(Expense).filter(
+                    Expense.id == related.entity_id,
+                    Expense.branch_id == ctx.current_branch_id
+                ).first()
+                if expense:
+                    # Check if expense was modified after import
+                    is_modified = (
+                        hasattr(expense, 'updated_at') and
+                        expense.updated_at and
+                        expense.updated_at > expense.created_at
+                    )
+                    expense_info = {
+                        "id": expense.id,
+                        "description": expense.description,
+                        "amount": float(expense.amount),
+                        "expense_date": str(expense.expense_date),
+                        "reason": "modified_after_import" if is_modified else None
+                    }
+                    if is_modified:
+                        expenses_to_skip.append(expense_info)
+                    else:
+                        expenses_to_delete.append(expense_info)
+
+            elif related.entity_type == "online_sale":
+                sale = db.query(OnlineSale).filter(
+                    OnlineSale.id == related.entity_id,
+                    OnlineSale.branch_id == ctx.current_branch_id
+                ).first()
+                if sale:
+                    # Check if sale was modified after import
+                    is_modified = (
+                        hasattr(sale, 'updated_at') and
+                        sale.updated_at and
+                        sale.updated_at > sale.created_at
+                    )
+                    # Get platform name
+                    platform = db.query(OnlinePlatform).filter(
+                        OnlinePlatform.id == sale.platform_id
+                    ).first()
+                    sale_info = {
+                        "id": sale.id,
+                        "platform": platform.name if platform else "Bilinmiyor",
+                        "amount": float(sale.amount),
+                        "sale_date": str(sale.sale_date),
+                        "reason": "modified_after_import" if is_modified else None
+                    }
+                    if is_modified:
+                        sales_to_skip.append(sale_info)
+                    else:
+                        sales_to_delete.append(sale_info)
+
+    return {
+        "cash_difference": {
+            "id": record.id,
+            "difference_date": str(record.difference_date),
+            "kasa_total": float(record.kasa_total),
+            "pos_total": float(record.pos_total)
+        },
+        "related_entities": {
+            "expenses": expenses_to_delete,
+            "online_sales": sales_to_delete
+        },
+        "skipped_entities": {
+            "expenses": expenses_to_skip,
+            "online_sales": sales_to_skip
+        },
+        "summary": {
+            "total_expenses": len(expenses_to_delete),
+            "total_sales": len(sales_to_delete),
+            "skipped_expenses": len(expenses_to_skip),
+            "skipped_sales": len(sales_to_skip)
+        }
+    }

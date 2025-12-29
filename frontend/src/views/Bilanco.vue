@@ -78,10 +78,49 @@ const weeklyMax = computed(() => {
   return Math.max(...thisWeek, ...lastWeek, 1)
 })
 
+// Geçen hafta toplam gider
+const lastWeekExpenses = computed(() => {
+  if (!stats.value) return 0
+  const b = stats.value.last_week_breakdown
+  return (b.mal_alimi || 0) + (b.gider || 0) + (b.staff || 0) +
+         (b.kurye || 0) + (b.parttime || 0) + (b.uretim || 0)
+})
+
+// Geçen hafta kar
+const lastWeekProfit = computed(() => {
+  if (!stats.value) return 0
+  return stats.value.last_week_total - lastWeekExpenses.value
+})
+
 // Aylık grafik için max değer
 const monthlyMax = computed(() => {
   if (!stats.value) return 1
   return Math.max(...stats.value.this_month_chart.map(d => d.amount), 1)
+})
+
+// Aylık toplam gider
+const thisMonthExpenses = computed(() => {
+  if (!stats.value) return 0
+  const b = stats.value.this_month_breakdown
+  return (b.mal_alimi || 0) + (b.gider || 0) + (b.staff || 0) +
+         (b.kurye || 0) + (b.parttime || 0) + (b.uretim || 0)
+})
+
+const lastMonthExpenses = computed(() => {
+  if (!stats.value) return 0
+  const b = stats.value.last_month_breakdown
+  return (b.mal_alimi || 0) + (b.gider || 0) + (b.staff || 0) +
+         (b.kurye || 0) + (b.parttime || 0) + (b.uretim || 0)
+})
+
+const thisMonthProfit = computed(() => {
+  if (!stats.value) return 0
+  return stats.value.this_month_revenue - thisMonthExpenses.value
+})
+
+const lastMonthProfit = computed(() => {
+  if (!stats.value) return 0
+  return stats.value.last_month_revenue - lastMonthExpenses.value
 })
 </script>
 
@@ -199,15 +238,12 @@ const monthlyMax = computed(() => {
       </div>
 
       <!-- Gider Detayları -->
-      <div class="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1 pt-3 border-t border-gray-100">
+      <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-500 pt-3 border-t border-gray-100">
         <span>Mal Alımı {{ formatCurrency(stats.today_breakdown.mal_alimi) }}</span>
-        <span class="text-gray-300">•</span>
         <span>İşletme Giderleri {{ formatCurrency(stats.today_breakdown.gider) }}</span>
-        <span class="text-gray-300">•</span>
         <span>Personel Yemekleri {{ formatCurrency(stats.today_breakdown.staff) }}</span>
-        <span class="text-gray-300">•</span>
         <span>Kurye {{ formatCurrency(stats.today_breakdown.kurye) }}</span>
-        <span class="text-gray-300">•</span>
+        <span>Part-Time {{ formatCurrency(stats.today_breakdown.parttime) }}</span>
         <span>Üretim {{ formatCurrency(stats.today_breakdown.uretim) }}</span>
       </div>
     </div>
@@ -286,15 +322,12 @@ const monthlyMax = computed(() => {
       </div>
 
       <!-- Gider Detayları -->
-      <div class="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1 pt-3 border-t border-gray-100">
+      <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-500 pt-3 border-t border-gray-100">
         <span>Mal Alımı {{ formatCurrency(stats.yesterday_breakdown.mal_alimi) }}</span>
-        <span class="text-gray-300">•</span>
         <span>İşletme Giderleri {{ formatCurrency(stats.yesterday_breakdown.gider) }}</span>
-        <span class="text-gray-300">•</span>
         <span>Personel Yemekleri {{ formatCurrency(stats.yesterday_breakdown.staff) }}</span>
-        <span class="text-gray-300">•</span>
         <span>Kurye {{ formatCurrency(stats.yesterday_breakdown.kurye) }}</span>
-        <span class="text-gray-300">•</span>
+        <span>Part-Time {{ formatCurrency(stats.yesterday_breakdown.parttime) }}</span>
         <span>Üretim {{ formatCurrency(stats.yesterday_breakdown.uretim) }}</span>
       </div>
     </div>
@@ -304,64 +337,89 @@ const monthlyMax = computed(() => {
       <div class="flex items-center justify-between mb-4">
         <h2 class="text-lg font-semibold text-gray-800 flex items-center gap-2">
           <span class="text-xl">📊</span>
-          Bu Hafta vs Geçen Hafta
+          Geçen Hafta ({{ formatDateRange(stats.last_week_start, stats.last_week_end) }})
         </h2>
         <span :class="['text-sm px-3 py-1 rounded-full', stats.week_vs_week_pct >= 0 ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600']">
-          {{ formatPercent(stats.week_vs_week_pct) }}
+          {{ formatPercent(stats.week_vs_week_pct) }} bu haftaya göre
         </span>
       </div>
 
-      <!-- Bu Hafta Kasa Detayları -->
-      <div class="mb-4">
-        <p class="text-sm text-indigo-600 font-medium mb-2">Bu Hafta ({{ formatDateRange(stats.this_week_start, stats.this_week_end) }})</p>
-        <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <!-- Visa -->
-          <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
-            <p class="text-xs text-blue-600 font-medium flex items-center gap-1">
-              <span>💳</span> Visa
-            </p>
-            <p class="text-xl font-bold text-blue-700">{{ formatCurrency(stats.this_week_breakdown.visa) }}</p>
-          </div>
+      <!-- Kasa Detayları -->
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
+        <!-- Visa -->
+        <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+          <p class="text-xs text-blue-600 font-medium flex items-center gap-1">
+            <span>💳</span> Visa
+          </p>
+          <p class="text-xl font-bold text-blue-700">{{ formatCurrency(stats.last_week_breakdown.visa) }}</p>
+        </div>
 
-          <!-- Nakit -->
-          <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 border border-emerald-200">
-            <p class="text-xs text-emerald-600 font-medium flex items-center gap-1">
-              <span>💵</span> Nakit
-            </p>
-            <p class="text-xl font-bold text-emerald-700">{{ formatCurrency(stats.this_week_breakdown.nakit) }}</p>
-          </div>
+        <!-- Nakit -->
+        <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 border border-emerald-200">
+          <p class="text-xs text-emerald-600 font-medium flex items-center gap-1">
+            <span>💵</span> Nakit
+          </p>
+          <p class="text-xl font-bold text-emerald-700">{{ formatCurrency(stats.last_week_breakdown.nakit) }}</p>
+        </div>
 
-          <!-- Online -->
-          <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
-            <p class="text-xs text-purple-600 font-medium flex items-center gap-1">
-              <span>📱</span> Online
-            </p>
-            <p class="text-xl font-bold text-purple-700">{{ formatCurrency(stats.this_week_breakdown.online) }}</p>
-          </div>
+        <!-- Online -->
+        <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+          <p class="text-xs text-purple-600 font-medium flex items-center gap-1">
+            <span>📱</span> Online
+          </p>
+          <p class="text-xl font-bold text-purple-700">{{ formatCurrency(stats.last_week_breakdown.online) }}</p>
         </div>
       </div>
 
-      <!-- Hafta Toplamları -->
-      <div class="grid grid-cols-2 gap-4 mb-6">
-        <div class="bg-indigo-50 rounded-xl p-4 border border-indigo-200">
-          <p class="text-sm text-indigo-600">Bu Hafta Toplam</p>
-          <p class="text-2xl font-bold text-indigo-700">{{ formatCurrency(stats.this_week_total) }}</p>
+      <!-- Özet Kartları -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+        <!-- Toplam Ciro -->
+        <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
+          <p class="text-sm text-green-600 font-medium flex items-center gap-1">
+            <span>💰</span> Toplam Ciro
+          </p>
+          <p class="text-2xl font-bold text-green-700">{{ formatCurrency(stats.last_week_total) }}</p>
+          <p class="text-xs text-gray-500 mt-1">Bu hafta: {{ formatCurrency(stats.this_week_total) }}</p>
         </div>
-        <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
-          <p class="text-sm text-gray-600">Geçen Hafta Toplam</p>
-          <p class="text-2xl font-bold text-gray-700">{{ formatCurrency(stats.last_week_total) }}</p>
-          <p class="text-xs text-gray-500 mt-1">
-            Visa {{ formatCompact(stats.last_week_breakdown.visa) }} •
-            Nakit {{ formatCompact(stats.last_week_breakdown.nakit) }} •
-            Online {{ formatCompact(stats.last_week_breakdown.online) }}
+
+        <!-- Toplam Gider -->
+        <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200">
+          <p class="text-sm text-orange-600 font-medium flex items-center gap-1">
+            <span>📦</span> Toplam Gider
+          </p>
+          <p class="text-2xl font-bold text-orange-700">{{ formatCurrency(lastWeekExpenses) }}</p>
+        </div>
+
+        <!-- Net Kar -->
+        <div :class="[
+          'rounded-xl p-4 border',
+          lastWeekProfit >= 0
+            ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200'
+            : 'bg-gradient-to-br from-red-50 to-red-100 border-red-200'
+        ]">
+          <p :class="['text-sm font-medium flex items-center gap-1', lastWeekProfit >= 0 ? 'text-blue-600' : 'text-red-600']">
+            <span>📈</span> Net Kâr
+          </p>
+          <p :class="['text-2xl font-bold', lastWeekProfit >= 0 ? 'text-blue-700' : 'text-red-700']">
+            {{ formatCurrency(lastWeekProfit) }}
           </p>
         </div>
       </div>
 
+      <!-- Gider Detayları -->
+      <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-500 pt-3 border-t border-gray-100 mb-6">
+        <span>Mal Alımı {{ formatCurrency(stats.last_week_breakdown.mal_alimi) }}</span>
+        <span>İşletme Giderleri {{ formatCurrency(stats.last_week_breakdown.gider) }}</span>
+        <span>Personel Yemekleri {{ formatCurrency(stats.last_week_breakdown.staff) }}</span>
+        <span>Kurye {{ formatCurrency(stats.last_week_breakdown.kurye) }}</span>
+        <span>Part-Time {{ formatCurrency(stats.last_week_breakdown.parttime) }}</span>
+        <span>Üretim {{ formatCurrency(stats.last_week_breakdown.uretim) }}</span>
+      </div>
+
       <!-- Gün Bazlı Karşılaştırma -->
-      <div class="flex items-end gap-2 h-40 mb-4">
+      <p class="text-sm text-gray-600 font-medium mb-3">Günlük Dağılım</p>
+      <div class="flex items-end gap-2 h-32 mb-4">
         <div v-for="(day, idx) in stats.this_week_daily" :key="day.date" class="flex-1 flex flex-col items-center">
-          <!-- Bu hafta bar -->
           <div class="w-full flex flex-col items-center gap-1">
             <div
               class="w-3/4 bg-indigo-500 rounded-t transition-all"
@@ -413,7 +471,7 @@ const monthlyMax = computed(() => {
         </span>
       </div>
 
-      <!-- Bu Ay Kasa Detayları -->
+      <!-- Kasa Detayları -->
       <div class="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
         <!-- Visa -->
         <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
@@ -421,7 +479,6 @@ const monthlyMax = computed(() => {
             <span>💳</span> Visa
           </p>
           <p class="text-xl font-bold text-blue-700">{{ formatCurrency(stats.this_month_breakdown.visa) }}</p>
-          <p class="text-xs text-gray-500 mt-1">Geçen ay: {{ formatCompact(stats.last_month_breakdown.visa) }}</p>
         </div>
 
         <!-- Nakit -->
@@ -430,7 +487,6 @@ const monthlyMax = computed(() => {
             <span>💵</span> Nakit
           </p>
           <p class="text-xl font-bold text-emerald-700">{{ formatCurrency(stats.this_month_breakdown.nakit) }}</p>
-          <p class="text-xs text-gray-500 mt-1">Geçen ay: {{ formatCompact(stats.last_month_breakdown.nakit) }}</p>
         </div>
 
         <!-- Online -->
@@ -439,12 +495,11 @@ const monthlyMax = computed(() => {
             <span>📱</span> Online
           </p>
           <p class="text-xl font-bold text-purple-700">{{ formatCurrency(stats.this_month_breakdown.online) }}</p>
-          <p class="text-xs text-gray-500 mt-1">Geçen ay: {{ formatCompact(stats.last_month_breakdown.online) }}</p>
         </div>
       </div>
 
       <!-- Özet Kartları -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
         <!-- Toplam Ciro -->
         <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 border border-green-200">
           <p class="text-sm text-green-600 font-medium flex items-center gap-1">
@@ -459,28 +514,39 @@ const monthlyMax = computed(() => {
           <p class="text-sm text-orange-600 font-medium flex items-center gap-1">
             <span>📦</span> Toplam Gider
           </p>
-          <p class="text-2xl font-bold text-orange-700">{{ formatCurrency(stats.this_month_expenses) }}</p>
-          <p class="text-xs text-gray-500 mt-1">Geçen ay: {{ formatCurrency(stats.last_month_expenses) }}</p>
+          <p class="text-2xl font-bold text-orange-700">{{ formatCurrency(thisMonthExpenses) }}</p>
+          <p class="text-xs text-gray-500 mt-1">Geçen ay: {{ formatCurrency(lastMonthExpenses) }}</p>
         </div>
 
         <!-- Net Kar -->
         <div :class="[
           'rounded-xl p-4 border',
-          stats.this_month_profit >= 0
+          thisMonthProfit >= 0
             ? 'bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200'
             : 'bg-gradient-to-br from-red-50 to-red-100 border-red-200'
         ]">
-          <p :class="['text-sm font-medium flex items-center gap-1', stats.this_month_profit >= 0 ? 'text-blue-600' : 'text-red-600']">
+          <p :class="['text-sm font-medium flex items-center gap-1', thisMonthProfit >= 0 ? 'text-blue-600' : 'text-red-600']">
             <span>📈</span> Net Kâr
           </p>
-          <p :class="['text-2xl font-bold', stats.this_month_profit >= 0 ? 'text-blue-700' : 'text-red-700']">
-            {{ formatCurrency(stats.this_month_profit) }}
+          <p :class="['text-2xl font-bold', thisMonthProfit >= 0 ? 'text-blue-700' : 'text-red-700']">
+            {{ formatCurrency(thisMonthProfit) }}
           </p>
-          <p class="text-xs text-gray-500 mt-1">Geçen ay: {{ formatCurrency(stats.last_month_profit) }}</p>
+          <p class="text-xs text-gray-500 mt-1">Geçen ay: {{ formatCurrency(lastMonthProfit) }}</p>
         </div>
       </div>
 
+      <!-- Gider Detayları -->
+      <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-500 pt-3 border-t border-gray-100 mb-6">
+        <span>Mal Alımı {{ formatCurrency(stats.this_month_breakdown.mal_alimi) }}</span>
+        <span>İşletme Giderleri {{ formatCurrency(stats.this_month_breakdown.gider) }}</span>
+        <span>Personel Yemekleri {{ formatCurrency(stats.this_month_breakdown.staff) }}</span>
+        <span>Kurye {{ formatCurrency(stats.this_month_breakdown.kurye) }}</span>
+        <span>Part-Time {{ formatCurrency(stats.this_month_breakdown.parttime) }}</span>
+        <span>Üretim {{ formatCurrency(stats.this_month_breakdown.uretim) }}</span>
+      </div>
+
       <!-- Aylık Grafik -->
+      <p class="text-sm text-gray-600 font-medium mb-3">Günlük Dağılım</p>
       <div class="h-24 flex items-end gap-px mb-4 bg-gray-50 rounded-lg p-2">
         <div
           v-for="day in stats.this_month_chart"

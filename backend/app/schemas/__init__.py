@@ -846,6 +846,7 @@ class ExpenseItem(BaseModel):
     """Single expense item from Excel import"""
     description: str
     amount: Decimal
+    category_id: Optional[int] = None  # User-selected category from import UI
 
 
 class CashDifferenceImportRequest(CashDifferenceCreate):

@@ -8,7 +8,7 @@ import type {
   OnlinePlatform, OnlineSale, DailySalesEntry, DailySalesResponse, OnlineSalesSummary,
   InvitationCode, InvitationCodeValidation, GoogleAuthResponse,
   CourierExpense, CourierExpenseSummary,
-  CashDifference, CashDifferenceSummary, ExcelParseResult, POSParseResult
+  CashDifference, CashDifferenceSummary, CashDifferencePreviewDelete, ExcelParseResult, POSParseResult
 } from '@/types'
 
 // Render production URL - fallback for when env var isn't set at build time
@@ -513,10 +513,10 @@ export const cashDifferenceApi = {
     })
   },
 
-  parsePOSImage: (file: File) => {
+  parseHasilatExcel: (file: File) => {
     const formData = new FormData()
     formData.append('file', file)
-    return api.post<POSParseResult>('/cash-difference/parse-pos-image', formData, {
+    return api.post<POSParseResult>('/cash-difference/parse-hasilat-excel', formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     })
   },
@@ -559,7 +559,16 @@ export const cashDifferenceApi = {
   update: (id: number, data: { status?: string; resolution_note?: string }) =>
     api.put<CashDifference>(`/cash-difference/${id}`, data),
 
-  delete: (id: number) => api.delete(`/cash-difference/${id}`)
+  previewDelete: (id: number) =>
+    api.get<CashDifferencePreviewDelete>(`/cash-difference/${id}/preview-delete`),
+
+  delete: (id: number) => api.delete<{
+    message: string
+    deleted_expenses: number
+    deleted_sales: number
+    skipped_expenses: number
+    skipped_sales: number
+  }>(`/cash-difference/${id}`)
 }
 
 // Import History API

@@ -196,6 +196,12 @@ export interface BilancoStats {
     visa: number
     nakit: number
     online: number
+    mal_alimi: number
+    gider: number
+    staff: number
+    kurye: number
+    parttime: number
+    uretim: number
   }
 
   // Geçen Hafta
@@ -208,6 +214,12 @@ export interface BilancoStats {
     visa: number
     nakit: number
     online: number
+    mal_alimi: number
+    gider: number
+    staff: number
+    kurye: number
+    parttime: number
+    uretim: number
   }
 
   // Bu Ay
@@ -224,6 +236,12 @@ export interface BilancoStats {
     visa: number
     nakit: number
     online: number
+    mal_alimi: number
+    gider: number
+    staff: number
+    kurye: number
+    parttime: number
+    uretim: number
   }
 
   // Geçen Ay
@@ -234,6 +252,12 @@ export interface BilancoStats {
     visa: number
     nakit: number
     online: number
+    mal_alimi: number
+    gider: number
+    staff: number
+    kurye: number
+    parttime: number
+    uretim: number
   }
 }
 
@@ -500,6 +524,53 @@ export interface CashDifferenceSummary {
   period_end: string
 }
 
+export interface CashDifferencePreviewDelete {
+  cash_difference: {
+    id: number
+    difference_date: string
+    kasa_total: number
+    pos_total: number
+  }
+  related_entities: {
+    expenses: Array<{
+      id: number
+      description: string
+      amount: number
+      expense_date: string
+      reason?: string
+    }>
+    online_sales: Array<{
+      id: number
+      platform: string
+      amount: number
+      sale_date: string
+      reason?: string
+    }>
+  }
+  skipped_entities: {
+    expenses: Array<{
+      id: number
+      description: string
+      amount: number
+      expense_date: string
+      reason: string
+    }>
+    online_sales: Array<{
+      id: number
+      platform: string
+      amount: number
+      sale_date: string
+      reason: string
+    }>
+  }
+  summary: {
+    total_expenses: number
+    total_sales: number
+    skipped_expenses: number
+    skipped_sales: number
+  }
+}
+
 export interface ExcelParseResult {
   date: string
   visa: number
@@ -529,3 +600,6 @@ export interface POSParseResult {
   total: number
   confidence_score: number
 }
+
+// Re-export filter types for convenience
+export type { DateRangeMode, DateRangeValue, PresetOption, DateRange, DateRangeLocale, DateFormat } from './filters'

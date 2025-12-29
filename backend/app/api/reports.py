@@ -2,7 +2,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from calendar import monthrange
 from fastapi import APIRouter
-from sqlalchemy import func, and_
+from sqlalchemy import func, and_, case
 from app.api.deps import DBSession, CurrentBranchContext
 from app.models import Purchase, Expense, DailyProduction, StaffMeal, OnlineSale, OnlinePlatform, CourierExpense, PartTimeCost
 from app.schemas import DashboardStats, BilancoStats, DaySummary
@@ -269,6 +269,84 @@ def fetch_channel_breakdown(db: DBSession, branch_id: int, start_date: date, end
             breakdown["online"] = amount
 
     return breakdown
+
+
+def fetch_expense_breakdown(db: DBSession, branch_id: int, start_date: date, end_date: date) -> dict:
+    """
+    Belirli bir tarih aralığı için gider kategorilerine göre toplamları çeker.
+    Returns:
+        {
+            "mal_alimi": Decimal,  # Purchases
+            "gider": Decimal,      # Expenses
+            "staff": Decimal,      # Staff meals
+            "kurye": Decimal,      # Courier expenses (KDV dahil)
+            "parttime": Decimal,   # Part-time costs
+            "uretim": Decimal      # Production costs
+        }
+    """
+    # Mal Alımı (Purchases)
+    purchases = db.query(func.coalesce(func.sum(Purchase.total), 0)).filter(
+        Purchase.branch_id == branch_id,
+        Purchase.purchase_date >= start_date,
+        Purchase.purchase_date <= end_date
+    ).scalar()
+
+    # İşletme Giderleri (Expenses)
+    expenses = db.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
+        Expense.branch_id == branch_id,
+        Expense.expense_date >= start_date,
+        Expense.expense_date <= end_date
+    ).scalar()
+
+    # Personel Yemekleri (Staff meals) - total is a calculated property: unit_price * staff_count
+    staff_meals = db.query(func.coalesce(func.sum(StaffMeal.unit_price * StaffMeal.staff_count), 0)).filter(
+        StaffMeal.branch_id == branch_id,
+        StaffMeal.meal_date >= start_date,
+        StaffMeal.meal_date <= end_date
+    ).scalar()
+
+    # Kurye Giderleri (KDV dahil: amount + amount * vat_rate / 100)
+    courier = db.query(
+        func.coalesce(func.sum(CourierExpense.amount + CourierExpense.amount * CourierExpense.vat_rate / 100), 0)
+    ).filter(
+        CourierExpense.branch_id == branch_id,
+        CourierExpense.expense_date >= start_date,
+        CourierExpense.expense_date <= end_date
+    ).scalar()
+
+    # Part-Time Giderleri
+    parttime = db.query(func.coalesce(func.sum(PartTimeCost.amount), 0)).filter(
+        PartTimeCost.branch_id == branch_id,
+        PartTimeCost.cost_date >= start_date,
+        PartTimeCost.cost_date <= end_date
+    ).scalar()
+
+    # Üretim Maliyetleri (Production costs) - total_cost is a property: (kneaded_kg / legen_kg) * legen_cost
+    # Calculate in SQL using case to handle division by zero
+    production = db.query(
+        func.coalesce(
+            func.sum(
+                case(
+                    (DailyProduction.legen_kg > 0, DailyProduction.kneaded_kg / DailyProduction.legen_kg * DailyProduction.legen_cost),
+                    else_=0
+                )
+            ),
+            0
+        )
+    ).filter(
+        DailyProduction.branch_id == branch_id,
+        DailyProduction.production_date >= start_date,
+        DailyProduction.production_date <= end_date
+    ).scalar()
+
+    return {
+        "mal_alimi": Decimal(str(purchases)),
+        "gider": Decimal(str(expenses)),
+        "staff": Decimal(str(staff_meals)),
+        "kurye": Decimal(str(courier)),
+        "parttime": Decimal(str(parttime)),
+        "uretim": Decimal(str(production))
+    }
 
 
 def fetch_daily_data(db: DBSession, branch_id: int, start_date: date, end_date: date) -> dict:
@@ -574,8 +652,20 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
         this_week_best = None
         this_week_worst = None
 
-    # Bu hafta kanal bazlı breakdown
-    this_week_breakdown = fetch_channel_breakdown(db, branch_id, this_week_start, this_week_end)
+    # Bu hafta kanal bazlı breakdown + gider breakdown
+    this_week_channel = fetch_channel_breakdown(db, branch_id, this_week_start, this_week_end)
+    this_week_expenses = fetch_expense_breakdown(db, branch_id, this_week_start, this_week_end)
+    this_week_breakdown = {
+        "visa": this_week_channel["visa"],
+        "nakit": this_week_channel["nakit"],
+        "online": this_week_channel["online"],
+        "mal_alimi": this_week_expenses["mal_alimi"],
+        "gider": this_week_expenses["gider"],
+        "staff": this_week_expenses["staff"],
+        "kurye": this_week_expenses["kurye"],
+        "parttime": this_week_expenses["parttime"],
+        "uretim": this_week_expenses["uretim"]
+    }
 
     # ===== GEÇEN HAFTA =====
     last_week_daily = []
@@ -597,8 +687,20 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
     else:
         week_vs_week_pct = Decimal("0")
 
-    # Geçen hafta kanal bazlı breakdown
-    last_week_breakdown = fetch_channel_breakdown(db, branch_id, last_week_start, last_week_end)
+    # Geçen hafta kanal bazlı breakdown + gider breakdown
+    last_week_channel = fetch_channel_breakdown(db, branch_id, last_week_start, last_week_end)
+    last_week_expenses = fetch_expense_breakdown(db, branch_id, last_week_start, last_week_end)
+    last_week_breakdown = {
+        "visa": last_week_channel["visa"],
+        "nakit": last_week_channel["nakit"],
+        "online": last_week_channel["online"],
+        "mal_alimi": last_week_expenses["mal_alimi"],
+        "gider": last_week_expenses["gider"],
+        "staff": last_week_expenses["staff"],
+        "kurye": last_week_expenses["kurye"],
+        "parttime": last_week_expenses["parttime"],
+        "uretim": last_week_expenses["uretim"]
+    }
 
     # ===== BU AY =====
     this_month_name = f"{TURKISH_MONTHS[today.month]} {today.year}"
@@ -635,8 +737,29 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
         this_month_daily_avg = Decimal("0")
         this_month_forecast = Decimal("0")
 
-    # Bu ay kanal bazlı breakdown (düne kadar)
-    this_month_breakdown = fetch_channel_breakdown(db, branch_id, this_month_start, yesterday) if this_month_days_passed > 0 else {"visa": Decimal("0"), "nakit": Decimal("0"), "online": Decimal("0")}
+    # Bu ay kanal bazlı breakdown + gider breakdown (bugün dahil)
+    # NOT: Bugünkü veriler de dahil edilir (kullanıcı bugünkü giderleri aylık toplamda görmek istiyor)
+    if this_month_days_passed > 0:
+        this_month_channel = fetch_channel_breakdown(db, branch_id, this_month_start, today)
+        this_month_expense_breakdown = fetch_expense_breakdown(db, branch_id, this_month_start, today)
+
+        this_month_breakdown = {
+            "visa": this_month_channel["visa"],
+            "nakit": this_month_channel["nakit"],
+            "online": this_month_channel["online"],
+            "mal_alimi": this_month_expense_breakdown["mal_alimi"],
+            "gider": this_month_expense_breakdown["gider"],
+            "staff": this_month_expense_breakdown["staff"],
+            "kurye": this_month_expense_breakdown["kurye"],
+            "parttime": this_month_expense_breakdown["parttime"],
+            "uretim": this_month_expense_breakdown["uretim"]
+        }
+    else:
+        this_month_breakdown = {
+            "visa": Decimal("0"), "nakit": Decimal("0"), "online": Decimal("0"),
+            "mal_alimi": Decimal("0"), "gider": Decimal("0"), "staff": Decimal("0"),
+            "kurye": Decimal("0"), "parttime": Decimal("0"), "uretim": Decimal("0")
+        }
 
     # ===== GEÇEN AY =====
     last_month_revenue = Decimal("0")
@@ -657,8 +780,27 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
 
     last_month_profit = last_month_revenue - last_month_expenses
 
-    # Geçen ay kanal bazlı breakdown (aynı dönem)
-    last_month_breakdown = fetch_channel_breakdown(db, branch_id, last_month_start, last_month_compare_end) if this_month_days_passed > 0 else {"visa": Decimal("0"), "nakit": Decimal("0"), "online": Decimal("0")}
+    # Geçen ay kanal bazlı breakdown + gider breakdown (aynı dönem, bugün dahil)
+    if this_month_days_passed > 0:
+        last_month_channel = fetch_channel_breakdown(db, branch_id, last_month_start, last_month_compare_end)
+        last_month_expense_breakdown = fetch_expense_breakdown(db, branch_id, last_month_start, last_month_compare_end)
+        last_month_breakdown = {
+            "visa": last_month_channel["visa"],
+            "nakit": last_month_channel["nakit"],
+            "online": last_month_channel["online"],
+            "mal_alimi": last_month_expense_breakdown["mal_alimi"],
+            "gider": last_month_expense_breakdown["gider"],
+            "staff": last_month_expense_breakdown["staff"],
+            "kurye": last_month_expense_breakdown["kurye"],
+            "parttime": last_month_expense_breakdown["parttime"],
+            "uretim": last_month_expense_breakdown["uretim"]
+        }
+    else:
+        last_month_breakdown = {
+            "visa": Decimal("0"), "nakit": Decimal("0"), "online": Decimal("0"),
+            "mal_alimi": Decimal("0"), "gider": Decimal("0"), "staff": Decimal("0"),
+            "kurye": Decimal("0"), "parttime": Decimal("0"), "uretim": Decimal("0")
+        }
 
     return BilancoStats(
         today_date=today,

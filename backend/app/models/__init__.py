@@ -90,7 +90,7 @@ class Purchase(Base):
     branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
     supplier_id: Mapped[int] = mapped_column(ForeignKey("suppliers.id"))
     purchase_date: Mapped[date] = mapped_column(Date)
-    total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    total: Mapped[Decimal] = mapped_column(Numeric(14, 5))  # 14,5 for more precision (was 12,2)
     notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
@@ -141,7 +141,7 @@ class PurchaseItem(Base):
     quantity: Mapped[Decimal] = mapped_column(Numeric(10, 3))
     unit: Mapped[str] = mapped_column(String(20))  # kg, adet, koli, lt
     unit_price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
-    total: Mapped[Decimal] = mapped_column(Numeric(12, 2))
+    total: Mapped[Decimal] = mapped_column(Numeric(14, 5))  # 14,5 for more precision (was 12,2)
 
     # Relationships
     purchase: Mapped["Purchase"] = relationship(back_populates="items")

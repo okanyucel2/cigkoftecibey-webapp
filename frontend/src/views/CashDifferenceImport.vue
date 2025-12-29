@@ -20,13 +20,13 @@ const error = ref('')
 
 // File uploads
 const excelFile = ref<File | null>(null)
-const posImageFile = ref<File | null>(null)
+const hasilatExcelFile = ref<File | null>(null)
 const excelFileName = ref('')
-const posImageFileName = ref('')
+const hasilatExcelFileName = ref('')
 
 // Drag and drop states
 const excelDragOver = ref(false)
-const posDragOver = ref(false)
+const hasilatDragOver = ref(false)
 
 // Parsed data
 const excelData = ref<ExcelParseResult | null>(null)
@@ -106,30 +106,30 @@ function handleExcelDragLeave() {
   excelDragOver.value = false
 }
 
-// POS image handlers
-function handlePOSFileSelect(event: Event) {
+// Hasılat Excel handlers
+function handleHasilatFileSelect(event: Event) {
   const target = event.target as HTMLInputElement
   if (target.files && target.files[0]) {
-    posImageFile.value = target.files[0]
-    posImageFileName.value = target.files[0].name
+    hasilatExcelFile.value = target.files[0]
+    hasilatExcelFileName.value = target.files[0].name
   }
 }
 
-function handlePOSDrop(event: DragEvent) {
-  posDragOver.value = false
+function handleHasilatDrop(event: DragEvent) {
+  hasilatDragOver.value = false
   if (event.dataTransfer?.files && event.dataTransfer.files[0]) {
-    posImageFile.value = event.dataTransfer.files[0]
-    posImageFileName.value = event.dataTransfer.files[0].name
+    hasilatExcelFile.value = event.dataTransfer.files[0]
+    hasilatExcelFileName.value = event.dataTransfer.files[0].name
   }
 }
 
-function handlePOSDragOver(event: DragEvent) {
+function handleHasilatDragOver(event: DragEvent) {
   event.preventDefault()
-  posDragOver.value = true
+  hasilatDragOver.value = true
 }
 
-function handlePOSDragLeave() {
-  posDragOver.value = false
+function handleHasilatDragLeave() {
+  hasilatDragOver.value = false
 }
 
 // Load categories
@@ -201,10 +201,10 @@ async function parseExcel() {
   }
 }
 
-// Parse POS Image
-async function parsePOSImage() {
-  if (!posImageFile.value) {
-    error.value = 'Lutfen bir POS gorsel dosyasi secin'
+// Parse Hasılat Excel
+async function parseHasilatExcel() {
+  if (!hasilatExcelFile.value) {
+    error.value = 'Lutfen bir Hasılat Excel dosyasi secin'
     return
   }
 
@@ -212,11 +212,11 @@ async function parsePOSImage() {
   error.value = ''
 
   try {
-    const response = await cashDifferenceApi.parsePOSImage(posImageFile.value)
+    const response = await cashDifferenceApi.parseHasilatExcel(hasilatExcelFile.value)
     posData.value = response.data
   } catch (e: any) {
-    console.error('POS parse error:', e)
-    error.value = e.response?.data?.detail || 'POS gorseli okunamadi'
+    console.error('Hasılat parse error:', e)
+    error.value = e.response?.data?.detail || 'Hasılat Excel okunamadi'
   } finally {
     parsingPOS.value = false
   }
@@ -334,64 +334,63 @@ async function submitImport() {
         </div>
       </div>
 
-      <!-- POS Image Upload -->
+      <!-- Hasılat Excel Upload -->
       <div class="bg-gray-50 rounded-lg p-4">
-        <h2 class="text-base font-semibold text-gray-900 mb-3">2. POS Hasilat Gorseli</h2>
+        <h2 class="text-base font-semibold text-gray-900 mb-3">2. Şefim Hasılat Raporu (Excel)</h2>
 
         <div
-          @drop.prevent="handlePOSDrop"
-          @dragover.prevent="handlePOSDragOver"
-          @dragleave="handlePOSDragLeave"
+          @drop.prevent="handleHasilatDrop"
+          @dragover.prevent="handleHasilatDragOver"
+          @dragleave="handleHasilatDragLeave"
           :class="[
             'border-2 border-dashed rounded-lg p-6 text-center transition-colors',
-            posDragOver ? 'border-red-500 bg-red-50' : 'border-gray-300 hover:border-gray-400'
+            hasilatDragOver ? 'border-red-500 bg-red-50' : 'border-gray-300 hover:border-gray-400'
           ]"
         >
           <input
             type="file"
-            accept="image/*"
-            @change="handlePOSFileSelect"
+            accept=".xlsx,.xls"
+            @change="handleHasilatFileSelect"
             class="hidden"
-            id="pos-upload"
-            data-testid="input-pos-file"
+            id="hasilat-upload"
+            data-testid="input-hasilat-file"
           />
 
-          <label for="pos-upload" class="cursor-pointer">
+          <label for="hasilat-upload" class="cursor-pointer">
             <svg class="mx-auto h-10 w-10 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48">
               <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8m-12 4h.02" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
             </svg>
             <p class="mt-2 text-sm text-gray-600">
-              <span class="text-red-600 font-medium">Gorsel sec</span> veya surukle birak
+              <span class="text-red-600 font-medium">Excel sec</span> veya surukle birak
             </p>
-            <p class="text-xs text-gray-500 mt-1">PNG, JPG, JPEG</p>
+            <p class="text-xs text-gray-500 mt-1">.xlsx veya .xls</p>
           </label>
 
-          <div v-if="posImageFileName" class="mt-3 text-sm text-gray-700">
-            Secilen: <strong>{{ posImageFileName }}</strong>
+          <div v-if="hasilatExcelFileName" class="mt-3 text-sm text-gray-700">
+            Secilen: <strong>{{ hasilatExcelFileName }}</strong>
           </div>
         </div>
 
         <button
-          @click="parsePOSImage"
-          :disabled="!posImageFile || parsingPOS"
+          @click="parseHasilatExcel"
+          :disabled="!hasilatExcelFile || parsingPOS"
           class="w-full mt-3 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-          data-testid="btn-parse-pos"
+          data-testid="btn-parse-hasilat"
         >
-          {{ parsingPOS ? 'Okunuyor...' : 'POS Oku (OCR)' }}
+          {{ parsingPOS ? 'Okunuyor...' : 'Hasılat Excel Oku' }}
         </button>
 
-        <!-- POS Preview -->
+        <!-- Hasılat Preview -->
         <div v-if="posData" class="mt-3 p-3 bg-green-50 rounded-lg border border-green-200">
           <div class="flex items-center gap-2 mb-1">
             <svg class="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
               <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
             </svg>
-            <span class="text-xs font-medium text-green-800">POS basariyla okundu</span>
+            <span class="text-xs font-medium text-green-800">Hasılat raporu basariyla okundu</span>
           </div>
           <div class="text-xs text-gray-600">
             <p>Tarih: <strong>{{ formatDate(posData.date) }}</strong></p>
             <p>Toplam: <strong>{{ formatCurrency(posData.total) }}</strong></p>
-            <p>Guven: <strong>{{ (posData.confidence_score * 100).toFixed(1) }}%</strong></p>
           </div>
         </div>
       </div>

@@ -1,35 +1,40 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
-import type { Employee, MonthlyPayroll, PayrollSummary, PartTimeCost, PartTimeCostSummary } from '@/types'
+import type { Employee, MonthlyPayroll, PayrollSummary, PartTimeCost, PartTimeCostSummary, DateRangeValue } from '@/types'
 import { personnelApi } from '@/services/api'
 
 // Composables
-import { useFormatters, useMonthYearFilter, useConfirmModal, MONTHS } from '@/composables'
+import { useFormatters, useConfirmModal, MONTHS } from '@/composables'
 
 // UI Components
-import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+import { ConfirmModal, ErrorAlert, LoadingState, PageModal, SummaryCard } from '@/components/ui'
+import { TabBar, UnifiedFilterBar } from '@/components/ui'
+import type { Tab, EntityConfig } from '@/components/ui'
 
 // Use composables
 const { formatCurrency, formatDate } = useFormatters()
-const { selectedMonth, selectedYear, years } = useMonthYearFilter()
 const confirmModal = useConfirmModal()
 
 // Tab state
-const activeTab = ref<'employees' | 'payroll' | 'parttime'>('employees')
+const activeTab = ref<string>('employees')
 
 // Common state
 const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
 
-// Month/Year filter value for v-model
-const filterValue = computed({
-  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
-  set: (val) => {
-    selectedMonth.value = val.month
-    selectedYear.value = val.year
-  }
+// Date Range Filter (replaces MonthYearFilter)
+const dateRangeFilter = ref<DateRangeValue>({
+  mode: 'month',
+  start: new Date().toISOString().split('T')[0],
+  end: new Date().toISOString().split('T')[0],
+  month: new Date().getMonth() + 1,
+  year: new Date().getFullYear()
 })
+
+// Get month/year from dateRangeFilter for backward compatibility
+const selectedMonth = computed(() => dateRangeFilter.value.month || new Date().getMonth() + 1)
+const selectedYear = computed(() => dateRangeFilter.value.year || new Date().getFullYear())
 
 // Employee state
 const employees = ref<Employee[]>([])
@@ -100,13 +105,13 @@ watch(activeTab, () => {
   }
 })
 
-watch([selectedMonth, selectedYear], () => {
+watch(() => dateRangeFilter.value, () => {
   if (activeTab.value === 'payroll') {
     loadPayrolls()
   } else if (activeTab.value === 'parttime') {
     loadPartTimeCosts()
   }
-})
+}, { deep: true })
 
 watch(selectedEmployeeFilter, () => {
   if (activeTab.value === 'payroll') {
@@ -230,15 +235,19 @@ async function loadPayrolls() {
   error.value = ''
   try {
     const params: { year: number; month: number; employee_id?: number } = {
-      year: selectedYear.value,
-      month: selectedMonth.value
+      year: dateRangeFilter.value.year || new Date().getFullYear(),
+      month: dateRangeFilter.value.month || new Date().getMonth() + 1
     }
     if (selectedEmployeeFilter.value) {
       params.employee_id = selectedEmployeeFilter.value
     }
     const [payrollRes, summaryRes] = await Promise.all([
       personnelApi.getPayrolls(params),
-      personnelApi.getPayrollSummary(selectedYear.value, selectedMonth.value, selectedEmployeeFilter.value || undefined)
+      personnelApi.getPayrollSummary(
+        dateRangeFilter.value.year || new Date().getFullYear(),
+        dateRangeFilter.value.month || new Date().getMonth() + 1,
+        selectedEmployeeFilter.value || undefined
+      )
     ])
     payrolls.value = payrollRes.data
     payrollSummary.value = summaryRes.data
@@ -363,8 +372,8 @@ async function submitPayrollForm() {
     } else {
       await personnelApi.createPayroll({
         ...payrollForm.value,
-        year: selectedYear.value,
-        month: selectedMonth.value
+        year: dateRangeFilter.value.year || new Date().getFullYear(),
+        month: dateRangeFilter.value.month || new Date().getMonth() + 1
       })
     }
     showPayrollForm.value = false
@@ -394,8 +403,14 @@ async function loadPartTimeCosts() {
   error.value = ''
   try {
     const [costsRes, summaryRes] = await Promise.all([
-      personnelApi.getPartTimeCosts({ year: selectedYear.value, month: selectedMonth.value }),
-      personnelApi.getPartTimeSummary({ year: selectedYear.value, month: selectedMonth.value })
+      personnelApi.getPartTimeCosts({
+        year: dateRangeFilter.value.year || new Date().getFullYear(),
+        month: dateRangeFilter.value.month || new Date().getMonth() + 1
+      }),
+      personnelApi.getPartTimeSummary({
+        year: dateRangeFilter.value.year || new Date().getFullYear(),
+        month: dateRangeFilter.value.month || new Date().getMonth() + 1
+      })
     ])
     partTimeCosts.value = costsRes.data
     partTimeSummary.value = summaryRes.data
@@ -469,56 +484,48 @@ const employeesWithoutPayroll = computed(() => {
   const payrollEmployeeIds = new Set(payrolls.value.map(p => p.employee_id))
   return employees.value.filter(e => !payrollEmployeeIds.has(e.id) && !e.is_part_time && e.is_active)
 })
+
+// Tab configuration
+const tabs = computed<Tab[]>(() => [
+  { id: 'employees', label: 'Personel Listesi', icon: '👤' },
+  { id: 'payroll', label: 'Personel Ödemeleri', icon: '💳' },
+  { id: 'parttime', label: 'Part-time Giderler', icon: '⏱️' }
+])
+
+// Employee entity selector config for payroll tab
+const employeeEntities = computed<EntityConfig>(() => ({
+  items: activeEmployees.value.map(emp => ({
+    id: emp.id,
+    label: emp.name,
+    icon: '👤'
+  })),
+  allLabel: 'Tüm Personel',
+  showSettings: false,
+  showCount: false
+}))
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Header -->
     <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 class="text-2xl font-display font-bold text-gray-900">Personel Yonetimi</h1>
-    </div>
-
-    <!-- Tabs -->
-    <div class="border-b border-gray-200">
-      <nav class="-mb-px flex gap-6">
-        <button @click="activeTab = 'employees'" :class="[
-          'py-3 px-1 border-b-2 font-medium text-sm',
-          activeTab === 'employees'
-            ? 'border-red-500 text-red-600'
-            : 'border-transparent text-gray-500 hover:text-gray-700'
-        ]">
-          Personel Listesi
-        </button>
-        <button @click="activeTab = 'payroll'" :class="[
-          'py-3 px-1 border-b-2 font-medium text-sm',
-          activeTab === 'payroll'
-            ? 'border-red-500 text-red-600'
-            : 'border-transparent text-gray-500 hover:text-gray-700'
-        ]">
-          Personel Odemeleri
-        </button>
-        <button @click="activeTab = 'parttime'" :class="[
-          'py-3 px-1 border-b-2 font-medium text-sm',
-          activeTab === 'parttime'
-            ? 'border-red-500 text-red-600'
-            : 'border-transparent text-gray-500 hover:text-gray-700'
-        ]">
-          Part-time Giderler
-        </button>
-      </nav>
+      <h1 class="text-2xl font-display font-bold text-gray-900">
+        <span class="mr-2">👥</span> Personel Yönetimi
+      </h1>
     </div>
 
     <!-- Error -->
     <ErrorAlert :message="error" @dismiss="error = ''" />
 
+    <!-- Tabs -->
+    <TabBar v-model="activeTab" :tabs="tabs" />
+
     <!-- ==================== EMPLOYEES TAB ==================== -->
     <div v-if="activeTab === 'employees'">
-      <div class="flex justify-end mb-4">
-        <button @click="openEmployeeForm()" data-testid="btn-add-personnel"
-          class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
-          + Yeni Personel
-        </button>
-      </div>
+      <UnifiedFilterBar
+        :show-date-filter="false"
+        :primary-action="{ label: '+ Yeni Personel', icon: 'add', onClick: openEmployeeForm }"
+      />
 
       <div class="bg-white rounded-lg shadow overflow-hidden" data-testid="personnel-list">
         <LoadingState v-if="loading" />
@@ -575,21 +582,12 @@ const employeesWithoutPayroll = computed(() => {
 
     <!-- ==================== PAYROLL TAB ==================== -->
     <div v-if="activeTab === 'payroll'">
-      <div class="flex items-center justify-between flex-wrap gap-4 mb-4">
-        <!-- Filtreler -->
-        <div class="flex gap-3 items-center flex-wrap">
-          <MonthYearFilter v-model="filterValue" :years="years" />
-          <!-- Personel Filtresi -->
-          <select v-model="selectedEmployeeFilter"
-            class="bg-gray-100 border-none rounded-lg px-3 py-1.5 text-sm font-medium focus:ring-0">
-            <option :value="null">Tum Personel</option>
-            <option v-for="emp in activeEmployees" :key="emp.id" :value="emp.id">{{ emp.name }}</option>
-          </select>
-        </div>
-        <button @click="openPayrollForm()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
-          + Odeme Ekle
-        </button>
-      </div>
+      <UnifiedFilterBar
+        v-model:date-range="dateRangeFilter"
+        v-model:entity-id="selectedEmployeeFilter"
+        :entities="employeeEntities"
+        :primary-action="{ label: '+ Ödeme Ekle', icon: 'add', onClick: openPayrollForm }"
+      />
 
       <!-- Ozet Kartlari - Satir 1 -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
@@ -702,12 +700,10 @@ const employeesWithoutPayroll = computed(() => {
 
     <!-- ==================== PART-TIME TAB ==================== -->
     <div v-if="activeTab === 'parttime'">
-      <div class="flex items-center justify-between flex-wrap gap-4 mb-4">
-        <MonthYearFilter v-model="filterValue" :years="years" />
-        <button @click="openPartTimeForm()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
-          + Part-time Gider Ekle
-        </button>
-      </div>
+      <UnifiedFilterBar
+        v-model:date-range="dateRangeFilter"
+        :primary-action="{ label: '+ Part-time Gider Ekle', icon: 'add', onClick: openPartTimeForm }"
+      />
 
       <!-- Ozet -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">

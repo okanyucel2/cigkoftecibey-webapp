@@ -279,7 +279,7 @@ function formatCurrency(value: number) {
               >
                 <option :value="null">Urun Sec</option>
                 <option
-                  v-for="product in getProductsForGroup(item.selectedGroupId)"
+                  v-for="product in getProductsForGroup(item.selectedGroupId).sort((a, b) => a.name.localeCompare(b.name, 'tr'))"
                   :key="product.id"
                   :value="product.id"
                 >
@@ -302,12 +302,16 @@ function formatCurrency(value: number) {
 
             <!-- Birim -->
             <div class="col-span-1">
-              <input
+              <select
                 v-model="item.unit"
-                type="text"
-                class="w-full border rounded px-2 py-1.5 text-sm bg-gray-100"
-                readonly
-              />
+                class="w-full border rounded px-2 py-1.5 text-sm"
+              >
+                <option value="kg">kg</option>
+                <option value="adet">adet</option>
+                <option value="litre">litre</option>
+                <option value="demet">demet</option>
+                <option value="paket">paket</option>
+              </select>
             </div>
 
             <!-- Birim Fiyat -->
