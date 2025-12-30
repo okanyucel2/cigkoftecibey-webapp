@@ -33,7 +33,7 @@ class SupplierARService:
         Hesaplamalar transaction tablosundan yapılır.
         """
         # Son transaction kayıtlarını her tedarikçi için
-        subq = (
+        last_trans_subq = (
             select(
                 SupplierTransaction.supplier_id,
                 func.max(SupplierTransaction.id).label('last_trans_id')
@@ -42,10 +42,28 @@ class SupplierARService:
             .subquery()
         )
 
-        # Son transaction bilgileri
-        last_trans = select(SupplierTransaction).where(
-            SupplierTransaction.id == subq.c.last_trans_id
-        ).subquery()
+        # Son transaction bilgileri (sadece bakiye ve tarih)
+        last_trans = (
+            select(
+                SupplierTransaction.id.label('trans_id'),
+                SupplierTransaction.supplier_id,
+                SupplierTransaction.running_balance,
+                SupplierTransaction.transaction_date
+            )
+            .where(SupplierTransaction.id == last_trans_subq.c.last_trans_id)
+            .subquery()
+        )
+
+        # Toplam borç/alacak hesapla (tüm transactionları topla)
+        totals_subq = (
+            select(
+                SupplierTransaction.supplier_id,
+                func.sum(SupplierTransaction.debt_amount).label('total_debt'),
+                func.sum(SupplierTransaction.credit_amount).label('total_credit')
+            )
+            .group_by(SupplierTransaction.supplier_id)
+            .subquery()
+        )
 
         # Son ödeme tarihi (payments tablosundan)
         last_payment_dates = (
@@ -63,11 +81,12 @@ class SupplierARService:
                 Supplier.id,
                 Supplier.name,
                 func.coalesce(last_trans.c.running_balance, 0).label('balance'),
-                func.coalesce(last_trans.c.total_debt, 0).label('total_debt'),
-                func.coalesce(last_trans.c.total_credit, 0).label('total_credit'),
+                func.coalesce(totals_subq.c.total_debt, 0).label('total_debt'),
+                func.coalesce(totals_subq.c.total_credit, 0).label('total_credit'),
                 func.coalesce(last_payment_dates.c.last_payment_date, last_trans.c.transaction_date).label('last_transaction_date')
             )
             .outerjoin(last_trans, Supplier.id == last_trans.c.supplier_id)
+            .outerjoin(totals_subq, Supplier.id == totals_subq.c.supplier_id)
             .outerjoin(last_payment_dates, Supplier.id == last_payment_dates.c.supplier_id)
             .order_by(desc(func.coalesce(last_trans.c.running_balance, 0)))
         )
