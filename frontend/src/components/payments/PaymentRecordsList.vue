@@ -9,10 +9,7 @@ const suppliers = ref<Supplier[]>([])
 const loading = ref(true)
 const error = ref('')
 
-const filters = ref<PaymentFilters>({
-  start_date: new Date().toISOString().split('T')[0],
-  end_date: new Date().toISOString().split('T')[0]
-})
+const filters = ref<PaymentFilters>({})
 
 // Modal state
 const showModal = ref(false)
