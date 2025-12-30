@@ -603,3 +603,6 @@ export interface POSParseResult {
 
 // Re-export filter types for convenience
 export type { DateRangeMode, DateRangeValue, PresetOption, DateRange, DateRangeLocale, DateFormat } from './filters'
+
+// Re-export UI component types for convenience
+export type { NavItem } from '@/components/ui/VerticalNav.vue'
