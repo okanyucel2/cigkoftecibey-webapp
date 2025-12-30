@@ -4,12 +4,20 @@ import { paymentsApi } from '@/services'
 import { suppliersApi } from '@/services/api'
 import type { SupplierPayment, PaymentFilters, PaymentType, Supplier } from '@/types'
 
+// Emits for parent component to refresh AR list
+const emit = defineEmits<{
+  'payment-created': []
+}>()
+
 const payments = ref<SupplierPayment[]>([])
 const suppliers = ref<Supplier[]>([])
 const loading = ref(true)
 const error = ref('')
+const successMessage = ref('')
 
+// Filters
 const filters = ref<PaymentFilters>({})
+const dateRange = ref<'today' | 'thisWeek' | 'thisMonth' | 'all'>('all')
 
 // Modal state
 const showModal = ref(false)
@@ -46,6 +54,46 @@ const paymentTypeLabels: Record<PaymentType, string> = {
   partial: 'Kısmi'
 }
 
+// Date range presets
+function setDateRange(preset: string) {
+  dateRange.value = preset as any
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  switch (preset) {
+    case 'today':
+      filters.value.start_date = today.toISOString().split('T')[0]
+      filters.value.end_date = today.toISOString().split('T')[0]
+      break
+    case 'thisWeek':
+      const weekStart = new Date(today)
+      weekStart.setDate(today.getDate() - today.getDay())
+      filters.value.start_date = weekStart.toISOString().split('T')[0]
+      filters.value.end_date = today.toISOString().split('T')[0]
+      break
+    case 'thisMonth':
+      const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+      filters.value.start_date = monthStart.toISOString().split('T')[0]
+      filters.value.end_date = today.toISOString().split('T')[0]
+      break
+    case 'all':
+      filters.value.start_date = undefined
+      filters.value.end_date = undefined
+      break
+  }
+  applyFilters()
+}
+
+function clearFilters() {
+  filters.value = {}
+  dateRange.value = 'all'
+  applyFilters()
+}
+
+function applyFilters() {
+  loadPayments()
+}
+
 const summary = computed(() => {
   const today = new Date().toISOString().split('T')[0]
   return {
@@ -69,7 +117,7 @@ async function loadData() {
       suppliersApi.getAll()
     ])
     payments.value = paymentsRes.data
-    suppliers.value = suppliersRes.data
+    suppliers.value = suppliersRes.data.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
   } catch (e: any) {
     error.value = e.response?.data?.detail || 'Veri yüklenemedi'
   } finally {
@@ -103,6 +151,7 @@ function openModal() {
     due_date: '',
     serial_number: ''
   }
+  successMessage.value = ''
   showModal.value = true
 }
 
@@ -142,7 +191,21 @@ async function createPayment() {
 
     await paymentsApi.createPayment(data)
     showModal.value = false
+
+    // Show success message
+    const supplier = suppliers.value.find(s => s.id === newPayment.value.supplier_id)
+    successMessage.value = `${supplier?.name} için ₺${newPayment.value.amount} ödeme başarıyla kaydedildi. Bakiye güncellendi!`
+
+    // Refresh data
     await loadPayments()
+
+    // Notify parent to refresh AR list
+    emit('payment-created')
+
+    // Auto-hide success message after 5 seconds
+    setTimeout(() => {
+      successMessage.value = ''
+    }, 5000)
   } catch (e: any) {
     error.value = e.response?.data?.detail || 'Ödeme oluşturulamadı'
   } finally {
@@ -166,6 +229,15 @@ onMounted(loadData)
 
 <template>
   <div class="space-y-6">
+    <!-- Success Message -->
+    <div v-if="successMessage" class="bg-green-100 text-green-800 p-4 rounded-lg flex items-center gap-3">
+      <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span class="flex-1">{{ successMessage }}</span>
+      <button @click="successMessage = ''" class="text-green-600 hover:text-green-800 font-bold">✕</button>
+    </div>
+
     <!-- Error -->
     <div v-if="error" class="bg-red-100 text-red-700 p-4 rounded-lg">
       {{ error }}
@@ -187,10 +259,80 @@ onMounted(loadData)
           </p>
         </div>
         <div class="bg-white rounded-lg shadow p-4">
-          <p class="text-sm text-gray-500">Toplam</p>
+          <p class="text-sm text-gray-500">Toplam (Filtreli)</p>
           <p class="text-2xl font-bold text-gray-900">
             {{ formatCurrency(summary.total) }}
           </p>
+        </div>
+      </div>
+
+      <!-- Filters Section -->
+      <div class="bg-white rounded-lg shadow p-4">
+        <div class="flex flex-wrap items-center gap-4">
+          <!-- Date Range Presets -->
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-600 font-medium">Tarih:</span>
+            <button
+              v-for="preset in [
+                { id: 'today', label: 'Bugün' },
+                { id: 'thisWeek', label: 'Bu Hafta' },
+                { id: 'thisMonth', label: 'Bu Ay' },
+                { id: 'all', label: 'Tümü' }
+              ]"
+              :key="preset.id"
+              @click="setDateRange(preset.id)"
+              :class="[
+                'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+                dateRange === preset.id
+                  ? 'bg-brand-red text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              ]"
+            >
+              {{ preset.label }}
+            </button>
+          </div>
+
+          <!-- Divider -->
+          <div class="h-6 w-px bg-gray-300"></div>
+
+          <!-- Supplier Filter -->
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-600 font-medium">Tedarikçi:</span>
+            <select
+              v-model="filters.supplier_id"
+              @change="applyFilters"
+              class="border rounded-lg px-3 py-1.5 text-sm"
+            >
+              <option :value="undefined">Tümü</option>
+              <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
+                {{ supplier.name }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Payment Type Filter -->
+          <div class="flex items-center gap-2">
+            <span class="text-sm text-gray-600 font-medium">Tür:</span>
+            <select
+              v-model="filters.payment_type"
+              @change="applyFilters"
+              class="border rounded-lg px-3 py-1.5 text-sm"
+            >
+              <option :value="undefined">Tümü</option>
+              <option v-for="type in paymentTypes" :key="type.value" :value="type.value">
+                {{ type.label }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Clear Filters -->
+          <button
+            v-if="filters.supplier_id || filters.payment_type || dateRange !== 'all'"
+            @click="clearFilters"
+            class="ml-auto text-sm text-gray-500 hover:text-gray-700 underline"
+          >
+            Filtreleri Temizle
+          </button>
         </div>
       </div>
 
@@ -198,17 +340,27 @@ onMounted(loadData)
       <div class="bg-white rounded-lg shadow overflow-hidden">
         <!-- Header with Add Button -->
         <div class="p-4 border-b flex justify-between items-center">
-          <h3 class="font-semibold text-gray-900">Ödeme Kayıtları</h3>
+          <div>
+            <h3 class="font-semibold text-gray-900">Ödeme Kayıtları</h3>
+            <p class="text-sm text-gray-500">{{ payments.length }} kayıt</p>
+          </div>
           <button
             @click="openModal"
-            class="px-4 py-2 bg-brand-red text-white rounded-lg hover:bg-red-700 text-sm font-medium"
+            class="px-4 py-2 bg-brand-red text-white rounded-lg hover:bg-red-700 text-sm font-medium flex items-center gap-2"
           >
-            + Yeni Ödeme
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+            </svg>
+            Yeni Ödeme
           </button>
         </div>
 
-        <div v-if="payments.length === 0" class="p-8 text-center text-gray-500">
-          Ödeme kaydı bulunamadı
+        <div v-if="payments.length === 0" class="p-12 text-center text-gray-500">
+          <svg class="w-16 h-16 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+          </svg>
+          <p class="text-lg font-medium">Ödeme kaydı bulunamadı</p>
+          <p class="text-sm mt-1">Filtreleri değiştirin veya yeni ödeme ekleyin</p>
         </div>
 
         <table v-else class="w-full">
@@ -230,7 +382,14 @@ onMounted(loadData)
                 🏪 {{ payment.supplier_name }}
               </td>
               <td class="px-6 py-4">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
+                  :class="{
+                    'bg-green-100 text-green-800': payment.payment_type === 'cash',
+                    'bg-blue-100 text-blue-800': payment.payment_type === 'eft',
+                    'bg-yellow-100 text-yellow-800': payment.payment_type === 'check',
+                    'bg-orange-100 text-orange-800': payment.payment_type === 'promissory',
+                    'bg-gray-100 text-gray-800': payment.payment_type === 'partial'
+                  }">
                   {{ paymentTypeLabels[payment.payment_type] }}
                 </span>
               </td>
@@ -276,7 +435,7 @@ onMounted(loadData)
                 <label
                   v-for="type in paymentTypes"
                   :key="type.value"
-                  class="flex items-center gap-1 px-3 py-2 border rounded-lg cursor-pointer hover:bg-gray-50"
+                  class="flex items-center gap-1 px-3 py-2 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
                   :class="newPayment.payment_type === type.value ? 'bg-brand-red/10 border-brand-red' : ''"
                 >
                   <input

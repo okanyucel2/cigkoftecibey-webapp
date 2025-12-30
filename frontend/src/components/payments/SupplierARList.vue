@@ -3,6 +3,11 @@ import { ref, computed, onMounted } from 'vue'
 import { paymentsApi } from '@/services'
 import type { SupplierARSummary } from '@/types'
 
+// Expose refresh function for parent component
+defineExpose({
+  refresh: loadData
+})
+
 const suppliers = ref<SupplierARSummary[]>([])
 const loading = ref(true)
 const error = ref('')
