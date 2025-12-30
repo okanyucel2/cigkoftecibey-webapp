@@ -15,6 +15,7 @@ const menuItems = [
   { path: '/', name: 'Bilanço', icon: '📊' },
   { path: '/giderler', name: 'Giderler', icon: '💸' },
   { path: '/gelirler', name: 'Gelirler', icon: '💰' },
+  { path: '/odemeler', name: 'Ödemeler', icon: '💳' },
   { path: '/personnel', name: 'Personel', icon: '👥' }
 ]
 
