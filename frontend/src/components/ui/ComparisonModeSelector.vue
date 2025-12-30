@@ -1,6 +1,6 @@
 <!-- frontend/src/components/ui/ComparisonModeSelector.vue -->
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import type { ComparisonMode, ComparisonModeOption, ComparisonPeriod, ComparisonConfig } from '@/types/comparison'
 
 const props = defineProps<{
@@ -12,6 +12,7 @@ const emit = defineEmits<{
 }>()
 
 const isOpen = ref(false)
+const dropdownRef = ref<HTMLElement | null>(null)
 
 const modes: ComparisonModeOption[] = [
   { value: 'today_vs_yesterday', label: 'Bugün vs Dün', description: 'Son iki günün karşılaştırması', icon: '⏰' },
@@ -22,39 +23,72 @@ const modes: ComparisonModeOption[] = [
   { value: 'custom', label: 'Özel Karşılaştırma', description: 'Kendi tarih aralıklarını seç', icon: '🎯' }
 ]
 
-const selectedMode = computed<ComparisonMode>({
-  get: () => props.modelValue.mode,
-  set: (mode) => updateConfig(mode)
-})
-
 // Custom range inputs
 const customLeftStart = ref('')
 const customLeftEnd = ref('')
 const customRightStart = ref('')
 const customRightEnd = ref('')
 
+// Validation error state
+const validationError = ref('')
+
+// Initialize custom inputs from props
+onMounted(() => {
+  if (props.modelValue.mode === 'custom') {
+    customLeftStart.value = props.modelValue.leftPeriod.start
+    customLeftEnd.value = props.modelValue.leftPeriod.end
+    customRightStart.value = props.modelValue.rightPeriod.start
+    customRightEnd.value = props.modelValue.rightPeriod.end
+  }
+})
+
+// Click-outside handler
+function handleClickOutside(event: MouseEvent) {
+  if (dropdownRef.value && !dropdownRef.value.contains(event.target as Node)) {
+    isOpen.value = false
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('click', handleClickOutside)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('click', handleClickOutside)
+})
+
 function getPeriodForMode(mode: ComparisonMode): { left: ComparisonPeriod, right: ComparisonPeriod } {
   const today = new Date()
   const yesterday = new Date(today)
   yesterday.setDate(yesterday.getDate() - 1)
 
+  // Helper: Format date as local YYYY-MM-DD (timezone-safe)
+  const formatDate = (date: Date): string => {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // Immutable week range calculation
   const getWeekRange = (date: Date) => {
-    const d = new Date(date)
+    const d = new Date(date) // Create copy to avoid mutation
     const day = d.getDay()
     const diff = d.getDate() - day + (day === 0 ? -6 : 1)
-    const monday = new Date(d.setDate(diff))
+    const monday = new Date(d)
+    monday.setDate(diff)
     const sunday = new Date(monday)
-    sunday.setDate(sunday.getDate() + 6)
+    sunday.setDate(monday.getDate() + 6)
     return {
-      start: monday.toISOString().split('T')[0],
-      end: sunday.toISOString().split('T')[0]
+      start: formatDate(monday),
+      end: formatDate(sunday)
     }
   }
 
   const getMonthRange = (date: Date) => {
     return {
-      start: new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0],
-      end: new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0]
+      start: formatDate(new Date(date.getFullYear(), date.getMonth(), 1)),
+      end: formatDate(new Date(date.getFullYear(), date.getMonth() + 1, 0))
     }
   }
 
@@ -63,8 +97,8 @@ function getPeriodForMode(mode: ComparisonMode): { left: ComparisonPeriod, right
     const start = new Date(today)
     start.setDate(start.getDate() - n + 1)
     return {
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0]
+      start: formatDate(start),
+      end: formatDate(end)
     }
   }
 
@@ -74,16 +108,16 @@ function getPeriodForMode(mode: ComparisonMode): { left: ComparisonPeriod, right
     const start = new Date(end)
     start.setDate(start.getDate() - n + 1)
     return {
-      start: start.toISOString().split('T')[0],
-      end: end.toISOString().split('T')[0]
+      start: formatDate(start),
+      end: formatDate(end)
     }
   }
 
   switch (mode) {
     case 'today_vs_yesterday':
       return {
-        left: { label: 'Bugün', start: today.toISOString().split('T')[0], end: today.toISOString().split('T')[0] },
-        right: { label: 'Dün', start: yesterday.toISOString().split('T')[0], end: yesterday.toISOString().split('T')[0] }
+        left: { label: 'Bugün', start: formatDate(today), end: formatDate(today) },
+        right: { label: 'Dün', start: formatDate(yesterday), end: formatDate(yesterday) }
       }
     case 'this_week_vs_last_week':
       const thisWeek = getWeekRange(today)
@@ -143,20 +177,57 @@ const selectedModeLabel = computed(() => {
 })
 
 function selectMode(mode: ComparisonMode) {
-  selectedMode.value = mode
-  isOpen.value = false
+  if (mode === 'custom') {
+    // Switch to custom mode but keep dropdown open to show date inputs
+    updateConfig('custom')
+  } else {
+    // For predefined modes, update and close dropdown
+    updateConfig(mode)
+    isOpen.value = false
+  }
 }
 
 function applyCustomRange() {
-  if (customLeftStart.value && customLeftEnd.value && customRightStart.value && customRightEnd.value) {
-    updateConfig('custom')
-    isOpen.value = false
+  // Clear previous validation errors
+  validationError.value = ''
+
+  // Validate all fields are filled
+  if (!customLeftStart.value || !customLeftEnd.value || !customRightStart.value || !customRightEnd.value) {
+    validationError.value = 'Tüm tarih alanlarını doldurun'
+    return
   }
+
+  // Validate dates are valid
+  const leftStart = new Date(customLeftStart.value)
+  const leftEnd = new Date(customLeftEnd.value)
+  const rightStart = new Date(customRightStart.value)
+  const rightEnd = new Date(customRightEnd.value)
+
+  if (isNaN(leftStart.getTime()) || isNaN(leftEnd.getTime()) ||
+      isNaN(rightStart.getTime()) || isNaN(rightEnd.getTime())) {
+    validationError.value = 'Geçerli tarihler girin'
+    return
+  }
+
+  // Validate start <= end for both periods
+  if (leftStart > leftEnd) {
+    validationError.value = 'Sol aralık: başlangıç tarihi bitiş tarihinden önce olmalı'
+    return
+  }
+
+  if (rightStart > rightEnd) {
+    validationError.value = 'Sağ aralık: başlangıç tarihi bitiş tarihinden önce olmalı'
+    return
+  }
+
+  // All validations passed
+  updateConfig('custom')
+  isOpen.value = false
 }
 </script>
 
 <template>
-  <div class="relative">
+  <div class="relative" ref="dropdownRef">
     <button
       @click="isOpen = !isOpen"
       class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
@@ -194,7 +265,7 @@ function applyCustomRange() {
       <!-- Custom range -->
       <div class="p-3">
         <button
-          @click="() => { /* open custom picker */ }"
+          @click="selectMode('custom')"
           class="w-full text-left px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors"
           :class="{ 'bg-gray-100': modelValue.mode === 'custom' }"
         >
@@ -206,6 +277,11 @@ function applyCustomRange() {
             </div>
           </div>
         </button>
+
+        <!-- Validation error message -->
+        <div v-if="validationError && modelValue.mode === 'custom'" class="mt-2 text-xs text-red-600">
+          {{ validationError }}
+        </div>
 
         <!-- Custom date inputs (shown when custom is selected) -->
         <div v-if="modelValue.mode === 'custom'" class="mt-3 space-y-2">
