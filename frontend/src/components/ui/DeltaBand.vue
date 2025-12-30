@@ -170,73 +170,73 @@ const profitMarginColor = computed(() => getDeltaColor(profitMarginDelta.value, 
 </script>
 
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold text-gray-800">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+      <h3 class="text-base sm:text-lg font-semibold text-gray-800">
         Değişim Analizi
       </h3>
-      <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+      <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full w-fit">
         {{ leftData.period_label }} → {{ rightData.period_label }}
       </span>
     </div>
 
     <!-- Delta Cards Grid -->
-    <div class="grid grid-cols-2 gap-3">
+    <div class="grid grid-cols-2 gap-2 sm:gap-3">
       <!-- Revenue Delta -->
-      <div :class="['rounded-xl p-4 border-2', revenueColor]">
-        <p class="text-sm font-medium mb-2 flex items-center gap-1">
-          <span>💰</span> Ciro Farkı
+      <div :class="['rounded-lg sm:rounded-xl p-3 sm:p-4 border-2', revenueColor]">
+        <p class="text-xs sm:text-sm font-medium mb-1 sm:mb-2 flex items-center gap-1">
+          <span class="text-sm sm:text-base">💰</span> <span class="hidden sm:inline">Ciro Farkı</span>
         </p>
-        <p class="text-lg font-bold">
+        <p class="text-sm sm:text-lg font-bold leading-tight">
           {{ getDeltaDisplay(deltaData.revenue) }}
         </p>
       </div>
 
       <!-- Expenses Delta -->
-      <div :class="['rounded-xl p-4 border-2', expensesColor]">
-        <p class="text-sm font-medium mb-2 flex items-center gap-1">
-          <span>📦</span> Gider Farkı
+      <div :class="['rounded-lg sm:rounded-xl p-3 sm:p-4 border-2', expensesColor]">
+        <p class="text-xs sm:text-sm font-medium mb-1 sm:mb-2 flex items-center gap-1">
+          <span class="text-sm sm:text-base">📦</span> <span class="hidden sm:inline">Gider Farkı</span>
         </p>
-        <p class="text-lg font-bold">
+        <p class="text-sm sm:text-lg font-bold leading-tight">
           {{ getDeltaDisplay(deltaData.expenses) }}
         </p>
       </div>
 
       <!-- Profit Delta -->
-      <div :class="['rounded-xl p-4 border-2', profitColor]">
-        <p class="text-sm font-medium mb-2 flex items-center gap-1">
-          <span>📈</span> Kar Farkı
+      <div :class="['rounded-lg sm:rounded-xl p-3 sm:p-4 border-2', profitColor]">
+        <p class="text-xs sm:text-sm font-medium mb-1 sm:mb-2 flex items-center gap-1">
+          <span class="text-sm sm:text-base">📈</span> <span class="hidden sm:inline">Kar Farkı</span>
         </p>
-        <p class="text-lg font-bold">
+        <p class="text-sm sm:text-lg font-bold leading-tight">
           {{ getDeltaDisplay(deltaData.profit) }}
         </p>
       </div>
 
       <!-- Profit Margin Delta -->
-      <div :class="['rounded-xl p-4 border-2', profitMarginColor]">
-        <p class="text-sm font-medium mb-2 flex items-center gap-1">
-          <span>📊</span> Karlılık Farkı
+      <div :class="['rounded-lg sm:rounded-xl p-3 sm:p-4 border-2', profitMarginColor]">
+        <p class="text-xs sm:text-sm font-medium mb-1 sm:mb-2 flex items-center gap-1">
+          <span class="text-sm sm:text-base">📊</span> <span class="hidden sm:inline">Karlılık Farkı</span>
         </p>
-        <p class="text-lg font-bold">
+        <p class="text-sm sm:text-lg font-bold leading-tight">
           {{ getDeltaDisplay(deltaData.profitMargin, true) }}
         </p>
       </div>
     </div>
 
     <!-- Legend -->
-    <div class="mt-4 pt-4 border-t border-gray-100">
-      <div class="flex items-center justify-center gap-6 text-xs text-gray-500">
+    <div class="mt-3 sm:mt-4 pt-3 sm:pt-4 border-t border-gray-100">
+      <div class="flex items-center justify-center gap-3 sm:gap-6 text-xs text-gray-500 flex-wrap">
         <div class="flex items-center gap-1">
-          <span class="w-3 h-3 rounded bg-green-100 border border-green-300"></span>
+          <span class="w-3 h-3 rounded bg-green-100 border border-green-300 flex-shrink-0"></span>
           <span>İyi</span>
         </div>
         <div class="flex items-center gap-1">
-          <span class="w-3 h-3 rounded bg-red-100 border border-red-300"></span>
+          <span class="w-3 h-3 rounded bg-red-100 border border-red-300 flex-shrink-0"></span>
           <span>Kötü</span>
         </div>
         <div class="flex items-center gap-1">
-          <span class="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span>
+          <span class="w-3 h-3 rounded bg-yellow-100 border border-yellow-300 flex-shrink-0"></span>
           <span>Nötr (±{{ DELTA_THRESHOLD }}%)</span>
         </div>
       </div>

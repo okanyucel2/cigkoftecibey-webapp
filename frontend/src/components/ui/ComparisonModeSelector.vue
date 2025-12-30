@@ -230,16 +230,18 @@ function applyCustomRange() {
   <div class="relative" ref="dropdownRef">
     <button
       @click="isOpen = !isOpen"
-      class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+      class="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto min-w-[200px] justify-between"
     >
-      <span class="text-lg">📅</span>
-      <span class="font-medium text-gray-700">{{ selectedModeLabel }}</span>
-      <span class="text-gray-400">{{ isOpen ? '▲' : '▼' }}</span>
+      <div class="flex items-center gap-2">
+        <span class="text-lg">📅</span>
+        <span class="font-medium text-gray-700 text-sm sm:text-base truncate">{{ selectedModeLabel }}</span>
+      </div>
+      <span class="text-gray-400 flex-shrink-0">{{ isOpen ? '▲' : '▼' }}</span>
     </button>
 
     <div
       v-if="isOpen"
-      class="absolute z-50 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-96 overflow-y-auto"
+      class="absolute z-50 w-full sm:w-[400px] mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-[80vh] overflow-y-auto left-0 sm:left-auto sm:right-0"
     >
       <!-- Predefined modes -->
       <div class="p-2">
@@ -247,14 +249,14 @@ function applyCustomRange() {
           v-for="mode in modes.slice(0, -1)"
           :key="mode.value"
           @click="selectMode(mode.value)"
-          class="w-full text-left px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors"
+          class="w-full text-left px-3 py-2 sm:py-3 hover:bg-gray-50 rounded-lg transition-colors"
           :class="{ 'bg-gray-100': modelValue.mode === mode.value }"
         >
           <div class="flex items-center gap-2">
-            <span class="text-lg">{{ mode.icon }}</span>
-            <div>
-              <p class="font-medium text-gray-900">{{ mode.label }}</p>
-              <p class="text-xs text-gray-500">{{ mode.description }}</p>
+            <span class="text-lg sm:text-xl flex-shrink-0">{{ mode.icon }}</span>
+            <div class="min-w-0 flex-1">
+              <p class="font-medium text-gray-900 text-sm truncate">{{ mode.label }}</p>
+              <p class="text-xs text-gray-500 hidden sm:block">{{ mode.description }}</p>
             </div>
           </div>
         </button>
@@ -266,56 +268,60 @@ function applyCustomRange() {
       <div class="p-3">
         <button
           @click="selectMode('custom')"
-          class="w-full text-left px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors"
+          class="w-full text-left px-3 py-2 sm:py-3 hover:bg-gray-50 rounded-lg transition-colors"
           :class="{ 'bg-gray-100': modelValue.mode === 'custom' }"
         >
           <div class="flex items-center gap-2">
-            <span class="text-lg">{{ modes[5].icon }}</span>
-            <div>
-              <p class="font-medium text-gray-900">{{ modes[5].label }}</p>
-              <p class="text-xs text-gray-500">{{ modes[5].description }}</p>
+            <span class="text-lg sm:text-xl flex-shrink-0">{{ modes[5].icon }}</span>
+            <div class="min-w-0 flex-1">
+              <p class="font-medium text-gray-900 text-sm truncate">{{ modes[5].label }}</p>
+              <p class="text-xs text-gray-500 hidden sm:block">{{ modes[5].description }}</p>
             </div>
           </div>
         </button>
 
         <!-- Validation error message -->
-        <div v-if="validationError && modelValue.mode === 'custom'" class="mt-2 text-xs text-red-600">
+        <div v-if="validationError && modelValue.mode === 'custom'" class="mt-2 text-xs text-red-600 bg-red-50 p-2 rounded">
           {{ validationError }}
         </div>
 
         <!-- Custom date inputs (shown when custom is selected) -->
-        <div v-if="modelValue.mode === 'custom'" class="mt-3 space-y-2">
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-medium text-gray-600 w-16">Sol:</span>
-            <input
-              v-model="customLeftStart"
-              type="date"
-              class="flex-1 border rounded px-2 py-1 text-sm"
-            />
-            <span class="text-gray-400">-</span>
-            <input
-              v-model="customLeftEnd"
-              type="date"
-              class="flex-1 border rounded px-2 py-1 text-sm"
-            />
+        <div v-if="modelValue.mode === 'custom'" class="mt-3 space-y-3">
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+            <span class="text-xs font-medium text-gray-600 sm:w-16 flex-shrink-0">Sol:</span>
+            <div class="flex-1 flex items-center gap-2">
+              <input
+                v-model="customLeftStart"
+                type="date"
+                class="flex-1 border rounded px-2 py-2 text-sm w-full sm:w-auto"
+              />
+              <span class="text-gray-400 hidden sm:block">-</span>
+              <input
+                v-model="customLeftEnd"
+                type="date"
+                class="flex-1 border rounded px-2 py-2 text-sm w-full sm:w-auto"
+              />
+            </div>
           </div>
-          <div class="flex items-center gap-2">
-            <span class="text-xs font-medium text-gray-600 w-16">Sağ:</span>
-            <input
-              v-model="customRightStart"
-              type="date"
-              class="flex-1 border rounded px-2 py-1 text-sm"
-            />
-            <span class="text-gray-400">-</span>
-            <input
-              v-model="customRightEnd"
-              type="date"
-              class="flex-1 border rounded px-2 py-1 text-sm"
-            />
+          <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+            <span class="text-xs font-medium text-gray-600 sm:w-16 flex-shrink-0">Sağ:</span>
+            <div class="flex-1 flex items-center gap-2">
+              <input
+                v-model="customRightStart"
+                type="date"
+                class="flex-1 border rounded px-2 py-2 text-sm w-full sm:w-auto"
+              />
+              <span class="text-gray-400 hidden sm:block">-</span>
+              <input
+                v-model="customRightEnd"
+                type="date"
+                class="flex-1 border rounded px-2 py-2 text-sm w-full sm:w-auto"
+              />
+            </div>
           </div>
           <button
             @click="applyCustomRange"
-            class="w-full mt-2 px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+            class="w-full px-3 py-2 bg-red-600 text-white rounded text-sm hover:bg-red-700 transition-colors touch-manipulation"
           >
             Karşılaştır
           </button>

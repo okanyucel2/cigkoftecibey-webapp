@@ -31,13 +31,13 @@ const profitCardBackground = computed(() => {
 </script>
 
 <template>
-  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+  <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 sm:p-6">
     <!-- Header -->
-    <div class="flex items-center justify-between mb-4">
-      <h3 class="text-lg font-semibold text-gray-800">
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+      <h3 class="text-base sm:text-lg font-semibold text-gray-800">
         {{ data.period_label }}
       </h3>
-      <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+      <span class="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full w-fit">
         {{ data.start_date === data.end_date
           ? new Date(data.start_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
           : `${new Date(data.start_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })} - ${new Date(data.end_date).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })}`
@@ -48,62 +48,62 @@ const profitCardBackground = computed(() => {
     <!-- Revenue Channels -->
     <p class="text-xs text-gray-500 font-medium mb-2">Ciro Kanallari</p>
     <div class="grid grid-cols-3 gap-2 mb-4">
-      <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200">
-        <p class="text-xs text-blue-600 flex items-center gap-1">
-          <span>💳</span> Visa
+      <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 sm:p-3 border border-blue-200">
+        <p class="text-xs text-blue-600 flex items-center gap-1 mb-1">
+          <span class="text-sm sm:text-base">💳</span> <span class="hidden sm:inline">Visa</span>
         </p>
-        <p class="text-sm font-bold text-blue-700">{{ formatCurrency(data.revenue_breakdown.visa) }}</p>
+        <p class="text-xs sm:text-sm font-bold text-blue-700 truncate">{{ formatCurrency(data.revenue_breakdown.visa) }}</p>
       </div>
-      <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-2 border border-emerald-200">
-        <p class="text-xs text-emerald-600 flex items-center gap-1">
-          <span>💵</span> Nakit
+      <div class="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-2 sm:p-3 border border-emerald-200">
+        <p class="text-xs text-emerald-600 flex items-center gap-1 mb-1">
+          <span class="text-sm sm:text-base">💵</span> <span class="hidden sm:inline">Nakit</span>
         </p>
-        <p class="text-sm font-bold text-emerald-700">{{ formatCurrency(data.revenue_breakdown.nakit) }}</p>
+        <p class="text-xs sm:text-sm font-bold text-emerald-700 truncate">{{ formatCurrency(data.revenue_breakdown.nakit) }}</p>
       </div>
-      <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-2 border border-purple-200">
-        <p class="text-xs text-purple-600 flex items-center gap-1">
-          <span>📱</span> Online
+      <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-2 sm:p-3 border border-purple-200">
+        <p class="text-xs text-purple-600 flex items-center gap-1 mb-1">
+          <span class="text-sm sm:text-base">📱</span> <span class="hidden sm:inline">Online</span>
         </p>
-        <p class="text-sm font-bold text-purple-700">{{ formatCurrency(data.revenue_breakdown.online) }}</p>
+        <p class="text-xs sm:text-sm font-bold text-purple-700 truncate">{{ formatCurrency(data.revenue_breakdown.online) }}</p>
       </div>
     </div>
 
     <!-- Total Revenue -->
-    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 border border-green-200 mb-4">
+    <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-3 sm:p-4 border border-green-200 mb-4">
       <p class="text-sm text-green-600 font-medium flex items-center gap-1">
-        <span>💰</span> Toplam Ciro
+        <span class="text-base sm:text-lg">💰</span> Toplam Ciro
       </p>
-      <p class="text-xl font-bold text-green-700">{{ formatCurrency(totalRevenue) }}</p>
+      <p class="text-lg sm:text-xl font-bold text-green-700">{{ formatCurrency(totalRevenue) }}</p>
     </div>
 
     <!-- Expense Breakdown -->
     <p class="text-xs text-gray-500 font-medium mb-2">Gider Detaylari</p>
-    <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm text-gray-600 mb-3">
-      <span>Mal Alimi {{ formatCurrency(data.expense_breakdown.mal_alimi) }}</span>
-      <span>Isletme Giderleri {{ formatCurrency(data.expense_breakdown.gider) }}</span>
-      <span>Personel Yemekleri {{ formatCurrency(data.expense_breakdown.staff) }}</span>
-      <span>Kurye {{ formatCurrency(data.expense_breakdown.kurye) }}</span>
-      <span>Part-Time {{ formatCurrency(data.expense_breakdown.parttime) }}</span>
-      <span>Uretim {{ formatCurrency(data.expense_breakdown.uretim) }}</span>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-600 mb-3">
+      <div class="flex justify-between"><span>Mal Alimi</span> <span class="font-medium">{{ formatCurrency(data.expense_breakdown.mal_alimi) }}</span></div>
+      <div class="flex justify-between"><span>Isletme Giderleri</span> <span class="font-medium">{{ formatCurrency(data.expense_breakdown.gider) }}</span></div>
+      <div class="flex justify-between"><span>Personel Yemekleri</span> <span class="font-medium">{{ formatCurrency(data.expense_breakdown.staff) }}</span></div>
+      <div class="flex justify-between"><span>Kurye</span> <span class="font-medium">{{ formatCurrency(data.expense_breakdown.kurye) }}</span></div>
+      <div class="flex justify-between"><span>Part-Time</span> <span class="font-medium">{{ formatCurrency(data.expense_breakdown.parttime) }}</span></div>
+      <div class="flex justify-between"><span>Uretim</span> <span class="font-medium">{{ formatCurrency(data.expense_breakdown.uretim) }}</span></div>
     </div>
 
     <!-- Total Expenses -->
-    <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-3 border border-orange-200 mb-4">
+    <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-3 sm:p-4 border border-orange-200 mb-4">
       <p class="text-sm text-orange-600 font-medium flex items-center gap-1">
-        <span>📦</span> Toplam Gider
+        <span class="text-base sm:text-lg">📦</span> Toplam Gider
       </p>
-      <p class="text-xl font-bold text-orange-700">{{ formatCurrency(data.total_expenses) }}</p>
+      <p class="text-lg sm:text-xl font-bold text-orange-700">{{ formatCurrency(data.total_expenses) }}</p>
     </div>
 
     <!-- Net Profit -->
-    <div :class="['rounded-xl p-3 border', profitCardBackground]">
+    <div :class="['rounded-xl p-3 sm:p-4 border', profitCardBackground]">
       <p :class="['text-sm font-medium flex items-center gap-1', props.data.net_profit >= 0 ? 'text-blue-600' : 'text-red-600']">
-        <span>📈</span> Net Kar
+        <span class="text-base sm:text-lg">📈</span> Net Kar
       </p>
-      <p :class="['text-xl font-bold', props.data.net_profit >= 0 ? 'text-blue-700' : 'text-red-700']">
+      <p :class="['text-lg sm:text-xl font-bold', props.data.net_profit >= 0 ? 'text-blue-700' : 'text-red-700']">
         {{ formatCurrency(data.net_profit) }}
       </p>
-      <p :class="['text-xs mt-1', profitMarginColor]">
+      <p :class="['text-xs sm:text-sm mt-1', profitMarginColor]">
         Karlilik: %{{ data.profit_margin.toFixed(0) }}
       </p>
     </div>
