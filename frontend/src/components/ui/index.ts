@@ -16,4 +16,5 @@ export { default as UnifiedFilterBar, type EntityConfig, type ActionConfig } fro
 export { default as InsightBanner, type Insight, type InsightAction } from './InsightBanner.vue'
 export { default as ComparisonModeSelector } from './ComparisonModeSelector.vue'
 export { default as ComparisonCard } from './ComparisonCard.vue'
-export type { ComparisonMode, ComparisonPeriod, ComparisonConfig, BilancoPeriodData, RevenueBreakdown, ExpenseBreakdown } from '@/types/comparison'
+export { default as DeltaBand } from './DeltaBand.vue'
+export type { ComparisonMode, ComparisonPeriod, ComparisonConfig, BilancoPeriodData, RevenueBreakdown, ExpenseBreakdown, DeltaData, DeltaMetric } from '@/types/comparison'

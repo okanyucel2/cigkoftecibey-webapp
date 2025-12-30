@@ -56,3 +56,18 @@ export interface BilancoPeriodData {
   net_profit: number
   profit_margin: number
 }
+
+export interface DeltaMetric {
+  label: string        // Human-readable label (e.g., "Ciro Farkı")
+  absolute: number     // Absolute difference (right - left)
+  percentage: number   // Percentage change
+  isPositive: boolean  // true = good change, false = bad change
+  // Note: For expenses, "positive" means decrease (costs went down)
+}
+
+export interface DeltaData {
+  revenue: DeltaMetric
+  expenses: DeltaMetric
+  profit: DeltaMetric
+  profitMargin: DeltaMetric  // In percentage points (pp)
+}
