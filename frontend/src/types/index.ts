@@ -606,3 +606,83 @@ export type { DateRangeMode, DateRangeValue, PresetOption, DateRange, DateRangeL
 
 // Re-export UI component types for convenience
 export type { NavItem } from '@/components/ui/VerticalNav.vue'
+
+// ============ Payment Types ============
+export type PaymentType = 'cash' | 'eft' | 'check' | 'promissory' | 'partial'
+export type PaymentStatus = 'pending' | 'completed' | 'cancelled'
+export type TransactionType = 'order' | 'payment' | 'return' | 'adjustment'
+
+// ============ Supplier AR ============
+export interface SupplierARSummary {
+  id: number
+  name: string
+  balance: number
+  total_debt: number
+  total_credit: number
+  last_transaction_date: string | null
+}
+
+export interface SupplierARDetail extends SupplierARSummary {
+  transactions: SupplierTransaction[]
+}
+
+export interface SupplierTransaction {
+  id: number
+  supplier_id: number
+  transaction_type: TransactionType
+  description: string
+  debt_amount: number
+  credit_amount: number
+  running_balance: number
+  reference_id: number | null
+  reference_type: string | null
+  transaction_date: string
+  created_at: string
+}
+
+// ============ Payments ============
+export interface SupplierPayment {
+  id: number
+  supplier_id: number
+  supplier_name: string
+  payment_type: PaymentType
+  amount: number
+  payment_date: string
+  description: string | null
+  reference: string | null
+  bank_name: string | null
+  transfer_code: string | null
+  due_date: string | null
+  serial_number: string | null
+  status: PaymentStatus
+  created_at: string
+  updated_at: string
+}
+
+export interface CreatePaymentDTO {
+  supplier_id: number
+  payment_type: PaymentType
+  amount: number
+  payment_date: string
+  description?: string
+  reference?: string
+  bank_name?: string
+  transfer_code?: string
+  due_date?: string
+  serial_number?: string
+}
+
+export interface PaymentFilters {
+  start_date?: string
+  end_date?: string
+  supplier_id?: number
+  payment_type?: PaymentType
+  search?: string
+}
+
+export interface PaymentSummary {
+  today: number
+  thisWeek: number
+  thisMonth: number
+  total: number
+}
