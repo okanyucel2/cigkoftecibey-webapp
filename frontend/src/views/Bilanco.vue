@@ -23,9 +23,12 @@ const leftData = ref<BilancoPeriodData | null>(null)
 const rightData = ref<BilancoPeriodData | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
+const requestId = ref(0)
 
 // Fetch comparison data
 const fetchComparisonData = async () => {
+  // Increment request ID for this fetch
+  const currentRequestId = ++requestId.value
   loading.value = true
   error.value = null
 
@@ -37,12 +40,26 @@ const fetchComparisonData = async () => {
       right_end: comparisonConfig.value.rightPeriod.end
     })
 
-    leftData.value = response.data.left
-    rightData.value = response.data.right
+    // Validate empty state - check if data exists
+    if (!response.data.left || !response.data.right) {
+      throw new Error('Karşılaştırma verileri bulunamadı. Lütfen tarih aralığını kontrol edin.')
+    }
+
+    // Only update state if this is still the latest request
+    if (currentRequestId === requestId.value) {
+      leftData.value = response.data.left
+      rightData.value = response.data.right
+    }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Veriler yüklenemedi. Lütfen sayfayı yenileyin.'
+    // Only update state if this is still the latest request
+    if (currentRequestId === requestId.value) {
+      error.value = err instanceof Error ? err.message : 'Veriler yüklenemedi. Lütfen sayfayı yenileyin.'
+    }
   } finally {
-    loading.value = false
+    // Only update loading state if this is still the latest request
+    if (currentRequestId === requestId.value) {
+      loading.value = false
+    }
   }
 }
 
@@ -92,7 +109,7 @@ onMounted(fetchComparisonData)
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center h-64">
+    <div v-if="loading" class="flex items-center justify-center h-64" role="status" aria-live="polite">
       <div class="text-center">
         <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-2"></div>
         <div class="text-gray-500">Yükleniyor...</div>
@@ -100,7 +117,7 @@ onMounted(fetchComparisonData)
     </div>
 
     <!-- Error State -->
-    <div v-else-if="error" class="flex items-center justify-center h-64">
+    <div v-else-if="error" class="flex items-center justify-center h-64" role="alert" aria-live="assertive">
       <div class="text-center">
         <div class="text-red-500 mb-4">{{ error }}</div>
         <button @click="fetchComparisonData" class="btn btn-primary">Tekrar Dene</button>
