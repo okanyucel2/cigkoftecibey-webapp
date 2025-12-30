@@ -137,7 +137,7 @@ const deltaData = computed<DeltaData>(() => ({
   },
   profitMargin: {
     ...profitMarginDelta.value,
-    label: 'Karlilik Farkı'
+    label: 'Karlılık Farkı'
   }
 }))
 
@@ -195,7 +195,7 @@ const profitMarginColor = computed(() => getDeltaColor(profitMarginDelta.value, 
       <!-- Profit Margin Delta -->
       <div :class="['rounded-xl p-4 border-2', profitMarginColor]">
         <p class="text-sm font-medium mb-2 flex items-center gap-1">
-          <span>📊</span> Karlilik Farkı
+          <span>📊</span> Karlılık Farkı
         </p>
         <p class="text-lg font-bold">
           {{ getDeltaDisplay(deltaData.profitMargin, true) }}
