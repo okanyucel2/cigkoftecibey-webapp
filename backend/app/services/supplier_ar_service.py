@@ -1,19 +1,19 @@
 # backend/app/services/supplier_ar_service.py
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy import select, func, and_, desc
 from typing import Optional
 from datetime import datetime, UTC
 from decimal import Decimal
 
-from backend.app.models.supplier import Supplier
-from backend.app.models.supplier_ar import (
+from app.models import Supplier
+from app.models.supplier_ar import (
     SupplierPayment,
     SupplierTransaction,
     PaymentType,
     PaymentStatus,
     TransactionType
 )
-from backend.app.schemas.supplier_ar import (
+from app.schemas.supplier_ar import (
     SupplierARSummary,
     SupplierARDetail,
     SupplierTransaction as TransactionSchema,
@@ -24,10 +24,10 @@ from backend.app.schemas.supplier_ar import (
 
 
 class SupplierARService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: Session):
         self.db = db
 
-    async def get_all_supplier_ar(self) -> list[SupplierARSummary]:
+    def get_all_supplier_ar(self) -> list[SupplierARSummary]:
         """
         Tüm tedarikçilerin cari hesap özetini getirir.
         Hesaplamalar transaction tablosundan yapılır.
@@ -72,7 +72,7 @@ class SupplierARService:
             .order_by(desc(func.coalesce(last_trans.c.running_balance, 0)))
         )
 
-        result = await self.db.execute(query)
+        result = self.db.execute(query)
         rows = result.all()
 
         return [
@@ -87,12 +87,12 @@ class SupplierARService:
             for row in rows
         ]
 
-    async def get_supplier_ar_detail(self, supplier_id: int) -> Optional[SupplierARDetail]:
+    def get_supplier_ar_detail(self, supplier_id: int) -> Optional[SupplierARDetail]:
         """
         Tek tedarikçinin detaylı cari hesap bilgisini getirir.
         """
         # Tedarikçi bilgisi
-        supplier_result = await self.db.execute(
+        supplier_result = self.db.execute(
             select(Supplier).where(Supplier.id == supplier_id)
         )
         supplier = supplier_result.scalar_one_or_none()
@@ -101,7 +101,7 @@ class SupplierARService:
             return None
 
         # Hareket geçmişi
-        trans_result = await self.db.execute(
+        trans_result = self.db.execute(
             select(SupplierTransaction)
             .where(SupplierTransaction.supplier_id == supplier_id)
             .order_by(desc(SupplierTransaction.transaction_date))
@@ -125,7 +125,7 @@ class SupplierARService:
             transactions=[TransactionSchema.model_validate(t) for t in transactions]
         )
 
-    async def create_transaction(
+    def create_transaction(
         self,
         supplier_id: int,
         transaction_type: TransactionType,
@@ -140,7 +140,7 @@ class SupplierARService:
         Yeni hareket kaydı oluşturur. Running balance hesaplar.
         """
         # Son bakiyeyi bul
-        last_balance_result = await self.db.execute(
+        last_balance_result = self.db.execute(
             select(SupplierTransaction.running_balance)
             .where(SupplierTransaction.supplier_id == supplier_id)
             .order_by(desc(SupplierTransaction.transaction_date))
@@ -164,7 +164,7 @@ class SupplierARService:
         )
 
         self.db.add(transaction)
-        await self.db.commit()
-        await self.db.refresh(transaction)
+        self.db.commit()
+        self.db.refresh(transaction)
 
         return transaction

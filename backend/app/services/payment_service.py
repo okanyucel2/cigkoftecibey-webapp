@@ -1,37 +1,37 @@
 # backend/app/services/payment_service.py
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import Session
 from sqlalchemy import select, and_, desc, delete
 from typing import Optional
 from datetime import datetime, UTC
 from decimal import Decimal
 
-from backend.app.models.supplier_ar import (
+from app.models.supplier_ar import (
     SupplierPayment,
     SupplierTransaction,
     PaymentType,
     PaymentStatus,
     TransactionType
 )
-from backend.app.schemas.supplier_ar import (
+from app.schemas.supplier_ar import (
     SupplierPaymentCreate,
     SupplierPaymentUpdate,
     SupplierPaymentWithSupplier
 )
-from backend.app.services.supplier_ar_service import SupplierARService
+from app.services.supplier_ar_service import SupplierARService
 
 
 class PaymentService:
-    def __init__(self, db: AsyncSession):
+    def __init__(self, db: Session):
         self.db = db
         self.ar_service = SupplierARService(db)
 
-    async def create_payment(self, data: SupplierPaymentCreate) -> SupplierPaymentWithSupplier:
+    def create_payment(self, data: SupplierPaymentCreate) -> SupplierPaymentWithSupplier:
         """
         Yeni ödeme kaydı oluşturur ve transaction kaydı ekler.
         """
         # Tedarikçi adını al
-        from backend.app.models.supplier import Supplier
-        supplier_result = await self.db.execute(
+        from app.models import Supplier
+        supplier_result = self.db.execute(
             select(Supplier.name).where(Supplier.id == data.supplier_id)
         )
         supplier_name = supplier_result.scalar_one_or_none()
@@ -41,11 +41,11 @@ class PaymentService:
         # Ödeme kaydı oluştur
         payment = SupplierPayment(**data.model_dump())
         self.db.add(payment)
-        await self.db.commit()
-        await self.db.refresh(payment)
+        self.db.commit()
+        self.db.refresh(payment)
 
         # Transaction kaydı oluştur (borç azalır)
-        await self.ar_service.create_transaction(
+        self.ar_service.create_transaction(
             supplier_id=data.supplier_id,
             transaction_type=TransactionType.PAYMENT,
             description=f"Ödeme - {self._get_payment_type_label(data.payment_type)}",
@@ -74,7 +74,7 @@ class PaymentService:
             updated_at=payment.updated_at
         )
 
-    async def get_payments(
+    def get_payments(
         self,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
@@ -85,7 +85,7 @@ class PaymentService:
         """
         Ödeme listesini filtrelerle birlikte getirir.
         """
-        from backend.app.models.supplier import Supplier
+        from app.models import Supplier
 
         query = (
             select(SupplierPayment, Supplier.name)
@@ -114,7 +114,7 @@ class PaymentService:
 
         query = query.order_by(desc(SupplierPayment.payment_date))
 
-        result = await self.db.execute(query)
+        result = self.db.execute(query)
         rows = result.all()
 
         return [
@@ -138,11 +138,11 @@ class PaymentService:
             for payment, supplier_name in rows
         ]
 
-    async def get_payment(self, payment_id: int) -> Optional[SupplierPaymentWithSupplier]:
+    def get_payment(self, payment_id: int) -> Optional[SupplierPaymentWithSupplier]:
         """Tek ödeme kaydı getirir."""
-        from backend.app.models.supplier import Supplier
+        from app.models import Supplier
 
-        result = await self.db.execute(
+        result = self.db.execute(
             select(SupplierPayment, Supplier.name)
             .join(Supplier, SupplierPayment.supplier_id == Supplier.id)
             .where(SupplierPayment.id == payment_id)
@@ -172,13 +172,13 @@ class PaymentService:
             updated_at=payment.updated_at
         )
 
-    async def update_payment(
+    def update_payment(
         self,
         payment_id: int,
         data: SupplierPaymentUpdate
     ) -> Optional[SupplierPaymentWithSupplier]:
         """Ödeme kaydı günceller."""
-        result = await self.db.execute(
+        result = self.db.execute(
             select(SupplierPayment).where(SupplierPayment.id == payment_id)
         )
         payment = result.scalar_one_or_none()
@@ -191,12 +191,12 @@ class PaymentService:
         for field, value in update_data.items():
             setattr(payment, field, value)
 
-        await self.db.commit()
-        await self.db.refresh(payment)
+        self.db.commit()
+        self.db.refresh(payment)
 
         # Get supplier name
-        from backend.app.models.supplier import Supplier
-        supplier_result = await self.db.execute(
+        from app.models import Supplier
+        supplier_result = self.db.execute(
             select(Supplier.name).where(Supplier.id == payment.supplier_id)
         )
         supplier_name = supplier_result.scalar_one()
@@ -219,9 +219,9 @@ class PaymentService:
             updated_at=payment.updated_at
         )
 
-    async def delete_payment(self, payment_id: int) -> bool:
+    def delete_payment(self, payment_id: int) -> bool:
         """Ödeme kaydı siler."""
-        result = await self.db.execute(
+        result = self.db.execute(
             select(SupplierPayment).where(SupplierPayment.id == payment_id)
         )
         payment = result.scalar_one_or_none()
@@ -230,7 +230,7 @@ class PaymentService:
             return False
 
         # İlgili transaction kaydını da sil
-        await self.db.execute(
+        self.db.execute(
             delete(SupplierTransaction).where(
                 and_(
                     SupplierTransaction.reference_id == payment_id,
@@ -239,8 +239,8 @@ class PaymentService:
             )
         )
 
-        await self.db.delete(payment)
-        await self.db.commit()
+        self.db.delete(payment)
+        self.db.commit()
 
         return True
 
