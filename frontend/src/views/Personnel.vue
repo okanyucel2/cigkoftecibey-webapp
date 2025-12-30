@@ -524,6 +524,12 @@ const showEntitySelector = computed(() => activeTab.value === 'payroll')
 
 <template>
   <div class="space-y-6">
+    <!-- Page Header -->
+    <div class="personnel-header">
+      <h1 class="page-title">👤 Personel Yönetimi</h1>
+      <p class="page-description">Çalışan bilgileri, maaş ödemeleri ve part-time giderleri</p>
+    </div>
+
     <!-- Error -->
     <ErrorAlert :message="error" @dismiss="error = ''" />
 
@@ -1024,3 +1030,23 @@ const showEntitySelector = computed(() => activeTab.value === 'payroll')
       @confirm="confirmModal.handleConfirm" @cancel="confirmModal.handleCancel" />
   </div>
 </template>
+
+<style scoped>
+.personnel-header {
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  font-family: 'font-display', sans-serif;
+  color: #111827;
+  margin: 0 0 8px 0;
+}
+
+.page-description {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+</style>
