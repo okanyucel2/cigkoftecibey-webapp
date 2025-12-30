@@ -10,6 +10,7 @@ import type {
   CourierExpense, CourierExpenseSummary,
   CashDifference, CashDifferenceSummary, CashDifferencePreviewDelete, ExcelParseResult, POSParseResult
 } from '@/types'
+import type { ComparisonResponse } from '@/types/comparison'
 
 // Render production URL - fallback for when env var isn't set at build time
 const RENDER_BACKEND_URL = 'https://genesis-cigkofteci-bey-backend.onrender.com/api'
@@ -222,7 +223,14 @@ export const reportsApi = {
   getDashboard: () => api.get<DashboardStats>('/reports/dashboard'),
   getBilanco: () => api.get<BilancoStats>('/reports/bilanco'),
   getDailySummary: (startDate?: string, endDate?: string) =>
-    api.get('/reports/daily-summary', { params: { start_date: startDate, end_date: endDate } })
+    api.get('/reports/daily-summary', { params: { start_date: startDate, end_date: endDate } }),
+
+  bilancoCompare: (params: {
+    left_start: string
+    left_end: string
+    right_start: string
+    right_end: string
+  }) => api.get<ComparisonResponse>('/reports/bilanco-compare', { params })
 }
 
 // Production (Günlük Üretim/Legen Takibi)

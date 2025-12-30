@@ -71,3 +71,8 @@ export interface DeltaData {
   profit: DeltaMetric
   profitMargin: DeltaMetric  // In percentage points (pp)
 }
+
+export interface ComparisonResponse {
+  left: BilancoPeriodData
+  right: BilancoPeriodData
+}
