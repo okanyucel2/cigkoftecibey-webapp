@@ -3,10 +3,19 @@
 import { computed } from 'vue'
 import type { BilancoPeriodData, DeltaData, DeltaMetric } from '@/types/comparison'
 
+// Delta threshold for considering a change "neutral" (in percentage points)
+const DELTA_THRESHOLD = 2
+
 const props = defineProps<{
   leftData: BilancoPeriodData
   rightData: BilancoPeriodData
 }>()
+
+// Null safety: Ensure parent component provides valid data
+// If data is missing, we show empty state rather than crash
+if (!props.leftData || !props.rightData) {
+  console.warn('DeltaBand: Missing required props (leftData or rightData)')
+}
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('tr-TR', {
@@ -67,7 +76,7 @@ const calculateDelta = (
  * Red = bad change
  * Yellow = neutral change (within small threshold)
  */
-const getDeltaColor = (metric: DeltaMetric, threshold: number = 2): string => {
+const getDeltaColor = (metric: DeltaMetric, threshold: number = DELTA_THRESHOLD): string => {
   if (Math.abs(metric.percentage) < threshold) {
     return 'bg-yellow-50 border-yellow-200 text-yellow-700'
   }
@@ -97,10 +106,16 @@ const getDeltaDisplay = (metric: DeltaMetric, isPercentagePoints: boolean = fals
 
 // Computed delta calculations
 const revenueDelta = computed(() => {
+  if (!props.leftData || !props.rightData) {
+    return { label: '', absolute: 0, percentage: 0, isPositive: true }
+  }
   return calculateDelta(props.leftData.total_revenue, props.rightData.total_revenue)
 })
 
 const expensesDelta = computed(() => {
+  if (!props.leftData || !props.rightData) {
+    return { label: '', absolute: 0, percentage: 0, isPositive: true }
+  }
   return calculateDelta(
     props.leftData.total_expenses,
     props.rightData.total_expenses,
@@ -109,10 +124,16 @@ const expensesDelta = computed(() => {
 })
 
 const profitDelta = computed(() => {
+  if (!props.leftData || !props.rightData) {
+    return { label: '', absolute: 0, percentage: 0, isPositive: true }
+  }
   return calculateDelta(props.leftData.net_profit, props.rightData.net_profit)
 })
 
 const profitMarginDelta = computed(() => {
+  if (!props.leftData || !props.rightData) {
+    return { label: '', absolute: 0, percentage: 0, isPositive: true }
+  }
   return calculateDelta(
     props.leftData.profit_margin,
     props.rightData.profit_margin,
@@ -145,7 +166,7 @@ const deltaData = computed<DeltaData>(() => ({
 const revenueColor = computed(() => getDeltaColor(revenueDelta.value))
 const expensesColor = computed(() => getDeltaColor(expensesDelta.value))
 const profitColor = computed(() => getDeltaColor(profitDelta.value))
-const profitMarginColor = computed(() => getDeltaColor(profitMarginDelta.value, 2)) // 2pp threshold
+const profitMarginColor = computed(() => getDeltaColor(profitMarginDelta.value, DELTA_THRESHOLD)) // Percentage points threshold
 </script>
 
 <template>
@@ -216,7 +237,7 @@ const profitMarginColor = computed(() => getDeltaColor(profitMarginDelta.value, 
         </div>
         <div class="flex items-center gap-1">
           <span class="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span>
-          <span>Nötr (±2%)</span>
+          <span>Nötr (±{{ DELTA_THRESHOLD }}%)</span>
         </div>
       </div>
     </div>
