@@ -1,6 +1,6 @@
 # backend/app/api/payments.py
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional, Literal
 from datetime import datetime
 
@@ -20,41 +20,41 @@ router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
 
 
 # ============ Dependency ============
-def get_payment_service(db: Session = Depends(get_db)) -> PaymentService:
+async def get_payment_service(db: AsyncSession = Depends(get_db)) -> PaymentService:
     return PaymentService(db)
 
 
-def get_ar_service(db: Session = Depends(get_db)) -> SupplierARService:
+async def get_ar_service(db: AsyncSession = Depends(get_db)) -> SupplierARService:
     return SupplierARService(db)
 
 
 # ============ Supplier AR Endpoints ============
 @router.get("/supplier/ar", response_model=list[SupplierARSummary])
-def get_all_supplier_ar(
+async def get_all_supplier_ar(
     service: SupplierARService = Depends(get_ar_service)
 ):
     """
     Tüm tedarikçilerin cari hesap özetini getirir.
     """
-    return service.get_all_supplier_ar()
+    return await service.get_all_supplier_ar()
 
 
 @router.get("/supplier/ar/{supplier_id}", response_model=SupplierARDetail)
-def get_supplier_ar_detail(
+async def get_supplier_ar_detail(
     supplier_id: int,
     service: SupplierARService = Depends(get_ar_service)
 ):
     """
     Tek tedarikçinin detaylı cari hesap bilgisini getirir.
     """
-    result = service.get_supplier_ar_detail(supplier_id)
+    result = await service.get_supplier_ar_detail(supplier_id)
     if not result:
         raise HTTPException(status_code=404, detail="Supplier not found")
     return result
 
 
 @router.get("/supplier/ar/{supplier_id}/transactions", response_model=list[SupplierTransaction])
-def get_supplier_transactions(
+async def get_supplier_transactions(
     supplier_id: int,
     limit: int = Query(100, ge=1, le=500),
     service: SupplierARService = Depends(get_ar_service)
@@ -62,7 +62,7 @@ def get_supplier_transactions(
     """
     Tedarikçinin hareket geçmişini getirir.
     """
-    detail = service.get_supplier_ar_detail(supplier_id)
+    detail = await service.get_supplier_ar_detail(supplier_id)
     if not detail:
         raise HTTPException(status_code=404, detail="Supplier not found")
     return detail.transactions[:limit]
@@ -70,7 +70,7 @@ def get_supplier_transactions(
 
 # ============ Payment Endpoints ============
 @router.get("/supplier", response_model=list[SupplierPaymentWithSupplier])
-def get_payments(
+async def get_payments(
     start_date: Optional[str] = None,
     end_date: Optional[str] = None,
     supplier_id: Optional[int] = None,
@@ -84,7 +84,7 @@ def get_payments(
     start_dt = datetime.fromisoformat(start_date) if start_date else None
     end_dt = datetime.fromisoformat(end_date) if end_date else None
 
-    return service.get_payments(
+    return await service.get_payments(
         start_date=start_dt,
         end_date=end_dt,
         supplier_id=supplier_id,
@@ -94,7 +94,7 @@ def get_payments(
 
 
 @router.post("/supplier", response_model=SupplierPaymentWithSupplier)
-def create_payment(
+async def create_payment(
     data: SupplierPaymentCreate,
     service: PaymentService = Depends(get_payment_service)
 ):
@@ -102,27 +102,27 @@ def create_payment(
     Yeni ödeme kaydı oluşturur.
     """
     try:
-        return service.create_payment(data)
+        return await service.create_payment(data)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/supplier/{payment_id}", response_model=SupplierPaymentWithSupplier)
-def get_payment(
+async def get_payment(
     payment_id: int,
     service: PaymentService = Depends(get_payment_service)
 ):
     """
     Tek ödeme kaydı getirir.
     """
-    result = service.get_payment(payment_id)
+    result = await service.get_payment(payment_id)
     if not result:
         raise HTTPException(status_code=404, detail="Payment not found")
     return result
 
 
 @router.put("/supplier/{payment_id}", response_model=SupplierPaymentWithSupplier)
-def update_payment(
+async def update_payment(
     payment_id: int,
     data: SupplierPaymentUpdate,
     service: PaymentService = Depends(get_payment_service)
@@ -130,21 +130,21 @@ def update_payment(
     """
     Ödeme kaydı günceller.
     """
-    result = service.update_payment(payment_id, data)
+    result = await service.update_payment(payment_id, data)
     if not result:
         raise HTTPException(status_code=404, detail="Payment not found")
     return result
 
 
 @router.delete("/supplier/{payment_id}")
-def delete_payment(
+async def delete_payment(
     payment_id: int,
     service: PaymentService = Depends(get_payment_service)
 ):
     """
     Ödeme kaydı siler.
     """
-    success = service.delete_payment(payment_id)
+    success = await service.delete_payment(payment_id)
     if not success:
         raise HTTPException(status_code=404, detail="Payment not found")
     return {"message": "Payment deleted successfully"}
