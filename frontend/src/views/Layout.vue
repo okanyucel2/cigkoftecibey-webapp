@@ -13,14 +13,9 @@ const branchSelectorOpen = ref(false)
 
 const menuItems = [
   { path: '/', name: 'Bilanço', icon: '📊' },
-  { path: '/sales', name: 'Kasa Hareketleri', icon: '💰' },
-  { path: '/production', name: 'Uretim/Legen', icon: '🥙' },
-  { path: '/purchases', name: 'Mal Alimi', icon: '📦' },
-  { path: '/staff-meals', name: 'Personel Yemek', icon: '🍽️' },
-  { path: '/personnel', name: 'Personel Yonetimi', icon: '👥' },
-  { path: '/courier-expenses', name: 'Kurye Giderleri', icon: '🛵' },
-  { path: '/expenses', name: 'Isletme Giderleri', icon: '💸' },
-  { path: '/kasa-farki', name: 'Kasa Farki', icon: '💵' },
+  { path: '/giderler', name: 'Giderler', icon: '💸' },
+  { path: '/gelirler', name: 'Gelirler', icon: '💰' },
+  { path: '/personnel', name: 'Personel', icon: '👥' }
 ]
 
 // Versiyon bilgileri (build sirasinda enjekte edilir)
