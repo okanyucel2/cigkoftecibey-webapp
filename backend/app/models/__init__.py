@@ -81,6 +81,8 @@ class Supplier(Base):
     # Relationships
     branch: Mapped["Branch"] = relationship(back_populates="suppliers")
     purchases: Mapped[list["Purchase"]] = relationship(back_populates="supplier")
+    payments: Mapped[list["SupplierPayment"]] = relationship(back_populates="supplier")
+    transactions: Mapped[list["SupplierTransaction"]] = relationship(back_populates="supplier")
 
 
 class Purchase(Base):
@@ -593,4 +595,12 @@ class ImportHistoryItem(Base):
     import_history: Mapped["ImportHistory"] = relationship(back_populates="items")
 
 
+# Import Supplier AR (Accounts Receivable) models
+from .supplier_ar import (
+    SupplierPayment,
+    SupplierTransaction,
+    PaymentType,
+    PaymentStatus,
+    TransactionType
+)
 
