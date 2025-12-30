@@ -25,3 +25,34 @@ export interface ComparisonModeOption {
   description: string
   icon: string
 }
+
+export interface RevenueBreakdown {
+  visa: number
+  nakit: number
+  online: number
+  trendyol?: number
+  getir?: number
+  yemeksepeti?: number
+  migros?: number
+}
+
+export interface ExpenseBreakdown {
+  mal_alimi: number
+  gider: number
+  staff: number
+  kurye: number
+  parttime: number
+  uretim: number
+}
+
+export interface BilancoPeriodData {
+  period_label: string
+  start_date: string
+  end_date: string
+  revenue_breakdown: RevenueBreakdown
+  total_revenue: number
+  expense_breakdown: ExpenseBreakdown
+  total_expenses: number
+  net_profit: number
+  profit_margin: number
+}
