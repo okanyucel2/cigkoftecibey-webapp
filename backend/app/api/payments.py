@@ -16,7 +16,7 @@ from app.schemas.supplier_ar import (
     SupplierPaymentWithSupplier
 )
 
-router = APIRouter(prefix="/api/v1/payments", tags=["payments"])
+router = APIRouter(prefix="/payments", tags=["payments"])
 
 
 # ============ Dependency ============
