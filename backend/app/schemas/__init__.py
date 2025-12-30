@@ -998,3 +998,18 @@ class ComparisonRequest(BaseModel):
     left_end: str    # ISO date string
     right_start: str  # ISO date string
     right_end: str   # ISO date string
+
+
+# Supplier AR (Supplier Accounts Receivable)
+from .supplier_ar import (
+    SupplierARSummary,
+    SupplierARDetail,
+    SupplierTransaction,
+    SupplierPayment,
+    SupplierPaymentCreate,
+    SupplierPaymentUpdate,
+    SupplierPaymentWithSupplier,
+    PaymentTypeLiteral,
+    PaymentStatusLiteral,
+    TransactionTypeLiteral
+)
