@@ -26,14 +26,14 @@ const router = createRouter({
           name: 'bilanco',
           component: () => import('@/views/Bilanco.vue')
         },
-        // NEW: Giderler with nested routes
+        // NEW: Giderler with nested routes (wildcard captures nested paths)
         {
           path: 'giderler',
           name: 'giderler',
           redirect: '/giderler/mal-alim'
         },
         {
-          path: 'giderler/:tab',
+          path: 'giderler/:path(.*)',  // Capture all nested paths (e.g., 'hizmet-alim/personel-iase')
           name: 'giderler-tab',
           component: () => import('@/views/Giderler.vue')
         },
@@ -44,9 +44,20 @@ const router = createRouter({
           redirect: '/gelirler/kasa'
         },
         {
-          path: 'gelirler/:tab',
+          path: 'gelirler/:path(.*)',  // Capture all nested paths
           name: 'gelirler-tab',
           component: () => import('@/views/Gelirler.vue')
+        },
+        // NEW: Ödemeler (Payments)
+        {
+          path: 'odemeler',
+          name: 'odemeler',
+          component: () => import('@/views/Odemeler.vue'),
+          meta: {
+            icon: '💳',
+            title: 'Ödemeler',
+            requiredPermission: null
+          }
         },
         // Personnel (updated with optional tab)
         {
