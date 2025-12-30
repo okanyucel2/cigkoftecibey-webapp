@@ -17,11 +17,6 @@ const formatCurrency = (value: number) => {
   }).format(value)
 }
 
-const formatPercentage = (value: number, isPercentagePoints: boolean = false) => {
-  const suffix = isPercentagePoints ? 'pp' : '%'
-  return `%${value.toFixed(1)}${suffix}`
-}
-
 /**
  * Calculate delta metric between two periods
  * @param leftValue - Base period value
