@@ -14,3 +14,5 @@ export { default as EntitySelector, type EntityItem } from './EntitySelector.vue
 export { default as QuickActions } from './QuickActions.vue'
 export { default as UnifiedFilterBar, type EntityConfig, type ActionConfig } from './UnifiedFilterBar.vue'
 export { default as InsightBanner, type Insight, type InsightAction } from './InsightBanner.vue'
+export { default as ComparisonModeSelector } from './ComparisonModeSelector.vue'
+export type { ComparisonMode, ComparisonPeriod, ComparisonConfig } from '@/types/comparison'
