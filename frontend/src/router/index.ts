@@ -26,62 +26,76 @@ const router = createRouter({
           name: 'bilanco',
           component: () => import('@/views/Bilanco.vue')
         },
+        // NEW: Giderler with nested routes
         {
-          path: 'sales',
-          name: 'sales',
-          component: () => import('@/views/UnifiedSales.vue')
+          path: 'giderler',
+          name: 'giderler',
+          redirect: '/giderler/mal-alim'
         },
         {
-          path: 'purchases',
-          name: 'purchases',
-          component: () => import('@/views/Purchases.vue')
+          path: 'giderler/:tab',
+          name: 'giderler-tab',
+          component: () => import('@/views/Giderler.vue')
+        },
+        // NEW: Gelirler with nested routes
+        {
+          path: 'gelirler',
+          name: 'gelirler',
+          redirect: '/gelirler/kasa'
         },
         {
-          path: 'purchases/new',
-          name: 'purchase-new',
-          component: () => import('@/views/PurchaseForm.vue')
+          path: 'gelirler/:tab',
+          name: 'gelirler-tab',
+          component: () => import('@/views/Gelirler.vue')
         },
+        // Personnel (updated with optional tab)
         {
-          path: 'purchases/:id/edit',
-          name: 'purchase-edit',
-          component: () => import('@/views/PurchaseForm.vue'),
-          props: true
-        },
-        {
-          path: 'expenses',
-          name: 'expenses',
-          component: () => import('@/views/Expenses.vue')
-        },
-        {
-          path: 'expenses/new',
-          name: 'expense-form',
-          component: () => import('@/views/ExpenseForm.vue')
-        },
-        {
-          path: 'production',
-          name: 'production',
-          component: () => import('@/views/Production.vue')
-        },
-        {
-          path: 'staff-meals',
-          name: 'staff-meals',
-          component: () => import('@/views/StaffMeals.vue')
-        },
-        {
-          path: 'personnel',
+          path: 'personnel/:tab?',
           name: 'personnel',
           component: () => import('@/views/Personnel.vue')
         },
+        // OLD: Legacy routes (redirect to new structure)
+        {
+          path: 'purchases',
+          redirect: '/giderler/mal-alim'
+        },
+        {
+          path: 'purchases/new',
+          redirect: '/giderler/mal-alim'
+        },
+        {
+          path: 'purchases/:id/edit',
+          redirect: '/giderler/mal-alim'
+        },
+        {
+          path: 'expenses',
+          redirect: '/giderler/genel'
+        },
+        {
+          path: 'expenses/new',
+          redirect: '/giderler/genel'
+        },
+        {
+          path: 'production',
+          redirect: '/giderler/uretim'
+        },
+        {
+          path: 'staff-meals',
+          redirect: '/giderler/hizmet-alim/personel-iase'
+        },
         {
           path: 'courier-expenses',
-          name: 'courier-expenses',
-          component: () => import('@/views/CourierExpenses.vue')
+          redirect: '/giderler/hizmet-alim/kurye'
+        },
+        {
+          path: 'sales',
+          redirect: '/gelirler/kasa'
         },
         {
           path: 'kasa-farki',
-          name: 'CashDifference',
-          component: () => import('@/views/CashDifference.vue')
+          redirect: '/gelirler/kasa-farki'
         },
+        // Admin routes (keep existing)
         {
           path: 'import',
           name: 'import-hub',
