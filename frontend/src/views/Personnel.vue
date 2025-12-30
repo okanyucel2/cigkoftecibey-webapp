@@ -492,6 +492,20 @@ const tabs = computed<Tab[]>(() => [
   { id: 'parttime', label: 'Part-time Giderler', icon: '⏱️' }
 ])
 
+// Primary action changes based on active tab
+const primaryAction = computed(() => {
+  switch (activeTab.value) {
+    case 'employees':
+      return { label: 'Yeni Personel', onClick: openEmployeeForm }
+    case 'payroll':
+      return { label: 'Ödeme Ekle', onClick: openPayrollForm }
+    case 'parttime':
+      return { label: 'Part-time Gider Ekle', onClick: openPartTimeForm }
+    default:
+      return undefined
+  }
+})
+
 // Employee entity selector config for payroll tab
 const employeeEntities = computed<EntityConfig>(() => ({
   items: activeEmployees.value.map(emp => ({
@@ -503,30 +517,29 @@ const employeeEntities = computed<EntityConfig>(() => ({
   showSettings: false,
   showCount: false
 }))
+
+// Show entity selector only in payroll tab
+const showEntitySelector = computed(() => activeTab.value === 'payroll')
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 class="text-2xl font-display font-bold text-gray-900">
-        <span class="mr-2">👥</span> Personel Yönetimi
-      </h1>
-    </div>
-
     <!-- Error -->
     <ErrorAlert :message="error" @dismiss="error = ''" />
 
     <!-- Tabs -->
     <TabBar v-model="activeTab" :tabs="tabs" />
 
+    <!-- Unified Filter Bar - Single date filter for all tabs -->
+    <UnifiedFilterBar
+      v-model:date-range="dateRangeFilter"
+      v-model:entity-id="selectedEmployeeFilter"
+      :entities="showEntitySelector ? employeeEntities : undefined"
+      :primary-action="primaryAction"
+    />
+
     <!-- ==================== EMPLOYEES TAB ==================== -->
     <div v-if="activeTab === 'employees'">
-      <UnifiedFilterBar
-        :show-date-filter="false"
-        :primary-action="{ label: '+ Yeni Personel', icon: 'add', onClick: openEmployeeForm }"
-      />
-
       <div class="bg-white rounded-lg shadow overflow-hidden" data-testid="personnel-list">
         <LoadingState v-if="loading" />
 
@@ -582,13 +595,6 @@ const employeeEntities = computed<EntityConfig>(() => ({
 
     <!-- ==================== PAYROLL TAB ==================== -->
     <div v-if="activeTab === 'payroll'">
-      <UnifiedFilterBar
-        v-model:date-range="dateRangeFilter"
-        v-model:entity-id="selectedEmployeeFilter"
-        :entities="employeeEntities"
-        :primary-action="{ label: '+ Ödeme Ekle', icon: 'add', onClick: openPayrollForm }"
-      />
-
       <!-- Ozet Kartlari - Satir 1 -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-3">
         <div class="bg-white rounded-lg shadow p-3">
@@ -700,11 +706,6 @@ const employeeEntities = computed<EntityConfig>(() => ({
 
     <!-- ==================== PART-TIME TAB ==================== -->
     <div v-if="activeTab === 'parttime'">
-      <UnifiedFilterBar
-        v-model:date-range="dateRangeFilter"
-        :primary-action="{ label: '+ Part-time Gider Ekle', icon: 'add', onClick: openPartTimeForm }"
-      />
-
       <!-- Ozet -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <SummaryCard label="Toplam Gider" :value="formatCurrency(partTimeSummary?.total_cost || 0)" />
@@ -748,6 +749,7 @@ const employeeEntities = computed<EntityConfig>(() => ({
 
     <!-- ==================== EMPLOYEE FORM MODAL ==================== -->
     <PageModal :show="showEmployeeForm" :title="editingEmployeeId ? 'Personel Duzenle' : 'Yeni Personel'"
+      size="lg"
       @close="showEmployeeForm = false">
       <form @submit.prevent="submitEmployeeForm" class="p-6 space-y-4">
         <div>
@@ -983,6 +985,7 @@ const employeeEntities = computed<EntityConfig>(() => ({
 
     <!-- ==================== PART-TIME FORM MODAL ==================== -->
     <PageModal :show="showPartTimeForm" :title="editingPartTimeId ? 'Kayit Duzenle' : 'Part-time Gider Ekle'"
+      size="lg"
       @close="showPartTimeForm = false">
       <form @submit.prevent="submitPartTimeForm" class="p-6 space-y-4">
         <div>

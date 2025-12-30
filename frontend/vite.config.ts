@@ -46,11 +46,12 @@ export default defineConfig({
     }
   },
   server: {
-    port: 5176,
+    port: 5176, // genesis.yaml overrides this to 19049
     host: true, // Listen on all interfaces (IPv4 + IPv6) for Playwright E2E tests
     proxy: {
       '/api': {
-        target: process.env.VITE_API_TARGET || 'http://127.0.0.1:8000',
+        // GENESIS Process Manager v2.0: Backend port changed from 8000 to 9049 (hash-based)
+        target: process.env.VITE_API_TARGET || 'http://127.0.0.1:9049',
         changeOrigin: true
       }
     }

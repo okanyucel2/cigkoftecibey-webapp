@@ -2,16 +2,16 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import type { ChannelsGrouped, OnlineSale, OnlineSalesSummary } from '@/types'
 import { unifiedSalesApi, onlineSalesApi } from '@/services/api'
+import type { DateRangeValue } from '@/types/filters'
 
 // Composables
-import { useFormatters, useMonthYearFilter, useConfirmModal, MONTHS } from '@/composables'
+import { useFormatters, useConfirmModal, MONTHS } from '@/composables'
 
 // UI Components
-import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal } from '@/components/ui'
+import { ConfirmModal, ErrorAlert, LoadingState, UnifiedFilterBar, PageModal } from '@/components/ui'
 
 // Use composables
 const { formatCurrency, formatDate } = useFormatters()
-const { selectedMonth, selectedYear, years } = useMonthYearFilter()
 const confirmModal = useConfirmModal()
 
 // Channel data
@@ -21,14 +21,16 @@ const summary = ref<OnlineSalesSummary | null>(null)
 const loading = ref(true)
 const error = ref('')
 
-// Month/Year filter value for v-model
-const filterValue = computed({
-  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
-  set: (val) => {
-    selectedMonth.value = val.month
-    selectedYear.value = val.year
-  }
+// Date range filter (defaults to current month)
+const dateRangeFilter = ref<DateRangeValue>({
+  mode: 'range',
+  start: new Date().toISOString().split('T')[0],
+  end: new Date().toISOString().split('T')[0]
 })
+
+// Extract month/year from date range for API
+const filterMonth = computed(() => new Date(dateRangeFilter.value.start).getMonth() + 1)
+const filterYear = computed(() => new Date(dateRangeFilter.value.start).getFullYear())
 
 // Modal State
 const showModal = ref(false)
@@ -82,9 +84,9 @@ onMounted(async () => {
   await loadData()
 })
 
-watch([selectedMonth, selectedYear], () => {
+watch(() => dateRangeFilter.value, () => {
   loadData()
-})
+}, { deep: true })
 
 async function loadChannels() {
   try {
@@ -98,8 +100,8 @@ async function loadChannels() {
 async function loadData() {
   loading.value = true
   try {
-    const startDate = new Date(selectedYear.value, selectedMonth.value - 1, 1)
-    const endDate = new Date(selectedYear.value, selectedMonth.value, 0)
+    const startDate = new Date(filterYear.value, filterMonth.value - 1, 1)
+    const endDate = new Date(filterYear.value, filterMonth.value, 0)
 
     const [salesRes, summaryRes] = await Promise.all([
       onlineSalesApi.getSales({
@@ -107,8 +109,8 @@ async function loadData() {
         end_date: endDate.toISOString().split('T')[0]
       }),
       onlineSalesApi.getSummary({
-        year: selectedYear.value,
-        month: selectedMonth.value
+        year: filterYear.value,
+        month: filterMonth.value
       })
     ])
 
@@ -327,8 +329,8 @@ function openBulkModal() {
   calculateWeeks()
 
   // Gunluk detay formunu hazirla
-  const startDate = new Date(selectedYear.value, selectedMonth.value - 1, 1)
-  const endDate = new Date(selectedYear.value, selectedMonth.value, 0)
+  const startDate = new Date(filterYear.value, filterMonth.value - 1, 1)
+  const endDate = new Date(filterYear.value, filterMonth.value, 0)
   bulkDailyForm.value = {
     start_date: startDate.toISOString().split('T')[0],
     end_date: endDate.toISOString().split('T')[0],
@@ -423,8 +425,8 @@ const currentWeekNumber = ref(1)
 
 function calculateWeeks() {
   const weeks: Array<{ number: number, start: string, end: string, label: string }> = []
-  const firstDay = new Date(selectedYear.value, selectedMonth.value - 1, 1)
-  const lastDay = new Date(selectedYear.value, selectedMonth.value, 0)
+  const firstDay = new Date(filterYear.value, filterMonth.value - 1, 1)
+  const lastDay = new Date(filterYear.value, filterMonth.value, 0)
 
   let weekStart = new Date(firstDay)
   let weekNum = 1
@@ -442,7 +444,7 @@ function calculateWeeks() {
       number: weekNum,
       start: weekStart.toISOString().split('T')[0],
       end: weekEnd.toISOString().split('T')[0],
-      label: `${weekNum}. Hafta (${weekStart.getDate()}-${weekEnd.getDate()} ${MONTHS[selectedMonth.value - 1].label})`
+      label: `${weekNum}. Hafta (${weekStart.getDate()}-${weekEnd.getDate()} ${MONTHS[filterMonth.value - 1].label})`
     })
 
     weekStart = new Date(weekEnd)
@@ -453,7 +455,7 @@ function calculateWeeks() {
   weeksInMonth.value = weeks
 
   const today = new Date()
-  if (today.getMonth() + 1 === selectedMonth.value && today.getFullYear() === selectedYear.value) {
+  if (today.getMonth() + 1 === filterMonth.value && today.getFullYear() === filterYear.value) {
     const todayStr = today.toISOString().split('T')[0]
     const currentWeek = weeks.find(w => todayStr >= w.start && todayStr <= w.end)
     currentWeekNumber.value = currentWeek?.number || 1
@@ -464,7 +466,7 @@ function calculateWeeks() {
 
 const bulkPeriodEndDate = computed(() => {
   if (bulkPeriodForm.value.period_type === 'monthly') {
-    const lastDay = new Date(selectedYear.value, selectedMonth.value, 0)
+    const lastDay = new Date(filterYear.value, filterMonth.value, 0)
     return lastDay.toISOString().split('T')[0]
   } else if (bulkPeriodForm.value.period_type === 'weekly') {
     const week = weeksInMonth.value.find(w => w.number === bulkPeriodForm.value.week_number)
@@ -476,7 +478,7 @@ const bulkPeriodEndDate = computed(() => {
 
 const bulkPeriodLabel = computed(() => {
   if (bulkPeriodForm.value.period_type === 'monthly') {
-    return `${MONTHS[selectedMonth.value - 1].label} ${selectedYear.value} (Ay Toplami)`
+    return `${MONTHS[filterMonth.value - 1].label} ${filterYear.value} (Ay Toplami)`
   } else if (bulkPeriodForm.value.period_type === 'weekly') {
     const week = weeksInMonth.value.find(w => w.number === bulkPeriodForm.value.week_number)
     return week?.label || ''
@@ -567,39 +569,33 @@ function getChannelTextColor(channel: any): string {
 
 <template>
   <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 class="text-2xl font-display font-bold text-gray-900">Kasa Hareketleri</h1>
+    <!-- Unified Filter Bar -->
+    <UnifiedFilterBar
+      v-model:date-range="dateRangeFilter"
+      :quick-actions="{ export: false, search: false, refresh: false }"
+      :primary-action="{ label: 'Kasa Girişi', onClick: openAddModal }"
+    />
+
+    <!-- Platform Settings -->
+    <div class="flex gap-2">
+      <button
+        @click="showPlatformModal = true"
+        class="flex items-center gap-1 px-3 py-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+        title="Online Platformlari Yonet"
+      >
+        ⚙️ Platformlar
+      </button>
+      <button
+        @click="openBulkModal"
+        class="flex items-center gap-1 px-3 py-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+        title="Toplu Giris"
+      >
+        📊 Toplu Giriş
+      </button>
     </div>
 
     <!-- Error -->
     <ErrorAlert :message="error" @dismiss="error = ''" />
-
-    <!-- Filtreler -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-      <div class="flex gap-3 items-center flex-wrap">
-        <MonthYearFilter v-model="filterValue" :years="years" />
-        <!-- Platform Ayarlari -->
-        <button
-          @click="showPlatformModal = true"
-          class="flex items-center gap-1 px-3 py-1.5 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
-          title="Online Platformlari Yonet"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
-          </svg>
-          <span class="text-sm">Platformlar</span>
-        </button>
-      </div>
-      <div class="flex gap-2">
-        <button @click="openBulkModal" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
-          Toplu Giris
-        </button>
-        <button @click="openAddModal" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
-          + Kasa Girisi
-        </button>
-      </div>
-    </div>
 
     <!-- Ozet Kartlari -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -872,6 +868,7 @@ function getChannelTextColor(channel: any): string {
     <PageModal
       :show="showPlatformModal"
       title="Satis Kanallari"
+      size="lg"
       @close="showPlatformModal = false"
     >
       <div class="p-4">
@@ -919,7 +916,7 @@ function getChannelTextColor(channel: any): string {
               @click="openPlatformForm()"
               class="w-full mt-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-700"
             >
-              + Yeni Platform Ekle
+              Yeni Platform Ekle
             </button>
           </div>
         </div>

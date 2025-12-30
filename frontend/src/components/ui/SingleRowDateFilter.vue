@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { DateRangeValue, PresetOption } from '@/types/filters'
-import { formatDateToISO, formatDateToDisplay } from '@/utils/dateUtils'
+import { formatDateToISO, formatDateRangeCompact } from '@/utils/dateUtils'
 import CustomRangeModal from './CustomRangeModal.vue'
 
 // Preset definitions with icons
@@ -112,12 +112,9 @@ const currentIcon = computed(() => {
   return PRESET_ICONS[currentPreset.value] || '📊'
 })
 
-// Computed: Display date range (right side)
+// Computed: Display date range (right side) - compact format
 const displayRange = computed(() => {
-  if (startDate.value === endDate.value) {
-    return formatDateToDisplay(startDate.value)
-  }
-  return `${formatDateToDisplay(startDate.value)} - ${formatDateToDisplay(endDate.value)}`
+  return formatDateRangeCompact(startDate.value, endDate.value)
 })
 
 // Detect which preset matches current date range
@@ -206,9 +203,9 @@ function handleClickOutside(event: MouseEvent) {
 <template>
   <div class="single-row-date-filter" ref="dropdownRef">
     <!-- Main Row -->
-    <div class="flex items-center justify-between bg-white rounded-lg border border-gray-200 px-4 py-2 h-[42px]">
+    <div class="flex items-center justify-between gap-6 bg-white rounded-lg border border-gray-200 px-4 py-2 h-[42px]">
       <!-- Left: Preset Dropdown -->
-      <div class="relative">
+      <div class="relative flex-shrink-0">
         <button
           @click="toggleDropdown"
           class="flex items-center gap-2 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors"
@@ -226,10 +223,10 @@ function handleClickOutside(event: MouseEvent) {
           </svg>
         </button>
 
-        <!-- Dropdown Menu -->
+        <!-- Dropdown Menu (max ~5 items visible, scrollable) -->
         <div
           v-if="isDropdownOpen"
-          class="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50"
+          class="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 max-h-[220px] overflow-y-auto"
           @click.stop
         >
           <button
@@ -271,7 +268,7 @@ function handleClickOutside(event: MouseEvent) {
       </div>
 
       <!-- Right: Date Range Display (Readonly) -->
-      <div class="text-sm text-gray-600 font-medium">
+      <div class="text-sm text-gray-600 font-medium flex-shrink-0">
         {{ displayRange }}
       </div>
     </div>

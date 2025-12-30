@@ -2,16 +2,16 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import type { CourierExpense, CourierExpenseSummary } from '@/types'
 import { courierExpensesApi } from '@/services/api'
+import type { DateRangeValue } from '@/types/filters'
 
 // Composables
-import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
+import { useFormatters, useConfirmModal } from '@/composables'
 
 // UI Components
-import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+import { ConfirmModal, ErrorAlert, LoadingState, UnifiedFilterBar, PageModal, SummaryCard } from '@/components/ui'
 
 // Use composables
 const { formatCurrency, formatDate, formatNumber } = useFormatters()
-const { selectedMonth, selectedYear, years, dateRange } = useMonthYearFilter()
 const confirmModal = useConfirmModal()
 
 // Data
@@ -47,34 +47,36 @@ const bulkForm = ref({
   }>
 })
 
-// Month/Year filter value for v-model
-const filterValue = computed({
-  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
-  set: (val) => {
-    selectedMonth.value = val.month
-    selectedYear.value = val.year
-  }
+// Date range filter (defaults to current month)
+const dateRangeFilter = ref<DateRangeValue>({
+  mode: 'range',
+  start: new Date().toISOString().split('T')[0],
+  end: new Date().toISOString().split('T')[0]
 })
+
+// Extract month/year from date range for API
+const filterMonth = computed(() => new Date(dateRangeFilter.value.start).getMonth() + 1)
+const filterYear = computed(() => new Date(dateRangeFilter.value.start).getFullYear())
 
 onMounted(async () => {
   await loadData()
 })
 
-watch([selectedMonth, selectedYear], () => {
+watch(() => dateRangeFilter.value, () => {
   loadData()
-})
+}, { deep: true })
 
 async function loadData() {
   loading.value = true
   try {
     const [expensesRes, summaryRes] = await Promise.all([
       courierExpensesApi.getAll({
-        year: selectedYear.value,
-        month: selectedMonth.value
+        year: filterYear.value,
+        month: filterMonth.value
       }),
       courierExpensesApi.getSummary({
-        year: selectedYear.value,
-        month: selectedMonth.value
+        year: filterYear.value,
+        month: filterMonth.value
       })
     ])
 
@@ -157,8 +159,8 @@ async function deleteExpense(id: number) {
 // Bulk Entry Functions
 function openBulkModal() {
   bulkForm.value = {
-    start_date: dateRange.value.startStr,
-    end_date: dateRange.value.endStr,
+    start_date: dateRangeFilter.value.start,
+    end_date: dateRangeFilter.value.end,
     entries: []
   }
   generateBulkEntries()
@@ -238,26 +240,22 @@ async function submitBulkForm() {
 
 <template>
   <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 data-testid="heading-courier-expenses" class="text-2xl font-display font-bold text-gray-900">Kurye Giderleri</h1>
+    <!-- Unified Filter Bar -->
+    <UnifiedFilterBar
+      v-model:date-range="dateRangeFilter"
+      :quick-actions="{ export: false, search: false, refresh: false }"
+      :primary-action="{ label: 'Kayıt Ekle', onClick: openAddModal }"
+    />
+
+    <!-- Bulk Entry Button -->
+    <div class="flex justify-end">
+      <button data-testid="btn-bulk-entry" @click="openBulkModal" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
+        📊 Toplu Giriş
+      </button>
     </div>
 
     <!-- Error -->
     <ErrorAlert :message="error" @dismiss="error = ''" />
-
-    <!-- Filters -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-      <MonthYearFilter v-model="filterValue" :years="years" />
-      <div class="flex gap-2">
-        <button data-testid="btn-bulk-entry" @click="openBulkModal" class="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700">
-          Toplu Giris
-        </button>
-        <button data-testid="btn-add-courier-expense" @click="openAddModal" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
-          + Kayit Ekle
-        </button>
-      </div>
-    </div>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -389,6 +387,7 @@ async function submitBulkForm() {
     <PageModal
       :show="showModal"
       :title="editingId ? 'Kurye Gideri Duzenle' : 'Yeni Kurye Gideri'"
+      size="lg"
       @close="showModal = false"
     >
       <form @submit.prevent="submitForm" class="p-4 space-y-4">

@@ -27,7 +27,7 @@
 import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { DateRangeValue } from '@/types/filters'
-import { SingleRowDateFilter } from '@/components/ui'
+import SingleRowDateFilter from './SingleRowDateFilter.vue'
 import { ICONS, type IconName } from '@/icons'
 
 export interface EntityConfig {

@@ -81,39 +81,8 @@ function handleClose() {
       </div>
 
       <!-- Body -->
-      <div class="p-6 space-y-6">
-        <!-- Date Inputs Row -->
-        <div class="flex items-center gap-4">
-          <!-- Start Date -->
-          <div class="flex-1">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Başlangıç Tarihi</label>
-            <input
-              v-model="startValue"
-              type="date"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
-            />
-          </div>
-
-          <!-- Arrow -->
-          <div class="flex items-center pt-6">
-            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-            </svg>
-          </div>
-
-          <!-- End Date -->
-          <div class="flex-1">
-            <label class="block text-sm font-medium text-gray-700 mb-1">Bitiş Tarihi</label>
-            <input
-              v-model="endValue"
-              type="date"
-              :max="maxDate ? maxDate.toISOString().split('T')[0] : undefined"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
-            />
-          </div>
-        </div>
-
-        <!-- Inline Calendar -->
+      <div class="p-6">
+        <!-- Inline Calendar (range selection) -->
         <div class="flex justify-center">
           <VueDatePicker
             v-model="dateRange"

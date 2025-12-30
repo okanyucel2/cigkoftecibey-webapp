@@ -178,17 +178,62 @@ const variableExpensesTotal = computed(() => {
     .filter(e => !e.category?.is_fixed)
     .reduce((sum, e) => sum + Number(e.amount), 0)
 })
+
+// Expense Entry Modal (Quick Add)
+const showExpenseModal = ref(false)
+const expenseLoading = ref(false)
+const expenseForm = ref({
+  expense_date: new Date().toISOString().split('T')[0],
+  category_id: null as number | null,
+  amount: 0,
+  description: ''
+})
+
+function openExpenseModal() {
+  expenseForm.value = {
+    expense_date: new Date().toISOString().split('T')[0],
+    category_id: null,
+    amount: 0,
+    description: ''
+  }
+  showExpenseModal.value = true
+}
+
+async function saveExpense() {
+  if (!expenseForm.value.category_id) {
+    error.value = 'Kategori seciniz'
+    return
+  }
+  if (expenseForm.value.amount <= 0) {
+    error.value = 'Tutar 0\'dan buyuk olmali'
+    return
+  }
+
+  expenseLoading.value = true
+  error.value = ''
+  try {
+    await expensesApi.create({
+      expense_date: expenseForm.value.expense_date,
+      category_id: expenseForm.value.category_id,
+      amount: expenseForm.value.amount,
+      description: expenseForm.value.description
+    })
+    showExpenseModal.value = false
+    await loadExpenses()
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } finally {
+    expenseLoading.value = false
+  }
+}
+
+function closeExpenseModal() {
+  showExpenseModal.value = false
+}
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 class="text-2xl font-display font-bold text-gray-900">
-        <span class="mr-2">💸</span> İşletme Giderleri
-      </h1>
-    </div>
-
     <!-- Error -->
     <ErrorAlert :message="error" @dismiss="error = ''" />
 
@@ -197,7 +242,7 @@ const variableExpensesTotal = computed(() => {
       v-model:date-range="dateRangeFilter"
       v-model:entity-id="selectedCategoryId"
       :entities="categoryEntities"
-      :primary-action="{ label: '+ Yeni Gider', icon: 'add', route: '/expenses/new' }"
+      :primary-action="{ label: 'Yeni Gider', onClick: openExpenseModal }"
       @entity-settings="showCategoryModal = true"
     />
 
@@ -260,7 +305,7 @@ const variableExpensesTotal = computed(() => {
     </div>
 
     <!-- Category Management Modal -->
-    <PageModal :show="showCategoryModal" title="Gider Kategorileri" @close="showCategoryModal = false">
+    <PageModal :show="showCategoryModal" title="Gider Kategorileri" size="lg" @close="showCategoryModal = false">
       <div class="p-4">
         <!-- Category List -->
         <div v-if="!showCategoryForm" class="space-y-2">
@@ -286,7 +331,7 @@ const variableExpensesTotal = computed(() => {
 
           <button @click="openCategoryForm()"
             class="w-full mt-4 py-2 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-gray-400 hover:text-gray-700">
-            + Yeni Kategori Ekle
+            Yeni Kategori Ekle
           </button>
         </div>
 
@@ -324,6 +369,80 @@ const variableExpensesTotal = computed(() => {
           </div>
         </div>
       </div>
+    </PageModal>
+
+    <!-- Quick Expense Entry Modal -->
+    <PageModal
+      :show="showExpenseModal"
+      title="Yeni İşletme Gideri"
+      size="lg"
+      @close="closeExpenseModal"
+    >
+      <form @submit.prevent="saveExpense" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tarih *</label>
+          <input
+            v-model="expenseForm.expense_date"
+            type="date"
+            class="w-full border rounded-lg px-3 py-2"
+            required
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Kategori *</label>
+          <select
+            v-model.number="expenseForm.category_id"
+            class="w-full border rounded-lg px-3 py-2"
+            required
+          >
+            <option :value="null" disabled>Kategori Seçiniz</option>
+            <option v-for="category in categories" :key="category.id" :value="category.id">
+              {{ category.name }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tutar (TL) *</label>
+          <input
+            v-model.number="expenseForm.amount"
+            type="number"
+            step="0.01"
+            min="0"
+            class="w-full border rounded-lg px-3 py-2"
+            placeholder="0.00"
+            required
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Açıklama</label>
+          <textarea
+            v-model="expenseForm.description"
+            class="w-full border rounded-lg px-3 py-2"
+            rows="2"
+            placeholder="Açıklama..."
+          ></textarea>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4">
+          <button
+            type="button"
+            @click="closeExpenseModal"
+            class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+          >
+            İptal
+          </button>
+          <button
+            type="submit"
+            :disabled="expenseLoading"
+            class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+          >
+            {{ expenseLoading ? 'Kaydediliyor...' : 'Kaydet' }}
+          </button>
+        </div>
+      </form>
     </PageModal>
 
     <ConfirmModal :show="confirmModal.isOpen.value" :message="confirmModal.message.value"

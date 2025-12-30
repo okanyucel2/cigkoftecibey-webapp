@@ -2,13 +2,13 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import type { CashDifference, CashDifferenceSummary } from '@/types'
 import { cashDifferenceApi } from '@/services/api'
-import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
-import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+import type { DateRangeValue } from '@/types/filters'
+import { useFormatters, useConfirmModal } from '@/composables'
+import { ConfirmModal, ErrorAlert, LoadingState, UnifiedFilterBar, PageModal, SummaryCard } from '@/components/ui'
 import CashDifferenceImport from './CashDifferenceImport.vue'
 
 // Use composables
 const { formatCurrency, formatDate } = useFormatters()
-const { selectedMonth, selectedYear, years } = useMonthYearFilter()
 const confirmModal = useConfirmModal()
 
 // Data
@@ -42,30 +42,32 @@ async function handleImportSuccess() {
   await loadData()
 }
 
-// Month/Year filter value for v-model
-const filterValue = computed({
-  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
-  set: (val) => {
-    selectedMonth.value = val.month
-    selectedYear.value = val.year
-  }
+// Date range filter (defaults to current month)
+const dateRangeFilter = ref<DateRangeValue>({
+  mode: 'range',
+  start: new Date().toISOString().split('T')[0],
+  end: new Date().toISOString().split('T')[0]
 })
+
+// Extract month/year from date range for API
+const filterMonth = computed(() => new Date(dateRangeFilter.value.start).getMonth() + 1)
+const filterYear = computed(() => new Date(dateRangeFilter.value.start).getFullYear())
 
 onMounted(async () => {
   await loadData()
 })
 
-watch([selectedMonth, selectedYear], () => {
+watch(() => dateRangeFilter.value, () => {
   loadData()
-})
+}, { deep: true })
 
 async function loadData() {
   loading.value = true
   error.value = ''
   try {
     const [recordsRes, summaryRes] = await Promise.all([
-      cashDifferenceApi.getAll({ month: selectedMonth.value, year: selectedYear.value }),
-      cashDifferenceApi.getSummary({ month: selectedMonth.value, year: selectedYear.value })
+      cashDifferenceApi.getAll({ month: filterMonth.value, year: filterYear.value }),
+      cashDifferenceApi.getSummary({ month: filterMonth.value, year: filterYear.value })
     ])
     records.value = recordsRes.data
     summary.value = summaryRes.data
@@ -269,30 +271,14 @@ const channelComparison = computed(() => {
 
 <template>
   <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-      <div>
-        <h1 data-testid="heading-cash-difference" class="text-2xl font-display font-bold text-gray-900">
-          Kasa Farki Yonetimi
-        </h1>
-        <p class="text-sm text-gray-500 mt-1">Kasa ve POS farklarini goruntuleyin ve yonetin</p>
-      </div>
-      <button
-        @click="openImportModal"
-        class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-        data-testid="btn-import"
-      >
-        + Veri Yukle
-      </button>
-    </div>
+    <!-- Unified Filter Bar -->
+    <UnifiedFilterBar
+      v-model:date-range="dateRangeFilter"
+      :primary-action="{ label: 'Veri Yükle', onClick: openImportModal }"
+    />
 
     <!-- Error -->
     <ErrorAlert :message="error" @dismiss="error = ''" />
-
-    <!-- Filters -->
-    <div class="flex items-center gap-3">
-      <MonthYearFilter v-model="filterValue" :years="years" />
-    </div>
 
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -406,6 +392,7 @@ const channelComparison = computed(() => {
     <PageModal
       :show="showDetailModal"
       title="Kasa Farki Detayi"
+      size="lg"
       @close="closeDetailModal"
     >
       <div v-if="selectedRecord" class="p-6 space-y-6">

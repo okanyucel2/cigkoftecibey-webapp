@@ -21,12 +21,12 @@ log_success() { echo -e "${GREEN}[OK]${NC} $1"; }
 log_warn() { echo -e "${YELLOW}[WARN]${NC} $1"; }
 log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Stop backend (uvicorn on port 8000)
+# Stop backend (uvicorn on port 5000)
 stop_backend() {
     log_info "Stopping backend..."
 
-    # Find and kill uvicorn processes on port 8000
-    PIDS=$(lsof -ti:8000 2>/dev/null || true)
+    # Find and kill uvicorn/python processes on port 5000
+    PIDS=$(lsof -ti:5000 2>/dev/null || true)
     if [ -n "$PIDS" ]; then
         echo "$PIDS" | xargs kill -9 2>/dev/null || true
         log_success "Backend stopped (PIDs: $PIDS)"
@@ -61,12 +61,12 @@ start_backend() {
     alembic upgrade head 2>/dev/null || log_warn "Migration check skipped"
 
     # Start uvicorn in background
-    nohup uvicorn app.main:app --reload --host 0.0.0.0 --port 8000 > /tmp/backend.log 2>&1 &
+    nohup uvicorn app.main:app --reload --host 0.0.0.0 --port 5000 > /tmp/backend.log 2>&1 &
 
     # Wait and verify
     sleep 2
-    if lsof -ti:8000 > /dev/null 2>&1; then
-        log_success "Backend started on http://localhost:8000"
+    if lsof -ti:5000 > /dev/null 2>&1; then
+        log_success "Backend started on http://localhost:5000"
     else
         log_error "Backend failed to start. Check /tmp/backend.log"
         return 1
@@ -97,8 +97,8 @@ show_status() {
     echo ""
     log_info "Service Status:"
 
-    if lsof -ti:8000 > /dev/null 2>&1; then
-        echo -e "  Backend:  ${GREEN}Running${NC} (port 8000)"
+    if lsof -ti:5000 > /dev/null 2>&1; then
+        echo -e "  Backend:  ${GREEN}Running${NC} (port 5000)"
     else
         echo -e "  Backend:  ${RED}Stopped${NC}"
     fi

@@ -133,7 +133,7 @@ const inactiveCodes = computed(() => codes.value.filter(c => !c.is_valid))
     <div class="flex items-center justify-between mb-6">
       <h1 class="text-2xl font-display font-bold text-gray-900">Davet Kodlari</h1>
       <button @click="openModal" class="btn btn-primary">
-        + Yeni Kod
+        Yeni Kod
       </button>
     </div>
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ComparisonModeSelector from '@/components/ui/ComparisonModeSelector.vue'
 import ComparisonCard from '@/components/ui/ComparisonCard.vue'
@@ -31,6 +31,14 @@ const retryTimer = ref<NodeJS.Timeout | null>(null)
 
 // Fetch comparison data
 const fetchComparisonData = async () => {
+  // Guard: Don't fetch if dates are not set yet
+  if (!comparisonConfig.value.leftPeriod.start ||
+      !comparisonConfig.value.leftPeriod.end ||
+      !comparisonConfig.value.rightPeriod.start ||
+      !comparisonConfig.value.rightPeriod.end) {
+    return
+  }
+
   // Increment request ID for this fetch
   const currentRequestId = ++requestId.value
   loading.value = true
@@ -92,9 +100,6 @@ watch(comparisonConfig, fetchComparisonData, { deep: true })
 watch(() => authStore.currentBranchId, () => {
   fetchComparisonData()
 })
-
-// Load initial data on mount
-onMounted(fetchComparisonData)
 </script>
 
 <template>

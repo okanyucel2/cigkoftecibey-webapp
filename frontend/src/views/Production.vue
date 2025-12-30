@@ -2,16 +2,16 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { productionApi } from '@/services/api'
 import type { DailyProduction, ProductionSummary } from '@/types'
+import type { DateRangeValue } from '@/types/filters'
 
 // Composables
-import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
+import { useFormatters, useConfirmModal } from '@/composables'
 
 // UI Components
-import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+import { ConfirmModal, ErrorAlert, LoadingState, UnifiedFilterBar, PageModal, SummaryCard } from '@/components/ui'
 
 // Use composables
 const { formatCurrency, formatDate, formatNumber } = useFormatters()
-const { selectedMonth, selectedYear, years, selectedMonthLabel } = useMonthYearFilter()
 const confirmModal = useConfirmModal()
 
 // Data
@@ -31,13 +31,22 @@ const form = ref({
   notes: ''
 })
 
-// Month/Year filter value for v-model
-const filterValue = computed({
-  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
-  set: (val) => {
-    selectedMonth.value = val.month
-    selectedYear.value = val.year
-  }
+// Date range filter (defaults to current month)
+const dateRangeFilter = ref<DateRangeValue>({
+  mode: 'range',
+  start: new Date().toISOString().split('T')[0],
+  end: new Date().toISOString().split('T')[0]
+})
+
+// Extract month/year from date range for API
+const filterMonth = computed(() => new Date(dateRangeFilter.value.start).getMonth() + 1)
+const filterYear = computed(() => new Date(dateRangeFilter.value.start).getFullYear())
+
+// Summary label based on filter
+const summaryLabel = computed(() => {
+  const date = new Date(dateRangeFilter.value.start)
+  const months = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+  return `${months[date.getMonth()]} ${date.getFullYear()} Özeti`
 })
 
 // Calculated form values
@@ -57,8 +66,8 @@ async function loadData() {
   error.value = ''
   try {
     const [prodRes, summaryRes] = await Promise.all([
-      productionApi.getAll({ month: selectedMonth.value, year: selectedYear.value }),
-      productionApi.getSummary({ month: selectedMonth.value, year: selectedYear.value })
+      productionApi.getAll({ month: filterMonth.value, year: filterYear.value }),
+      productionApi.getSummary({ month: filterMonth.value, year: filterYear.value })
     ])
     productions.value = prodRes.data
     summary.value = summaryRes.data
@@ -133,9 +142,9 @@ async function deleteProduction(id: number) {
   })
 }
 
-watch([selectedMonth, selectedYear], () => {
+watch(() => dateRangeFilter.value, () => {
   loadData()
-})
+}, { deep: true })
 
 onMounted(() => {
   loadData()
@@ -144,19 +153,11 @@ onMounted(() => {
 
 <template>
   <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center flex-wrap gap-4">
-      <h1 class="text-2xl font-display font-bold text-gray-900">Gunluk Uretim / Legen Takibi</h1>
-      <div class="flex gap-3 items-center">
-        <MonthYearFilter v-model="filterValue" :years="years" />
-        <button
-          @click="openNewForm"
-          class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-        >
-          + Yeni Giris
-        </button>
-      </div>
-    </div>
+    <!-- Unified Filter Bar -->
+    <UnifiedFilterBar
+      v-model:date-range="dateRangeFilter"
+      :primary-action="{ label: 'Yeni Giriş', onClick: openNewForm }"
+    />
 
     <!-- Error -->
     <ErrorAlert :message="error" @dismiss="error = ''" />
@@ -164,7 +165,7 @@ onMounted(() => {
     <!-- Summary -->
     <div v-if="summary" class="bg-red-50 rounded-lg shadow p-4">
       <h2 class="text-lg font-semibold text-red-800 mb-3">
-        {{ selectedMonthLabel }} {{ selectedYear }} Ozeti
+        📊 {{ summaryLabel }}
       </h2>
       <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
         <SummaryCard

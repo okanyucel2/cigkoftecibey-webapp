@@ -2,16 +2,16 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import type { Purchase, Supplier, PurchaseProductGroup, PurchaseProduct } from '@/types'
 import { purchasesApi, suppliersApi, purchaseProductsApi } from '@/services/api'
+import type { DateRangeValue } from '@/types/filters'
 
 // Composables
-import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
+import { useFormatters, useConfirmModal } from '@/composables'
 
 // UI Components
-import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+import { ConfirmModal, ErrorAlert, LoadingState, UnifiedFilterBar, PageModal, SummaryCard, type EntityConfig } from '@/components/ui'
 
 // Use composables
 const { formatCurrency, formatDate } = useFormatters()
-const { selectedMonth, selectedYear, years, selectedMonthLabel } = useMonthYearFilter()
 const confirmModal = useConfirmModal()
 
 // Data
@@ -20,14 +20,23 @@ const suppliers = ref<Supplier[]>([])
 const loading = ref(true)
 const error = ref('')
 
-// Month/Year filter value for v-model
-const filterValue = computed({
-  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
-  set: (val) => {
-    selectedMonth.value = val.month
-    selectedYear.value = val.year
-  }
+// Date range filter (defaults to current month)
+const dateRangeFilter = ref<DateRangeValue>({
+  mode: 'range',
+  start: new Date().toISOString().split('T')[0],
+  end: new Date().toISOString().split('T')[0]
 })
+
+// Supplier selector state
+const selectedSupplierId = ref<number | null>(null)
+
+// Supplier entities for filter
+const supplierEntities = computed<EntityConfig>(() => ({
+  items: suppliers.value.map(s => ({ id: s.id, label: s.name, icon: '🏪' })),
+  allLabel: 'Tüm Tedarikçiler',
+  showSettings: false,
+  showCount: false
+}))
 
 // Monthly total
 const monthlyTotal = computed(() => {
@@ -58,13 +67,71 @@ const productForm = ref({
   default_unit: 'kg'
 })
 
+// Purchase Entry Modal (Quick Add)
+const showPurchaseModal = ref(false)
+const purchaseLoading = ref(false)
+const purchaseForm = ref({
+  purchase_date: new Date().toISOString().split('T')[0],
+  supplier_id: null as number | null,
+  notes: '',
+  total: 0
+})
+
+function openPurchaseModal() {
+  purchaseForm.value = {
+    purchase_date: new Date().toISOString().split('T')[0],
+    supplier_id: null,
+    notes: '',
+    total: 0
+  }
+  showPurchaseModal.value = true
+}
+
+async function savePurchase() {
+  if (!purchaseForm.value.supplier_id) {
+    error.value = 'Tedarikci seciniz'
+    return
+  }
+  if (purchaseForm.value.total <= 0) {
+    error.value = 'Tutar 0\'dan buyuk olmali'
+    return
+  }
+
+  purchaseLoading.value = true
+  error.value = ''
+  try {
+    await purchasesApi.create({
+      purchase_date: purchaseForm.value.purchase_date,
+      supplier_id: purchaseForm.value.supplier_id,
+      notes: purchaseForm.value.notes,
+      items: [{
+        description: purchaseForm.value.notes || 'Genel',
+        quantity: 1,
+        unit: 'adet',
+        unit_price: purchaseForm.value.total
+      }]
+    })
+    showPurchaseModal.value = false
+    await loadPurchases()
+  } catch (e: any) {
+    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } finally {
+    purchaseLoading.value = false
+  }
+}
+
+function closePurchaseModal() {
+  showPurchaseModal.value = false
+}
+
 onMounted(async () => {
   await loadData()
 })
 
-watch([selectedMonth, selectedYear], () => {
+// Watch date range changes
+watch(() => dateRangeFilter.value, () => {
   loadPurchases()
-})
+}, { deep: true })
 
 async function loadData() {
   loading.value = true
@@ -83,11 +150,14 @@ async function loadData() {
 
 async function loadPurchases() {
   try {
-    const startDate = `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}-01`
-    const lastDay = new Date(selectedYear.value, selectedMonth.value, 0).getDate()
-    const endDate = `${selectedYear.value}-${String(selectedMonth.value).padStart(2, '0')}-${lastDay}`
-
-    const { data } = await purchasesApi.getAll({ start_date: startDate, end_date: endDate })
+    const params: any = {
+      start_date: dateRangeFilter.value.start,
+      end_date: dateRangeFilter.value.end
+    }
+    if (selectedSupplierId.value) {
+      params.supplier_id = selectedSupplierId.value
+    }
+    const { data } = await purchasesApi.getAll(params)
     purchases.value = data
   } catch (e: any) {
     error.value = e.response?.data?.detail || 'Mal alimlari yuklenemedi'
@@ -303,34 +373,35 @@ async function deletePurchase(id: number) {
 
 <template>
   <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 class="text-2xl font-display font-bold text-gray-900">Mal Alimlari</h1>
-      <div class="flex gap-3 items-center flex-wrap">
-        <MonthYearFilter v-model="filterValue" :years="years" />
-        <button
-          @click="openSupplierModal"
-          class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          Tedarikciler ({{ suppliers.length }})
-        </button>
-        <button
-          @click="openProductGroupsModal"
-          class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-        >
-          Urun Gruplari
-        </button>
-        <router-link to="/purchases/new" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700">
-          + Yeni Alim
-        </router-link>
-      </div>
+    <!-- Unified Filter Bar -->
+    <UnifiedFilterBar
+      v-model:date-range="dateRangeFilter"
+      v-model:entity-id="selectedSupplierId"
+      :entities="supplierEntities"
+      :primary-action="{ label: 'Yeni Alım', onClick: openPurchaseModal }"
+    />
+
+    <!-- Management Buttons -->
+    <div class="flex gap-3">
+      <button
+        @click="openSupplierModal"
+        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+      >
+        🏪 Tedarikçiler ({{ suppliers.length }})
+      </button>
+      <button
+        @click="openProductGroupsModal"
+        class="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+      >
+        📦 Ürün Grupları
+      </button>
     </div>
 
     <!-- Monthly Summary -->
     <SummaryCard
-      :label="`${selectedMonthLabel} ${selectedYear} Toplam`"
+      label="Seçili Dönem Toplamı"
       :value="formatCurrency(monthlyTotal)"
-      :subtext="`${purchases.length} kalem mal alimi`"
+      :subtext="`${purchases.length} kalem mal alımı`"
       variant="primary"
     />
 
@@ -649,6 +720,80 @@ async function deletePurchase(id: number) {
           Kapat
         </button>
       </template>
+    </PageModal>
+
+    <!-- Quick Purchase Entry Modal -->
+    <PageModal
+      :show="showPurchaseModal"
+      title="Yeni Mal Alımı"
+      size="lg"
+      @close="closePurchaseModal"
+    >
+      <form @submit.prevent="savePurchase" class="p-6 space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tarih *</label>
+          <input
+            v-model="purchaseForm.purchase_date"
+            type="date"
+            class="w-full border rounded-lg px-3 py-2"
+            required
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Tedarikçi *</label>
+          <select
+            v-model.number="purchaseForm.supplier_id"
+            class="w-full border rounded-lg px-3 py-2"
+            required
+          >
+            <option :value="null" disabled>Tedarikçi Seçiniz</option>
+            <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
+              {{ supplier.name }}
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Toplam Tutar (TL) *</label>
+          <input
+            v-model.number="purchaseForm.total"
+            type="number"
+            step="0.01"
+            min="0"
+            class="w-full border rounded-lg px-3 py-2"
+            placeholder="0.00"
+            required
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Not</label>
+          <textarea
+            v-model="purchaseForm.notes"
+            class="w-full border rounded-lg px-3 py-2"
+            rows="2"
+            placeholder="Açıklama..."
+          ></textarea>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4">
+          <button
+            type="button"
+            @click="closePurchaseModal"
+            class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+          >
+            İptal
+          </button>
+          <button
+            type="submit"
+            :disabled="purchaseLoading"
+            class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+          >
+            {{ purchaseLoading ? 'Kaydediliyor...' : 'Kaydet' }}
+          </button>
+        </div>
+      </form>
     </PageModal>
 
     <ConfirmModal

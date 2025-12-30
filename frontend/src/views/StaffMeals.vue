@@ -4,16 +4,16 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import type { StaffMeal, StaffMealSummary } from '@/types'
 import { staffMealsApi } from '@/services/api'
+import type { DateRangeValue } from '@/types/filters'
 
 // Composables
-import { useFormatters, useMonthYearFilter, useConfirmModal } from '@/composables'
+import { useFormatters, useConfirmModal } from '@/composables'
 
 // UI Components
-import { ConfirmModal, ErrorAlert, LoadingState, MonthYearFilter, PageModal, SummaryCard } from '@/components/ui'
+import { ConfirmModal, ErrorAlert, LoadingState, UnifiedFilterBar, PageModal, SummaryCard } from '@/components/ui'
 
 // Use composables
 const { formatCurrency, formatDate } = useFormatters()
-const { selectedMonth, selectedYear, years } = useMonthYearFilter()
 const confirmModal = useConfirmModal()
 
 // Data
@@ -36,30 +36,32 @@ const form = ref({
 // Remember last unit price
 const lastUnitPrice = ref(145)
 
-// Month/Year filter value for v-model
-const filterValue = computed({
-  get: () => ({ month: selectedMonth.value, year: selectedYear.value }),
-  set: (val) => {
-    selectedMonth.value = val.month
-    selectedYear.value = val.year
-  }
+// Date range filter (defaults to current month)
+const dateRangeFilter = ref<DateRangeValue>({
+  mode: 'range',
+  start: new Date().toISOString().split('T')[0],
+  end: new Date().toISOString().split('T')[0]
 })
+
+// Extract month/year from date range for API
+const filterMonth = computed(() => new Date(dateRangeFilter.value.start).getMonth() + 1)
+const filterYear = computed(() => new Date(dateRangeFilter.value.start).getFullYear())
 
 onMounted(async () => {
   await loadData()
 })
 
-watch([selectedMonth, selectedYear], () => {
+watch(() => dateRangeFilter.value, () => {
   loadData()
-})
+}, { deep: true })
 
 async function loadData() {
   loading.value = true
   error.value = ''
   try {
     const [mealsRes, summaryRes] = await Promise.all([
-      staffMealsApi.getAll({ month: selectedMonth.value, year: selectedYear.value }),
-      staffMealsApi.getSummary({ month: selectedMonth.value, year: selectedYear.value })
+      staffMealsApi.getAll({ month: filterMonth.value, year: filterYear.value }),
+      staffMealsApi.getSummary({ month: filterMonth.value, year: filterYear.value })
     ])
     meals.value = mealsRes.data
     summary.value = summaryRes.data
@@ -153,19 +155,11 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
 
 <template>
   <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex items-center justify-between flex-wrap gap-4">
-      <h1 class="text-2xl font-display font-bold text-gray-900" data-testid="heading-staff-meals">Personel Yemek</h1>
-      <div class="flex gap-3 items-center flex-wrap">
-        <MonthYearFilter v-model="filterValue" :years="years" />      <button
-        @click="openAddForm"
-        data-testid="btn-add-staff-meal"
-        class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700"
-      >
-        + Yeni Kayit
-      </button>
-      </div>
-    </div>
+    <!-- Unified Filter Bar -->
+    <UnifiedFilterBar
+      v-model:date-range="dateRangeFilter"
+      :primary-action="{ label: 'Yeni Kayıt', onClick: openAddForm }"
+    />
 
     <!-- Error -->
     <ErrorAlert :message="error" @dismiss="error = ''" />
@@ -256,6 +250,7 @@ const formTotal = computed(() => form.value.unit_price * form.value.staff_count)
     <PageModal
       :show="showForm"
       :title="editingId ? 'Kayit Duzenle' : 'Yeni Personel Yemek Kaydi'"
+      size="lg"
       @close="closeForm"
     >
       <form @submit.prevent="handleSubmit" class="p-6 space-y-4">
