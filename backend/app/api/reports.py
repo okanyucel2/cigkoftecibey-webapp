@@ -1,11 +1,11 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from decimal import Decimal
 from calendar import monthrange
 from fastapi import APIRouter
 from sqlalchemy import func, and_, case
 from app.api.deps import DBSession, CurrentBranchContext
 from app.models import Purchase, Expense, DailyProduction, StaffMeal, OnlineSale, OnlinePlatform, CourierExpense, PartTimeCost
-from app.schemas import DashboardStats, BilancoStats, DaySummary
+from app.schemas import DashboardStats, BilancoStats, DaySummary, ComparisonResponse, BilancoPeriodData, RevenueBreakdown, ExpenseBreakdown
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -844,3 +844,210 @@ def get_bilanco_stats(db: DBSession, ctx: CurrentBranchContext):
         last_month_profit=last_month_profit,
         last_month_breakdown=last_month_breakdown
     )
+
+
+def format_period_label(start_date: date, end_date: date) -> str:
+    """
+    Format date range in Turkish locale.
+    e.g., "1-7 Ocak 2025"
+    """
+    return f"{start_date.day}-{end_date.day} {TURKISH_MONTHS[start_date.month]} {start_date.year}"
+
+
+def get_period_data(db: DBSession, branch_id: int, start_date: date, end_date: date) -> dict:
+    """
+    Get bilanco data for a single period.
+
+    Returns dict with all period data for comparison.
+    """
+    # Get revenue breakdown by channel
+    channel_sales = db.query(
+        OnlinePlatform.name,
+        OnlinePlatform.channel_type,
+        func.coalesce(func.sum(OnlineSale.amount), 0).label('total')
+    ).outerjoin(
+        OnlineSale,
+        and_(
+            OnlineSale.platform_id == OnlinePlatform.id,
+            OnlineSale.branch_id == branch_id,
+            OnlineSale.sale_date >= start_date,
+            OnlineSale.sale_date <= end_date
+        )
+    ).filter(
+        OnlinePlatform.is_active == True
+    ).group_by(
+        OnlinePlatform.name,
+        OnlinePlatform.channel_type
+    ).all()
+
+    revenue_breakdown = {
+        "visa": Decimal("0"),
+        "nakit": Decimal("0"),
+        "online": Decimal("0"),
+        "trendyol": Decimal("0"),
+        "getir": Decimal("0"),
+        "yemeksepeti": Decimal("0"),
+        "migros": Decimal("0")
+    }
+
+    for sale in channel_sales:
+        amount = Decimal(str(sale.total))
+        if sale.channel_type == 'pos_visa':
+            revenue_breakdown["visa"] = amount
+        elif sale.channel_type == 'pos_nakit':
+            revenue_breakdown["nakit"] = amount
+        elif sale.channel_type == 'online':
+            revenue_breakdown["online"] += amount
+            # Track individual platforms - accumulate each platform's sales
+            if sale.name == "Trendyol":
+                revenue_breakdown["trendyol"] += amount
+            elif sale.name == "Getir":
+                revenue_breakdown["getir"] += amount
+            elif sale.name == "Yemeksepeti":
+                revenue_breakdown["yemeksepeti"] += amount
+            elif sale.name == "Migros":
+                revenue_breakdown["migros"] += amount
+
+    total_revenue = (
+        revenue_breakdown["visa"] +
+        revenue_breakdown["nakit"] +
+        revenue_breakdown["online"]
+    )
+
+    # Get expense breakdown
+    # Mal Alımı (Purchases)
+    purchases = db.query(func.coalesce(func.sum(Purchase.total), 0)).filter(
+        Purchase.branch_id == branch_id,
+        Purchase.purchase_date >= start_date,
+        Purchase.purchase_date <= end_date
+    ).scalar()
+
+    # İşletme Giderleri (Expenses)
+    expenses = db.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
+        Expense.branch_id == branch_id,
+        Expense.expense_date >= start_date,
+        Expense.expense_date <= end_date
+    ).scalar()
+
+    # Personel Yemekleri (Staff meals)
+    staff_meals = db.query(func.coalesce(func.sum(StaffMeal.unit_price * StaffMeal.staff_count), 0)).filter(
+        StaffMeal.branch_id == branch_id,
+        StaffMeal.meal_date >= start_date,
+        StaffMeal.meal_date <= end_date
+    ).scalar()
+
+    # Kurye Giderleri (KDV dahil)
+    courier = db.query(
+        func.coalesce(func.sum(CourierExpense.amount + CourierExpense.amount * CourierExpense.vat_rate / 100), 0)
+    ).filter(
+        CourierExpense.branch_id == branch_id,
+        CourierExpense.expense_date >= start_date,
+        CourierExpense.expense_date <= end_date
+    ).scalar()
+
+    # Part-Time Giderleri
+    parttime = db.query(func.coalesce(func.sum(PartTimeCost.amount), 0)).filter(
+        PartTimeCost.branch_id == branch_id,
+        PartTimeCost.cost_date >= start_date,
+        PartTimeCost.cost_date <= end_date
+    ).scalar()
+
+    # Üretim Maliyetleri
+    production = db.query(
+        func.coalesce(
+            func.sum(
+                case(
+                    (DailyProduction.legen_kg > 0, DailyProduction.kneaded_kg / DailyProduction.legen_kg * DailyProduction.legen_cost),
+                    else_=0
+                )
+            ),
+            0
+        )
+    ).filter(
+        DailyProduction.branch_id == branch_id,
+        DailyProduction.production_date >= start_date,
+        DailyProduction.production_date <= end_date
+    ).scalar()
+
+    expense_breakdown = {
+        "mal_alimi": float(Decimal(str(purchases))),
+        "gider": float(Decimal(str(expenses))),
+        "staff": float(Decimal(str(staff_meals))),
+        "kurye": float(Decimal(str(courier))),
+        "parttime": float(Decimal(str(parttime))),
+        "uretim": float(Decimal(str(production)))
+    }
+
+    total_expenses = sum(expense_breakdown.values())
+
+    net_profit = float(total_revenue) - total_expenses
+    profit_margin = (net_profit / float(total_revenue) * 100) if float(total_revenue) > 0 else 0.0
+
+    return {
+        "period_label": format_period_label(start_date, end_date),
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "revenue_breakdown": {
+            "visa": float(revenue_breakdown["visa"]),
+            "nakit": float(revenue_breakdown["nakit"]),
+            "online": float(revenue_breakdown["online"]),
+            "trendyol": float(revenue_breakdown["trendyol"]),
+            "getir": float(revenue_breakdown["getir"]),
+            "yemeksepeti": float(revenue_breakdown["yemeksepeti"]),
+            "migros": float(revenue_breakdown["migros"])
+        },
+        "total_revenue": float(total_revenue),
+        "expense_breakdown": expense_breakdown,
+        "total_expenses": total_expenses,
+        "net_profit": net_profit,
+        "profit_margin": profit_margin
+    }
+
+
+@router.get("/bilanco-compare", response_model=ComparisonResponse)
+def bilanco_compare(
+    left_start: str,
+    left_end: str,
+    right_start: str,
+    right_end: str,
+    db: DBSession,
+    ctx: CurrentBranchContext
+):
+    """
+    Compare bilanco data between two date ranges.
+
+    Query Parameters:
+    - left_start: Start date for left period (ISO format, e.g., 2025-01-01)
+    - left_end: End date for left period (ISO format)
+    - right_start: Start date for right period (ISO format)
+    - right_end: End date for right period (ISO format)
+
+    Returns side-by-side comparison of:
+    - Revenue breakdown (visa, nakit, online platforms)
+    - Expense breakdown (mal alimi, gider, staff, kurye, parttime, uretim)
+    - Totals and profit margin
+    """
+    branch_id = ctx.current_branch_id
+
+    # Parse ISO date strings
+    left_start_date = date.fromisoformat(left_start)
+    left_end_date = date.fromisoformat(left_end)
+    right_start_date = date.fromisoformat(right_start)
+    right_end_date = date.fromisoformat(right_end)
+
+    # Get data for both periods
+    left_data = get_period_data(
+        db=db,
+        branch_id=branch_id,
+        start_date=left_start_date,
+        end_date=left_end_date
+    )
+
+    right_data = get_period_data(
+        db=db,
+        branch_id=branch_id,
+        start_date=right_start_date,
+        end_date=right_end_date
+    )
+
+    return ComparisonResponse(left=left_data, right=right_data)

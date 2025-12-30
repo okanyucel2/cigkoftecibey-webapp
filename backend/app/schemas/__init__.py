@@ -954,3 +954,47 @@ class ImportHistoryCreate(BaseModel):
     import_metadata: dict | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+# Bilanco Comparison
+class RevenueBreakdown(BaseModel):
+    visa: float
+    nakit: float
+    online: float
+    trendyol: float = 0
+    getir: float = 0
+    yemeksepeti: float = 0
+    migros: float = 0
+
+
+class ExpenseBreakdown(BaseModel):
+    mal_alimi: float
+    gider: float
+    staff: float
+    kurye: float
+    parttime: float
+    uretim: float
+
+
+class BilancoPeriodData(BaseModel):
+    period_label: str
+    start_date: str
+    end_date: str
+    revenue_breakdown: RevenueBreakdown
+    total_revenue: float
+    expense_breakdown: ExpenseBreakdown
+    total_expenses: float
+    net_profit: float
+    profit_margin: float
+
+
+class ComparisonResponse(BaseModel):
+    left: BilancoPeriodData
+    right: BilancoPeriodData
+
+
+class ComparisonRequest(BaseModel):
+    left_start: str  # ISO date string
+    left_end: str    # ISO date string
+    right_start: str  # ISO date string
+    right_end: str   # ISO date string
