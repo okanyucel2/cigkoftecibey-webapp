@@ -17,4 +17,5 @@ export { default as InsightBanner, type Insight, type InsightAction } from './In
 export { default as ComparisonModeSelector } from './ComparisonModeSelector.vue'
 export { default as ComparisonCard } from './ComparisonCard.vue'
 export { default as DeltaBand } from './DeltaBand.vue'
+export { default as VerticalNav, type NavItem } from './VerticalNav.vue'
 export type { ComparisonMode, ComparisonPeriod, ComparisonConfig, BilancoPeriodData, RevenueBreakdown, ExpenseBreakdown, DeltaData, DeltaMetric } from '@/types/comparison'
