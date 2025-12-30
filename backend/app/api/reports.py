@@ -1,7 +1,7 @@
 from datetime import date, timedelta, datetime
 from decimal import Decimal
 from calendar import monthrange
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import func, and_, case
 from app.api.deps import DBSession, CurrentBranchContext
 from app.models import Purchase, Expense, DailyProduction, StaffMeal, OnlineSale, OnlinePlatform, CourierExpense, PartTimeCost
@@ -854,6 +854,31 @@ def format_period_label(start_date: date, end_date: date) -> str:
     return f"{start_date.day}-{end_date.day} {TURKISH_MONTHS[start_date.month]} {start_date.year}"
 
 
+def validate_date_range(start_date: date, end_date: date, prefix: str) -> None:
+    """
+    Validate date range and raise HTTPException if invalid.
+
+    Args:
+        start_date: Start date of the range
+        end_date: End date of the range
+        prefix: Prefix for error messages (e.g., "left", "right")
+
+    Raises:
+        HTTPException: If date range is invalid
+    """
+    if start_date > end_date:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{prefix}_start must be before or equal to {prefix}_end"
+        )
+    max_days = 365
+    if (end_date - start_date).days > max_days:
+        raise HTTPException(
+            status_code=400,
+            detail=f"{prefix} date range too large (max {max_days} days)"
+        )
+
+
 def get_period_data(db: DBSession, branch_id: int, start_date: date, end_date: date) -> dict:
     """
     Get bilanco data for a single period.
@@ -899,13 +924,15 @@ def get_period_data(db: DBSession, branch_id: int, start_date: date, end_date: d
         elif sale.channel_type == 'online':
             revenue_breakdown["online"] += amount
             # Track individual platforms - accumulate each platform's sales
-            if sale.name == "Trendyol":
+            # Normalize platform name for case-insensitive comparison
+            platform_name = sale.name.strip().lower() if sale.name else ""
+            if platform_name == "trendyol":
                 revenue_breakdown["trendyol"] += amount
-            elif sale.name == "Getir":
+            elif platform_name == "getir":
                 revenue_breakdown["getir"] += amount
-            elif sale.name == "Yemeksepeti":
+            elif platform_name == "yemeksepeti":
                 revenue_breakdown["yemeksepeti"] += amount
-            elif sale.name == "Migros":
+            elif platform_name == "migros":
                 revenue_breakdown["migros"] += amount
 
     total_revenue = (
@@ -1029,11 +1056,30 @@ def bilanco_compare(
     """
     branch_id = ctx.current_branch_id
 
-    # Parse ISO date strings
-    left_start_date = date.fromisoformat(left_start)
-    left_end_date = date.fromisoformat(left_end)
-    right_start_date = date.fromisoformat(right_start)
-    right_end_date = date.fromisoformat(right_end)
+    # Parse ISO date strings with error handling
+    try:
+        left_start_date = date.fromisoformat(left_start)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid date format for left_start: expected YYYY-MM-DD, got '{left_start}'")
+
+    try:
+        left_end_date = date.fromisoformat(left_end)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid date format for left_end: expected YYYY-MM-DD, got '{left_end}'")
+
+    try:
+        right_start_date = date.fromisoformat(right_start)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid date format for right_start: expected YYYY-MM-DD, got '{right_start}'")
+
+    try:
+        right_end_date = date.fromisoformat(right_end)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid date format for right_end: expected YYYY-MM-DD, got '{right_end}'")
+
+    # Validate date ranges
+    validate_date_range(left_start_date, left_end_date, "left")
+    validate_date_range(right_start_date, right_end_date, "right")
 
     # Get data for both periods
     left_data = get_period_data(
