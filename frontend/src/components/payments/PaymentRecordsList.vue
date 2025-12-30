@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { paymentsApi, suppliersApi } from '@/services'
+import { paymentsApi } from '@/services'
+import { suppliersApi } from '@/services/api'
 import type { SupplierPayment, PaymentFilters, PaymentType, Supplier } from '@/types'
 
 const payments = ref<SupplierPayment[]>([])
