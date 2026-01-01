@@ -17,6 +17,12 @@ const loading = ref(true)
 
 // Branches
 const branches = ref<Branch[]>([])
+
+// Sorted branches (alphabetically)
+const sortedBranches = computed(() => {
+  return [...branches.value].sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+})
+
 const showBranchModal = ref(false)
 const editingBranch = ref<Branch | null>(null)
 const branchForm = ref({
@@ -201,9 +207,9 @@ function openAssignModal(user: UserWithBranches) {
 
 const availableBranchesForAssign = computed(() => {
   if (!assigningUser.value) return []
-  return branches.value.filter(
-    b => !assigningUser.value!.branches.some(ub => ub.branch_id === b.id)
-  )
+  return branches.value
+    .filter(b => !assigningUser.value!.branches.some(ub => ub.branch_id === b.id))
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
 })
 
 async function assignBranch() {
@@ -319,7 +325,7 @@ function getRoleLabel(role: string) {
             </tr>
           </thead>
           <tbody>
-            <tr v-for="branch in branches" :key="branch.id" class="border-b hover:bg-gray-50">
+            <tr v-for="branch in sortedBranches" :key="branch.id" class="border-b hover:bg-gray-50">
               <td class="py-3 px-4 font-medium">{{ branch.name }}</td>
               <td class="py-3 px-4 text-gray-600">{{ branch.code }}</td>
               <td class="py-3 px-4 text-gray-600">{{ branch.address || '-' }}</td>
@@ -569,7 +575,7 @@ function getRoleLabel(role: string) {
               v-model="userForm.branch_id"
               class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-red focus:border-transparent"
             >
-              <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+              <option v-for="branch in sortedBranches" :key="branch.id" :value="branch.id">
                 {{ branch.name }}
               </option>
             </select>

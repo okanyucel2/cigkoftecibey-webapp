@@ -38,6 +38,12 @@ const selectedYear = computed(() => dateRangeFilter.value.year || new Date().get
 
 // Employee state
 const employees = ref<Employee[]>([])
+
+// Sorted employees (alphabetically by name)
+const sortedEmployees = computed(() => {
+  return [...employees.value].sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+})
+
 const showEmployeeForm = ref(false)
 const editingEmployeeId = ref<number | null>(null)
 const employeeForm = ref({
@@ -566,7 +572,7 @@ const showEntitySelector = computed(() => activeTab.value === 'payroll')
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
-            <tr v-for="emp in employees" :key="emp.id" class="hover:bg-gray-50">
+            <tr v-for="emp in sortedEmployees" :key="emp.id" class="hover:bg-gray-50">
               <td class="px-4 py-3 text-sm font-medium text-gray-900">{{ emp.name }}</td>
               <td class="px-4 py-3 text-right text-sm text-gray-900">{{ formatCurrency(emp.base_salary) }}</td>
               <td class="px-4 py-3 text-center text-sm">

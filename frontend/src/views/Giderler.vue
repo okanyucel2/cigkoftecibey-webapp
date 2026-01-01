@@ -58,6 +58,8 @@ const currentView = computed(() => {
   switch (activeTab.value) {
     case 'mal-alim':
       return Purchases
+    case 'hizmet-alim':  // Parent item - default to first sub-item
+      return StaffMeals
     case 'hizmet-alim/personel-iase':
       return StaffMeals
     case 'hizmet-alim/kurye':

@@ -30,9 +30,11 @@ const dateRangeFilter = ref<DateRangeValue>({
 // Supplier selector state
 const selectedSupplierId = ref<number | null>(null)
 
-// Supplier entities for filter
+// Supplier entities for filter (sorted alphabetically)
 const supplierEntities = computed<EntityConfig>(() => ({
-  items: suppliers.value.map(s => ({ id: s.id, label: s.name, icon: '🏪' })),
+  items: suppliers.value
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+    .map(s => ({ id: s.id, label: s.name, icon: '🏪' })),
   allLabel: 'Tüm Tedarikçiler',
   showSettings: false,
   showCount: false
@@ -41,6 +43,11 @@ const supplierEntities = computed<EntityConfig>(() => ({
 // Monthly total
 const monthlyTotal = computed(() => {
   return purchases.value.reduce((sum, p) => sum + Number(p.total || 0), 0)
+})
+
+// Sorted suppliers for dropdowns (alphabetically by Turkish locale)
+const sortedSuppliers = computed(() => {
+  return [...suppliers.value].sort((a, b) => a.name.localeCompare(b.name, 'tr'))
 })
 
 // Supplier modal
@@ -67,23 +74,79 @@ const productForm = ref({
   default_unit: 'kg'
 })
 
-// Purchase Entry Modal (Quick Add)
+// Purchase Entry Modal with Product Selection
 const showPurchaseModal = ref(false)
 const purchaseLoading = ref(false)
+
+// Purchase item structure
+interface PurchaseFormItem {
+  id: string  // Unique ID for Vue v-for key
+  group_id: number | null
+  product_id: number | null
+  quantity: number
+  unit_price: number
+}
+
 const purchaseForm = ref({
   purchase_date: new Date().toISOString().split('T')[0],
   supplier_id: null as number | null,
   notes: '',
-  total: 0
+  items: [] as PurchaseFormItem[]
 })
 
-function openPurchaseModal() {
+// Available products for modal
+const availableProductGroups = ref<PurchaseProductGroup[]>([])
+
+// Calculate total from items
+const purchaseTotal = computed(() => {
+  return purchaseForm.value.items.reduce((sum, item) => {
+    return sum + (item.quantity * item.unit_price)
+  }, 0)
+})
+
+// Get products for selected group (sorted alphabetically)
+function getProductsForGroup(groupId: number | null) {
+  if (!groupId) return []
+  const group = availableProductGroups.value.find(g => g.id === groupId)
+  return group?.products
+    ?.filter(p => p.is_active)
+    .sort((a, b) => a.name.localeCompare(b.name, 'tr')) || []
+}
+
+// Add new item row
+function addPurchaseItem() {
+  purchaseForm.value.items.push({
+    id: Date.now().toString() + Math.random(),
+    group_id: null,
+    product_id: null,
+    quantity: 1,
+    unit_price: 0
+  })
+}
+
+// Remove item row
+function removePurchaseItem(itemId: string) {
+  const index = purchaseForm.value.items.findIndex(i => i.id === itemId)
+  if (index > -1) {
+    purchaseForm.value.items.splice(index, 1)
+  }
+}
+
+async function openPurchaseModal() {
+  // Load product groups for selection (sorted alphabetically)
+  await loadProductGroups()
+  availableProductGroups.value = [...productGroups.value].sort((a, b) =>
+    a.name.localeCompare(b.name, 'tr')
+  )
+
   purchaseForm.value = {
     purchase_date: new Date().toISOString().split('T')[0],
     supplier_id: null,
     notes: '',
-    total: 0
+    items: []
   }
+  // Add first empty row
+  addPurchaseItem()
   showPurchaseModal.value = true
 }
 
@@ -92,24 +155,38 @@ async function savePurchase() {
     error.value = 'Tedarikci seciniz'
     return
   }
-  if (purchaseForm.value.total <= 0) {
-    error.value = 'Tutar 0\'dan buyuk olmali'
+
+  // Validate items
+  const validItems = purchaseForm.value.items.filter(item => {
+    return item.product_id && item.quantity > 0 && item.unit_price > 0
+  })
+
+  if (validItems.length === 0) {
+    error.value = 'En az bir urun ekleyiniz'
     return
   }
 
   purchaseLoading.value = true
   error.value = ''
   try {
+    // Build items array for API
+    const apiItems = validItems.map(item => {
+      const products = getProductsForGroup(item.group_id!)
+      const product = products.find(p => p.id === item.product_id!)
+      return {
+        product_id: item.product_id!,  // Non-null assertion since we filtered valid items
+        description: product?.name || 'Urun',
+        quantity: item.quantity,
+        unit: product?.default_unit || 'adet',
+        unit_price: item.unit_price
+      }
+    })
+
     await purchasesApi.create({
       purchase_date: purchaseForm.value.purchase_date,
       supplier_id: purchaseForm.value.supplier_id,
       notes: purchaseForm.value.notes,
-      items: [{
-        description: purchaseForm.value.notes || 'Genel',
-        quantity: 1,
-        unit: 'adet',
-        unit_price: purchaseForm.value.total
-      }]
+      items: apiItems
     })
     showPurchaseModal.value = false
     await loadPurchases()
@@ -518,13 +595,13 @@ async function deletePurchase(id: number) {
 
         <!-- Suppliers List -->
         <div>
-          <h3 class="font-medium text-gray-700 mb-3">Mevcut Tedarikciler ({{ suppliers.length }})</h3>
-          <div v-if="suppliers.length === 0" class="text-gray-500 text-center py-4">
+          <h3 class="font-medium text-gray-700 mb-3">Mevcut Tedarikciler ({{ sortedSuppliers.length }})</h3>
+          <div v-if="sortedSuppliers.length === 0" class="text-gray-500 text-center py-4">
             Henuz tedarikci eklenmemis
           </div>
           <div v-else class="space-y-2">
             <div
-              v-for="supplier in suppliers"
+              v-for="supplier in sortedSuppliers"
               :key="supplier.id"
               class="flex items-center justify-between bg-white border rounded-lg p-3 hover:bg-gray-50"
             >
@@ -726,70 +803,208 @@ async function deletePurchase(id: number) {
     <PageModal
       :show="showPurchaseModal"
       title="Yeni Mal Alımı"
-      size="lg"
+      size="xl"
       @close="closePurchaseModal"
     >
-      <form @submit.prevent="savePurchase" class="p-6 space-y-4">
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Tarih *</label>
-          <input
-            v-model="purchaseForm.purchase_date"
-            type="date"
-            class="w-full border rounded-lg px-3 py-2"
-            required
-          />
+      <form @submit.prevent="savePurchase" class="p-6">
+        <!-- Date and Supplier Row -->
+        <div class="grid grid-cols-2 gap-4 mb-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">📅 Tarih</label>
+            <input
+              v-model="purchaseForm.purchase_date"
+              type="date"
+              class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              required
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">🏪 Tedarikçi</label>
+            <select
+              v-model.number="purchaseForm.supplier_id"
+              class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-red-500 focus:border-red-500"
+              required
+            >
+              <option :value="null">Seçiniz</option>
+              <option v-for="supplier in sortedSuppliers" :key="supplier.id" :value="supplier.id">
+                {{ supplier.name }}
+              </option>
+            </select>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Tedarikçi *</label>
-          <select
-            v-model.number="purchaseForm.supplier_id"
-            class="w-full border rounded-lg px-3 py-2"
-            required
-          >
-            <option :value="null" disabled>Tedarikçi Seçiniz</option>
-            <option v-for="supplier in suppliers" :key="supplier.id" :value="supplier.id">
-              {{ supplier.name }}
-            </option>
-          </select>
+        <!-- Product Items Section -->
+        <div class="mb-6">
+          <div class="flex items-center justify-between mb-3">
+            <h3 class="text-base font-semibold text-gray-900">📦 Ürün Kalemleri</h3>
+            <button
+              type="button"
+              @click="addPurchaseItem"
+              :disabled="availableProductGroups.length === 0"
+              class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-700 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              Kalem Ekle
+            </button>
+          </div>
+
+          <!-- No products warning -->
+          <div v-if="availableProductGroups.length === 0" class="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800 flex items-start gap-3">
+            <svg class="w-5 h-5 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            <div>
+              <p class="font-medium">Ürün grubu bulunamadı</p>
+              <p class="text-amber-700 mt-0.5">Önce sayfadaki "Ürün Grupları" butonundan ürün grupları oluşturun.</p>
+            </div>
+          </div>
+
+          <!-- Product Items Rows -->
+          <div v-else class="space-y-2">
+            <div
+              v-for="(item, index) in purchaseForm.items"
+              :key="item.id"
+              class="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors"
+            >
+              <div class="flex items-start gap-3">
+                <!-- Row Number / Remove -->
+                <div class="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 text-gray-600 text-sm font-medium flex-shrink-0 mt-1">
+                  <button
+                    v-if="purchaseForm.items.length > 1"
+                    type="button"
+                    @click="removePurchaseItem(item.id)"
+                    class="w-full h-full flex items-center justify-center text-red-500 hover:bg-red-100 rounded-full transition-colors"
+                    title="Kaldır"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                  <span v-else>{{ index + 1 }}</span>
+                </div>
+
+                <!-- Fields Grid -->
+                <div class="flex-1 grid grid-cols-4 gap-3">
+                  <!-- Product Group -->
+                  <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1.5">Grup</label>
+                    <select
+                      v-model.number="item.group_id"
+                      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                    >
+                      <option :value="null">Seçiniz</option>
+                      <option v-for="group in availableProductGroups" :key="group.id" :value="group.id">
+                        {{ group.name }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <!-- Product -->
+                  <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1.5">Ürün</label>
+                    <select
+                      v-model.number="item.product_id"
+                      :disabled="!item.group_id"
+                      class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500 disabled:bg-gray-50 disabled:text-gray-400"
+                    >
+                      <option :value="null">Seçiniz</option>
+                      <option v-for="product in getProductsForGroup(item.group_id)" :key="product.id" :value="product.id">
+                        {{ product.name }}
+                      </option>
+                    </select>
+                  </div>
+
+                  <!-- Quantity -->
+                  <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1.5">Miktar</label>
+                    <div class="relative">
+                      <input
+                        v-model.number="item.quantity"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        class="w-full border border-gray-300 rounded-lg pl-3 pr-12 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                        placeholder="1"
+                      />
+                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400" v-if="item.group_id && item.product_id">
+                        {{ getProductsForGroup(item.group_id).find(p => p.id === item.product_id)?.default_unit || 'adet' }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Unit Price with Row Total -->
+                  <div>
+                    <label class="block text-xs font-medium text-gray-500 mb-1.5">Birim Fiyat</label>
+                    <div class="relative">
+                      <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">₺</span>
+                      <input
+                        v-model.number="item.unit_price"
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        class="w-full border border-gray-300 rounded-lg pl-7 pr-16 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                        placeholder="0.00"
+                      />
+                      <span class="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-semibold" :class="item.quantity * item.unit_price > 0 ? 'text-green-600' : 'text-gray-400'">
+                        {{ formatCurrency(item.quantity * item.unit_price) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Empty state hint -->
+            <div v-if="purchaseForm.items.length === 0" class="text-center py-8 text-gray-400 text-sm">
+              Ürün kalemii eklemek için yukarıdaki butona tıklayın
+            </div>
+          </div>
         </div>
 
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Toplam Tutar (TL) *</label>
-          <input
-            v-model.number="purchaseForm.total"
-            type="number"
-            step="0.01"
-            min="0"
-            class="w-full border rounded-lg px-3 py-2"
-            placeholder="0.00"
-            required
-          />
-        </div>
-
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-1">Not</label>
+        <!-- Notes -->
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">📝 Not</label>
           <textarea
             v-model="purchaseForm.notes"
-            class="w-full border rounded-lg px-3 py-2"
+            class="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-red-500 focus:border-red-500"
             rows="2"
-            placeholder="Açıklama..."
+            placeholder="Opsiyonel açıklama..."
           ></textarea>
         </div>
 
-        <div class="flex justify-end gap-3 pt-4">
+        <!-- Total Summary Card -->
+        <div class="bg-gradient-to-r from-gray-50 to-gray-100 rounded-xl p-4 mb-6 border border-gray-200">
+          <div class="flex justify-between items-center">
+            <div>
+              <p class="text-sm text-gray-600">Genel Toplam</p>
+              <p class="text-xs text-gray-500">{{ purchaseForm.items.filter(i => i.product_id).length }} kalem</p>
+            </div>
+            <div class="text-right">
+              <p class="text-2xl font-bold text-gray-900">{{ formatCurrency(purchaseTotal) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex justify-end gap-3 pt-2">
           <button
             type="button"
             @click="closePurchaseModal"
-            class="px-4 py-2 border rounded-lg text-gray-700 hover:bg-gray-100"
+            class="px-5 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 font-medium transition-colors"
           >
             İptal
           </button>
           <button
             type="submit"
-            :disabled="purchaseLoading"
-            class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+            :disabled="purchaseLoading || purchaseForm.items.filter(i => i.product_id && i.quantity > 0 && i.unit_price > 0).length === 0"
+            class="px-6 py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
+            <svg v-if="purchaseLoading" class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
             {{ purchaseLoading ? 'Kaydediliyor...' : 'Kaydet' }}
           </button>
         </div>

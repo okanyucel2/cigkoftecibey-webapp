@@ -43,6 +43,11 @@ const categoryForm = ref({
   is_fixed: false
 })
 
+// Sorted categories (alphabetically)
+const sortedCategories = computed(() => {
+  return [...categories.value].sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+})
+
 onMounted(async () => {
   await Promise.all([loadExpenses(), loadCategories()])
 })
@@ -309,7 +314,7 @@ function closeExpenseModal() {
       <div class="p-4">
         <!-- Category List -->
         <div v-if="!showCategoryForm" class="space-y-2">
-          <div v-for="cat in categories" :key="cat.id"
+          <div v-for="cat in sortedCategories" :key="cat.id"
             class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
             <div class="flex items-center gap-2">
               <span :class="[
@@ -397,7 +402,7 @@ function closeExpenseModal() {
             required
           >
             <option :value="null" disabled>Kategori Seçiniz</option>
-            <option v-for="category in categories" :key="category.id" :value="category.id">
+            <option v-for="category in sortedCategories" :key="category.id" :value="category.id">
               {{ category.name }}
             </option>
           </select>

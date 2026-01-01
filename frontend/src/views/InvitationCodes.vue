@@ -31,6 +31,11 @@ const roleNames: Record<string, string> = {
   cashier: 'Kasiyer'
 }
 
+// Sorted branches (alphabetically)
+const sortedBranches = computed(() => {
+  return [...branches.value].sort((a, b) => a.name.localeCompare(b.name, 'tr'))
+})
+
 async function loadData() {
   loading.value = true
   error.value = ''
@@ -284,7 +289,7 @@ const inactiveCodes = computed(() => codes.value.filter(c => !c.is_valid))
               <label class="block text-sm font-medium text-gray-700 mb-1">Sube</label>
               <select v-model="newCode.branch_id" class="w-full border rounded-lg px-3 py-2">
                 <option :value="null">Tum Subeler</option>
-                <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                <option v-for="branch in sortedBranches" :key="branch.id" :value="branch.id">
                   {{ branch.name }}
                 </option>
               </select>

@@ -1,41 +1,34 @@
 # genesis.yaml - Cigkoftecibey Webapp Configuration
-# Updated for GENESIS Process Manager v2.0 (Hash-based ports)
+# GENESIS Process Manager v2.0 (Smart Port Allocation)
 #
 # Project: cigkoftecibey-webapp
 # Framework: vite-fastapi
 # Type: fullstack (monorepo)
 #
-# Port Calculation (Hash-based):
-#   - Backend: 9049 (CRC32 hash of "cigkoftecibey-webapp")
-#   - Frontend: 19049 (CRC32 hash of "cigkoftecibey-webapp")
+# Port Allocation:
+#   - Backend: Auto-allocated (hash-based deterministic)
+#   - Frontend: Auto-allocated (hash-based deterministic)
 
 services:
   frontend:
     # Detected: vite
-    # Port: 19049 (hash-based, no conflicts!)
-    port: 19049
-    start: "cd frontend && npm run dev -- --port 19049"
+    start: "cd frontend && npm run dev"
     stop: "pkill -f 'vite.*cigkoftecibey'"
-    health_check:
-      url: "http://localhost:19049/"
-      method: GET
+    # health_check url will be auto-generated
 
   backend:
     # Detected: fastapi
-    # Port: 9049 (hash-based, no conflicts!)
-    start: "cd backend && ./venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0 --port 9049"
-    stop: "pkill -f 'uvicorn.*app.main:app.*9049'"
-    health_check:
-      url: "http://localhost:9049/api/health"
-      method: GET
+    start: "cd backend && ./venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0"
+    stop: "pkill -f 'uvicorn.*app.main:app'"
+    # health_check url will be auto-generated (expects /api/health)
 
 # Note: Backend requires project-specific venv
 # To restart backend manually:
-#   cd /Users/okan.yucel/cigkoftecibey-webapp/backend
+#   cd projects/cigkoftecibey-webapp/backend
 #   source venv/bin/activate
-#   uvicorn app.main:app --reload --host 0.0.0.0 --port 9049
+#   uvicorn app.main:app --reload --host 0.0.0.0
 
 # Metadata
-generated_by: "GENESIS Process Manager v2.0 (Hash-based Port Allocation)"
+generated_by: "GENESIS Process Manager v2.0 (Smart Port Allocation)"
 project_type: "vite-fastapi"
 confidence: 1.0

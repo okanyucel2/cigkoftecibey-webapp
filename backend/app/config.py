@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # Database
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5433/cigkofte"
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/cigkofte"
 
     # Auth
     SECRET_KEY: str = "your-secret-key-change-in-production"
