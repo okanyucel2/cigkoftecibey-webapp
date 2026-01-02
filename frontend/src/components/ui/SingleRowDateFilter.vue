@@ -226,7 +226,7 @@ function handleClickOutside(event: MouseEvent) {
         <!-- Dropdown Menu (max ~5 items visible, scrollable) -->
         <div
           v-if="isDropdownOpen"
-          class="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 max-h-[220px] overflow-y-auto"
+          class="absolute top-full right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-50 max-h-[220px] overflow-y-auto sm:left-0 sm:right-auto"
           @click.stop
         >
           <button
