@@ -4,6 +4,7 @@ FROM node:20-alpine AS builder
 # Build args for version info (passed by Render or CI)
 ARG RENDER_GIT_COMMIT=unknown
 ARG RENDER_GIT_BRANCH=main
+ARG VITE_API_URL=https://genesis-cigkoftecibey-webapp-backend-59jx.onrender.com/api
 
 # Install git for local builds
 RUN apk add --no-cache git
@@ -19,10 +20,10 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Set git info as env vars for vite build
-# Render provides these automatically via RENDER_GIT_COMMIT
+# Set env vars for vite build
 ENV VITE_GIT_COMMIT=${RENDER_GIT_COMMIT}
 ENV VITE_GIT_BRANCH=${RENDER_GIT_BRANCH}
+ENV VITE_API_URL=${VITE_API_URL}
 
 # Build the Vue app
 RUN npm run build
