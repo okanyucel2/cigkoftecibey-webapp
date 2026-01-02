@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
-        "https://genesis-cigkofteci-bey-frontend.onrender.com"
+        "https://genesis-cigkoftecibey-webapp-frontend-qlyp.onrender.com"
     ]
 
     class Config:
