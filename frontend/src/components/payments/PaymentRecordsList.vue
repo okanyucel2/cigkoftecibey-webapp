@@ -2,6 +2,8 @@
 import { ref, computed, onMounted } from 'vue'
 import { paymentsApi } from '@/services'
 import { suppliersApi } from '@/services/api'
+import { useConfirmModal } from '@/composables'
+import { ConfirmModal } from '@/components/ui'
 import type { SupplierPayment, PaymentFilters, PaymentType, Supplier } from '@/types'
 
 // Emits for parent component to refresh AR list
@@ -22,6 +24,10 @@ const dateRange = ref<'today' | 'thisWeek' | 'thisMonth' | 'all'>('all')
 // Modal state
 const showModal = ref(false)
 const modalLoading = ref(false)
+const editingId = ref<number | null>(null)
+
+// Confirm modal for delete
+const confirmModal = useConfirmModal()
 
 const paymentTypes: { value: PaymentType; label: string }[] = [
   { value: 'cash', label: 'Nakit' },
@@ -139,6 +145,7 @@ async function loadPayments() {
 }
 
 function openModal() {
+  editingId.value = null
   newPayment.value = {
     supplier_id: null,
     payment_type: 'cash',
@@ -152,10 +159,56 @@ function openModal() {
     serial_number: ''
   }
   successMessage.value = ''
+  error.value = ''
   showModal.value = true
 }
 
-async function createPayment() {
+function editPayment(payment: SupplierPayment) {
+  editingId.value = payment.id
+  newPayment.value = {
+    supplier_id: payment.supplier_id,
+    payment_type: payment.payment_type,
+    amount: String(payment.amount),
+    payment_date: payment.payment_date.split('T')[0],
+    description: payment.description || '',
+    reference: payment.reference || '',
+    bank_name: payment.bank_name || '',
+    transfer_code: payment.transfer_code || '',
+    due_date: payment.due_date ? payment.due_date.split('T')[0] : '',
+    serial_number: payment.serial_number || ''
+  }
+  successMessage.value = ''
+  error.value = ''
+  showModal.value = true
+}
+
+async function deletePayment(id: number) {
+  confirmModal.confirm('Bu ödeme kaydını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.', async () => {
+    loading.value = true
+    error.value = ''
+    try {
+      await paymentsApi.deletePayment(id)
+      payments.value = payments.value.filter(p => p.id !== id)
+
+      // Show success message
+      successMessage.value = 'Ödeme kaydı başarıyla silindi'
+
+      // Notify parent to refresh AR list
+      emit('payment-created')
+
+      // Auto-hide success message after 3 seconds
+      setTimeout(() => {
+        successMessage.value = ''
+      }, 3000)
+    } catch (e: any) {
+      error.value = e.response?.data?.detail || 'Silme başarısız'
+    } finally {
+      loading.value = false
+    }
+  })
+}
+
+async function savePayment() {
   if (!newPayment.value.supplier_id || !newPayment.value.amount) {
     error.value = 'Tedarikçi ve tutar zorunludur'
     return
@@ -189,14 +242,25 @@ async function createPayment() {
       if (newPayment.value.serial_number) data.serial_number = newPayment.value.serial_number
     }
 
-    await paymentsApi.createPayment(data)
+    if (editingId.value) {
+      // Update existing payment
+      await paymentsApi.updatePayment(editingId.value, data)
+      const index = payments.value.findIndex(p => p.id === editingId.value)
+      if (index !== -1) {
+        // Update the payment in the list
+        const { data: updated } = await paymentsApi.getPayment(editingId.value)
+        payments.value[index] = updated
+      }
+      successMessage.value = 'Ödeme kaydı başarıyla güncellendi'
+    } else {
+      // Create new payment
+      await paymentsApi.createPayment(data)
+      successMessage.value = `Yeni ödeme başarıyla kaydedildi`
+    }
+
     showModal.value = false
 
-    // Show success message
-    const supplier = suppliers.value.find(s => s.id === newPayment.value.supplier_id)
-    successMessage.value = `${supplier?.name} için ₺${newPayment.value.amount} ödeme başarıyla kaydedildi. Bakiye güncellendi!`
-
-    // Refresh data
+    // Refresh data to get updated list
     await loadPayments()
 
     // Notify parent to refresh AR list
@@ -207,7 +271,7 @@ async function createPayment() {
       successMessage.value = ''
     }, 5000)
   } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Ödeme oluşturulamadı'
+    error.value = e.response?.data?.detail || (editingId.value ? 'Güncelleme başarısız' : 'Ödeme oluşturulamadı')
   } finally {
     modalLoading.value = false
   }
@@ -371,6 +435,7 @@ onMounted(loadData)
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tür</th>
               <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Tutar</th>
               <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Açıklama</th>
+              <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">İşlemler</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200">
@@ -399,6 +464,20 @@ onMounted(loadData)
               <td class="px-6 py-4 text-sm text-gray-500 max-w-xs truncate">
                 {{ payment.description || '-' }}
               </td>
+              <td class="px-6 py-4 text-sm text-center">
+                <button
+                  @click="editPayment(payment)"
+                  class="text-blue-600 hover:text-blue-800 font-medium mr-3"
+                >
+                  Düzenle
+                </button>
+                <button
+                  @click="deletePayment(payment.id)"
+                  class="text-red-600 hover:text-red-800 font-medium"
+                >
+                  Sil
+                </button>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -410,9 +489,9 @@ onMounted(loadData)
       <div class="flex min-h-full items-center justify-center p-4">
         <div class="fixed inset-0 bg-black/50" @click="showModal = false"></div>
         <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-          <h3 class="text-lg font-semibold mb-4">Yeni Ödeme</h3>
+          <h3 class="text-lg font-semibold mb-4">{{ editingId ? 'Ödeme Düzenle' : 'Yeni Ödeme' }}</h3>
 
-          <form @submit.prevent="createPayment" class="space-y-4">
+          <form @submit.prevent="savePayment" class="space-y-4">
             <!-- Tedarikçi -->
             <div>
               <label class="block text-sm font-medium text-gray-700 mb-1">Tedarikçi *</label>
@@ -571,5 +650,13 @@ onMounted(loadData)
         </div>
       </div>
     </div>
+
+    <!-- Confirm Modal -->
+    <ConfirmModal
+      :show="confirmModal.isOpen.value"
+      :message="confirmModal.message.value"
+      @confirm="confirmModal.handleConfirm"
+      @cancel="confirmModal.handleCancel"
+    />
   </div>
 </template>
