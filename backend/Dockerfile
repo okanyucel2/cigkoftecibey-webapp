@@ -18,5 +18,5 @@ COPY . .
 # Render/Railway provides PORT env var dynamically
 EXPOSE 8000
 
-# Stamp database as current (skip problematic migrations) and start the application
-CMD ["/bin/sh", "-c", "alembic stamp head && python seed.py && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Run database migrations and start the application
+CMD ["/bin/sh", "-c", "alembic upgrade head && python seed.py && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
