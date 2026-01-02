@@ -47,8 +47,8 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    const data = await paymentsApi.getSupplierAR()
-    suppliers.value = data
+    const response = await paymentsApi.getSupplierAR()
+    suppliers.value = response.data
   } catch (e: any) {
     error.value = e.message || 'Veri yüklenirken hata oluştu'
   } finally {
@@ -164,7 +164,7 @@ onMounted(() => {
               </span>
             </td>
             <td class="px-6 py-4 text-sm text-gray-500">
-              {{ supplier.lastMovement || '-' }}
+              {{ supplier.last_transaction_date || '-' }}
             </td>
             <td class="px-6 py-4 text-right text-sm text-red-600 font-medium">
               {{ supplier.balance > 0 ? formatCurrency(supplier.balance) : '-' }}
