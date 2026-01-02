@@ -13,7 +13,7 @@ import type {
 import type { ComparisonResponse } from '@/types/comparison'
 
 // Render production URL - fallback for when env var isn't set at build time
-const RENDER_BACKEND_URL = 'https://genesis-cigkofteci-bey-backend.onrender.com/api'
+const RENDER_BACKEND_URL = 'https://genesis-cigkoftecibey-webapp-backend-59jx.onrender.com/api'
 
 // Use VITE_API_URL if set, otherwise detect production by hostname
 const baseURL = import.meta.env.VITE_API_URL ||
