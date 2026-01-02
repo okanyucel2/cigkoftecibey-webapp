@@ -1,0 +1,1 @@
+{"id": "eb179922-31de-44ab-86ac-fd7bb3a65112", "ts": 1767342315643, "type": "SECRET_ACCESSED", "user_id": "e086efd9-0832-4118-ad32-8c20a435a4a7", "secret_id": "d9b94fe4-5254-4e86-a691-4d679f1131b3", "secret_type": "RENDER_API_KEY", "provider": "RENDER", "metadata": {"decrypted": true}}
