@@ -202,6 +202,7 @@ class DailyProduction(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     branch_id: Mapped[int] = mapped_column(ForeignKey("branches.id"))
     production_date: Mapped[date] = mapped_column(Date, index=True)
+    production_type: Mapped[str] = mapped_column(String(20), default="etli")  # etli, etsiz
     kneaded_kg: Mapped[Decimal] = mapped_column(Numeric(10, 2))  # Yoğrulan Kilo
     legen_kg: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=11.2)  # 1 Legenin Kilosu
     legen_cost: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=1040)  # 1 Legenin Maliyeti

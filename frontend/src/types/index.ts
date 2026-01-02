@@ -285,6 +285,7 @@ export interface DailyProduction {
   id: number
   branch_id: number
   production_date: string
+  production_type: string  // 'etli' or 'etsiz'
   kneaded_kg: number
   legen_kg: number
   legen_cost: number

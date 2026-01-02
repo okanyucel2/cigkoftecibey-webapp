@@ -362,6 +362,7 @@ class BilancoStats(BaseModel):
 # Daily Production (Günlük Üretim/Legen Takibi)
 class DailyProductionCreate(BaseModel):
     production_date: date
+    production_type: str = "etli"  # etli, etsiz
     kneaded_kg: Decimal  # Yoğrulan Kilo
     legen_kg: Decimal = Decimal("11.2")  # 1 Legenin Kilosu
     legen_cost: Decimal = Decimal("1040")  # 1 Legenin Maliyeti
@@ -372,6 +373,7 @@ class DailyProductionResponse(BaseModel):
     id: int
     branch_id: int
     production_date: date
+    production_type: str
     kneaded_kg: Decimal
     legen_kg: Decimal
     legen_cost: Decimal

@@ -12,21 +12,23 @@ router = APIRouter(prefix="/production", tags=["production"])
 @router.post("", response_model=DailyProductionResponse)
 def create_production(data: DailyProductionCreate, db: DBSession, ctx: CurrentBranchContext):
     """Günlük üretim girişi"""
-    # Aynı tarihte kayıt var mı kontrol et
+    # Aynı tarihte ve aynı tipte kayıt var mı kontrol et
     existing = db.query(DailyProduction).filter(
         DailyProduction.branch_id == ctx.current_branch_id,
-        DailyProduction.production_date == data.production_date
+        DailyProduction.production_date == data.production_date,
+        DailyProduction.production_type == data.production_type
     ).first()
 
     if existing:
         raise HTTPException(
             status_code=400,
-            detail=f"{data.production_date} tarihinde zaten üretim kaydı var"
+            detail=f"{data.production_date} tarihinde {data.production_type} tipinde zaten üretim kaydı var"
         )
 
     production = DailyProduction(
         branch_id=ctx.current_branch_id,
         production_date=data.production_date,
+        production_type=data.production_type,
         kneaded_kg=data.kneaded_kg,
         legen_kg=data.legen_kg,
         legen_cost=data.legen_cost,
@@ -41,6 +43,7 @@ def create_production(data: DailyProductionCreate, db: DBSession, ctx: CurrentBr
         id=production.id,
         branch_id=production.branch_id,
         production_date=production.production_date,
+        production_type=production.production_type,
         kneaded_kg=production.kneaded_kg,
         legen_kg=production.legen_kg,
         legen_cost=production.legen_cost,
@@ -89,6 +92,7 @@ def get_productions(
             id=p.id,
             branch_id=p.branch_id,
             production_date=p.production_date,
+            production_type=p.production_type,
             kneaded_kg=p.kneaded_kg,
             legen_kg=p.legen_kg,
             legen_cost=p.legen_cost,
@@ -116,6 +120,7 @@ def get_today_production(db: DBSession, ctx: CurrentBranchContext):
         id=production.id,
         branch_id=production.branch_id,
         production_date=production.production_date,
+        production_type=production.production_type,
         kneaded_kg=production.kneaded_kg,
         legen_kg=production.legen_kg,
         legen_cost=production.legen_cost,
@@ -198,6 +203,7 @@ def update_production(
         raise HTTPException(status_code=404, detail="Üretim kaydı bulunamadı")
 
     production.production_date = data.production_date
+    production.production_type = data.production_type
     production.kneaded_kg = data.kneaded_kg
     production.legen_kg = data.legen_kg
     production.legen_cost = data.legen_cost
@@ -210,6 +216,7 @@ def update_production(
         id=production.id,
         branch_id=production.branch_id,
         production_date=production.production_date,
+        production_type=production.production_type,
         kneaded_kg=production.kneaded_kg,
         legen_kg=production.legen_kg,
         legen_cost=production.legen_cost,

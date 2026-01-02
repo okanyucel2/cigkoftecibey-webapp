@@ -25,11 +25,18 @@ const showForm = ref(false)
 const editingId = ref<number | null>(null)
 const form = ref({
   production_date: new Date().toISOString().split('T')[0],
+  production_type: 'etli' as 'etli' | 'etsiz',
   kneaded_kg: 0,
   legen_kg: 11.2,
   legen_cost: 1040,
   notes: ''
 })
+
+// Production type options
+const productionTypes = [
+  { value: 'etli', label: 'Etli Çiğ Köfte' },
+  { value: 'etsiz', label: 'Etsiz Çiğ Köfte' }
+]
 
 // Date range filter (defaults to current month)
 const dateRangeFilter = ref<DateRangeValue>({
@@ -82,6 +89,7 @@ function openNewForm() {
   editingId.value = null
   form.value = {
     production_date: new Date().toISOString().split('T')[0],
+    production_type: 'etli',
     kneaded_kg: 0,
     legen_kg: 11.2,
     legen_cost: 1040,
@@ -94,6 +102,7 @@ function editProduction(prod: DailyProduction) {
   editingId.value = prod.id
   form.value = {
     production_date: prod.production_date,
+    production_type: (prod.production_type || 'etli') as 'etli' | 'etsiz',
     kneaded_kg: prod.kneaded_kg,
     legen_kg: prod.legen_kg,
     legen_cost: prod.legen_cost,
@@ -207,6 +216,7 @@ onMounted(() => {
         <thead class="bg-gray-100">
           <tr>
             <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Tarih</th>
+            <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">Tip</th>
             <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Yogrulan Kilo</th>
             <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">1 Legen (kg)</th>
             <th class="px-4 py-3 text-right text-sm font-semibold text-gray-700">Legen Sayisi</th>
@@ -219,6 +229,17 @@ onMounted(() => {
         <tbody class="divide-y">
           <tr v-for="prod in productions" :key="prod.id" class="hover:bg-gray-50">
             <td class="px-4 py-3 text-sm">{{ formatDate(prod.production_date, { format: 'short' }) }}</td>
+            <td class="px-4 py-3 text-sm">
+              <span
+                :class="{
+                  'bg-red-100 text-red-700': prod.production_type === 'etli',
+                  'bg-green-100 text-green-700': prod.production_type === 'etsiz'
+                }"
+                class="px-2 py-1 text-xs font-medium rounded-full"
+              >
+                {{ prod.production_type === 'etli' ? 'Etli' : 'Etsiz' }}
+              </span>
+            </td>
             <td class="px-4 py-3 text-sm text-right font-medium">{{ formatNumber(prod.kneaded_kg) }}</td>
             <td class="px-4 py-3 text-sm text-right text-gray-600">{{ formatNumber(prod.legen_kg) }}</td>
             <td class="px-4 py-3 text-sm text-right font-medium text-blue-600">{{ formatNumber(prod.legen_count) }}</td>
@@ -259,6 +280,18 @@ onMounted(() => {
             v-model="form.production_date"
             class="w-full border rounded-lg px-3 py-2"
           />
+        </div>
+
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Üretim Tipi</label>
+          <select
+            v-model="form.production_type"
+            class="w-full border rounded-lg px-3 py-2"
+          >
+            <option v-for="type in productionTypes" :key="type.value" :value="type.value">
+              {{ type.label }}
+            </option>
+          </select>
         </div>
 
         <div>
