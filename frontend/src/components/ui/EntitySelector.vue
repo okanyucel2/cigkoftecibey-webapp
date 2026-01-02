@@ -81,7 +81,9 @@ const currentIcon = computed(() => {
 
 // Toggle dropdown
 function toggleDropdown() {
+  console.log('[EntitySelector] toggleDropdown called, current isOpen:', isOpen.value)
   isOpen.value = !isOpen.value
+  console.log('[EntitySelector] isOpen after toggle:', isOpen.value)
 }
 
 // Select item
@@ -135,6 +137,7 @@ onUnmounted(() => {
 
       <!-- Custom Dropdown Menu -->
       <div v-if="isOpen" class="dropdown-menu">
+        {{ console.log('[EntitySelector] Rendering dropdown menu, isOpen:', isOpen) }}
         <!-- All Option -->
         <button
           @click="selectItem(props.allValue)"

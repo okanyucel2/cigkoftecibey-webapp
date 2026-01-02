@@ -65,10 +65,6 @@ function isActive(item: NavItem): boolean {
     props.modelValue.startsWith(item.id + '/')
 }
 
-function isExpanded(id: string): boolean {
-  return expandedItems.value.has(id)
-}
-
 // Auto-expand parent of active item
 watch(() => props.modelValue, (newVal: string) => {
   if (newVal) {
@@ -98,7 +94,7 @@ watch(() => props.modelValue, (newVal: string) => {
             'has-children': item.subItems && item.subItems.length > 0
           }
         ]"
-        :aria-expanded="item.subItems && item.subItems.length > 0 ? isExpanded(item.id) : undefined"
+        :aria-expanded="item.subItems && item.subItems.length > 0 ? expandedItems.has(item.id) : undefined"
         :aria-current="isActive(item) ? 'page' : undefined"
       >
         <span v-if="item.icon" class="nav-icon">{{ item.icon }}</span>
@@ -106,7 +102,7 @@ watch(() => props.modelValue, (newVal: string) => {
         <span
           v-if="item.subItems && item.subItems.length > 0"
           class="expand-icon"
-          :class="{ 'expanded': isExpanded(item.id) }"
+          :class="{ 'expanded': expandedItems.has(item.id) }"
         >
           ▼
         </span>
@@ -114,7 +110,7 @@ watch(() => props.modelValue, (newVal: string) => {
 
       <div
         v-if="item.subItems && item.subItems.length > 0"
-        v-show="!collapsible || isExpanded(item.id)"
+        v-show="!collapsible || expandedItems.has(item.id)"
         class="nav-subitems"
       >
         <button
@@ -242,17 +238,20 @@ watch(() => props.modelValue, (newVal: string) => {
 @media (max-width: 640px) {
   .vertical-nav {
     flex-direction: row;
-    overflow-x: auto;
+    overflow-x: visible;
     gap: 4px;
-    scrollbar-width: none; /* Firefox */
+    scrollbar-width: none;
+    position: relative;
+    z-index: 50;
   }
 
   .vertical-nav::-webkit-scrollbar {
-    display: none; /* Chrome/Safari */
+    display: none;
   }
 
   .nav-item {
     flex-shrink: 0;
+    position: relative;
   }
 
   .nav-button {
@@ -272,15 +271,17 @@ watch(() => props.modelValue, (newVal: string) => {
     position: absolute;
     top: 100%;
     left: 0;
-    z-index: 10;
+    bottom: auto;
+    z-index: 9999;
     background: white;
     border: 1px solid #e5e7eb;
-    border-radius: 6px;
-    padding: 4px;
+    border-radius: 8px;
+    padding: 6px;
     margin-top: 4px;
     margin-left: 0;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    min-width: 200px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    min-width: 180px;
+    max-width: 200px;
   }
 
   .nav-button.subitem {

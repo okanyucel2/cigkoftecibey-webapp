@@ -28,6 +28,8 @@ import { ref, watch, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import type { DateRangeValue } from '@/types/filters'
 import SingleRowDateFilter from './SingleRowDateFilter.vue'
+import EntitySelector from './EntitySelector.vue'
+import QuickActions from './QuickActions.vue'
 import { ICONS, type IconName } from '@/icons'
 
 export interface EntityConfig {
@@ -228,6 +230,7 @@ const actionIcon = computed(() => {
   .unified-filter-bar {
     flex-wrap: wrap;
     min-height: auto;
+    overflow: visible; /* Allow dropdown to overflow */
   }
 
   .filter-left {
@@ -235,6 +238,7 @@ const actionIcon = computed(() => {
     flex-direction: column;
     align-items: stretch;
     gap: 8px;
+    overflow: visible; /* Allow dropdown to overflow */
   }
 
   .filter-spacer {
