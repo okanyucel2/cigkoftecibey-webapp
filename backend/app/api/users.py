@@ -33,7 +33,7 @@ class UserWithBranchesResponse(BaseModel):
     email: str
     name: str
     role: str
-    branch_id: int
+    branch_id: Optional[int] = None  # Can be NULL for users without primary branch
     is_active: bool
     is_super_admin: bool
     branches: list[UserBranchResponse] = []

@@ -85,6 +85,12 @@ def client(db: Session) -> Generator[TestClient, None, None]:
 
     app.dependency_overrides[get_branch_context] = override_get_branch_context
 
+    def override_get_current_user():
+        # Return super_admin user for testing protected endpoints
+        return User(id=1, email="test@example.com", is_super_admin=True, name="Test User")
+
+    app.dependency_overrides[get_current_user] = override_get_current_user
+
     with TestClient(app) as c:
         yield c
     
