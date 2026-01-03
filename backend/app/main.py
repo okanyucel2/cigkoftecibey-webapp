@@ -17,7 +17,7 @@ except Exception as e:
 from app.config import settings
 from app.middleware import RequestLoggingMiddleware
 from app.logging_config import setup_logging
-from app.api import auth, purchases, expenses, reports, production, staff_meals, personnel, online_sales, branches, users, invitation_codes, courier_expenses, ai_insights, cash_difference, import_history, categorization, payments
+from app.api import auth, purchases, expenses, reports, production, staff_meals, personnel, online_sales, branches, users, invitation_codes, courier_expenses, ai_insights, cash_difference, import_history, categorization, payments, health
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -78,11 +78,7 @@ app.include_router(cash_difference.router, prefix="/api")
 app.include_router(import_history.router, prefix="/api")
 app.include_router(categorization.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
-
-
-@app.get("/api/health")
-def health_check():
-    return {"status": "healthy", "app": settings.APP_NAME}
+app.include_router(health.router, prefix="/api")
 
 
 @app.get("/")
