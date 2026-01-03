@@ -10,8 +10,29 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+from sqlalchemy import text
 
 # revision identifiers, used by Alembic.
+
+
+def safe_drop_constraint(constraint_name: str, table_name: str, type_: str = None):
+    """Drop constraint if it exists (safe for fresh installs)."""
+    conn = op.get_bind()
+    # Check if constraint exists before trying to drop
+    result = conn.execute(text("""
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = :constraint_name
+        AND table_name = :table_name
+    """), {"constraint_name": constraint_name, "table_name": table_name})
+    if result.fetchone():
+        op.drop_constraint(constraint_name, table_name, type_=type_)
+
+
+def safe_drop_index(index_name: str, table_name: str):
+    """Drop index if it exists (safe for fresh installs)."""
+    conn = op.get_bind()
+    # Use DROP INDEX IF EXISTS for safety
+    conn.execute(text(f"DROP INDEX IF EXISTS {index_name}"))
 revision: str = '211c185ab9f6'
 down_revision: Union[str, None] = 'dd496a1b855b'
 branch_labels: Union[str, Sequence[str], None] = None
@@ -53,9 +74,9 @@ def upgrade() -> None:
     sa.ForeignKeyConstraint(['supplier_id'], ['suppliers.id'], ),
     sa.PrimaryKeyConstraint('id')
     )
-    op.drop_index('ix_branches_organization_id', table_name='branches')
-    op.drop_index('ix_cdi_cash_difference_id', table_name='cash_difference_items')
-    op.drop_index('ix_cdi_platform_source', table_name='cash_difference_items')
+    safe_drop_index('ix_branches_organization_id', table_name='branches')
+    safe_drop_index('ix_cdi_cash_difference_id', table_name='cash_difference_items')
+    safe_drop_index('ix_cdi_platform_source', table_name='cash_difference_items')
     op.alter_column('cash_differences', 'kasa_visa',
                existing_type=sa.NUMERIC(precision=12, scale=2),
                nullable=False,
@@ -120,40 +141,40 @@ def upgrade() -> None:
                existing_type=sa.VARCHAR(length=20),
                nullable=False,
                existing_server_default=sa.text("'ok'::character varying"))
-    op.drop_index('ix_cash_differences_date', table_name='cash_differences')
-    op.drop_index('ix_cash_differences_status', table_name='cash_differences')
-    op.drop_constraint('uq_cash_diff_branch_date', 'cash_differences', type_='unique')
+    safe_drop_index('ix_cash_differences_date', table_name='cash_differences')
+    safe_drop_index('ix_cash_differences_status', table_name='cash_differences')
+    safe_drop_constraint('uq_cash_diff_branch_date', 'cash_differences', type_='unique')
     op.create_index(op.f('ix_cash_differences_difference_date'), 'cash_differences', ['difference_date'], unique=False)
     op.alter_column('daily_insights', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                nullable=False,
                existing_server_default=sa.text('CURRENT_TIMESTAMP'))
-    op.drop_constraint('daily_insights_branch_id_date_key', 'daily_insights', type_='unique')
-    op.drop_index('ix_expense_categories_branch_id', table_name='expense_categories')
-    op.drop_constraint('expense_categories_branch_id_fkey', 'expense_categories', type_='foreignkey')
+    safe_drop_constraint('daily_insights_branch_id_date_key', 'daily_insights', type_='unique')
+    safe_drop_index('ix_expense_categories_branch_id', table_name='expense_categories')
+    safe_drop_constraint('expense_categories_branch_id_fkey', 'expense_categories', type_='foreignkey')
     op.create_foreign_key(None, 'expense_categories', 'branches', ['branch_id'], ['id'])
-    op.drop_index('ix_import_history_branch_date', table_name='import_history')
-    op.drop_index('ix_import_history_items_history', table_name='import_history_items')
+    safe_drop_index('ix_import_history_branch_date', table_name='import_history')
+    safe_drop_index('ix_import_history_items_history', table_name='import_history_items')
     op.alter_column('invitation_code_uses', 'used_at',
                existing_type=postgresql.TIMESTAMP(),
                nullable=False,
                existing_server_default=sa.text('now()'))
-    op.drop_index('ix_invitation_code_uses_code_id', table_name='invitation_code_uses')
-    op.drop_index('ix_invitation_code_uses_user_id', table_name='invitation_code_uses')
+    safe_drop_index('ix_invitation_code_uses_code_id', table_name='invitation_code_uses')
+    safe_drop_index('ix_invitation_code_uses_user_id', table_name='invitation_code_uses')
     op.alter_column('invitation_codes', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                nullable=False,
                existing_server_default=sa.text('now()'))
-    op.drop_constraint('invitation_codes_code_key', 'invitation_codes', type_='unique')
-    op.drop_index('ix_invitation_codes_organization_id', table_name='invitation_codes')
+    safe_drop_constraint('invitation_codes_code_key', 'invitation_codes', type_='unique')
+    safe_drop_index('ix_invitation_codes_organization_id', table_name='invitation_codes')
     op.alter_column('online_platforms', 'display_order',
                existing_type=sa.INTEGER(),
                nullable=False)
     op.alter_column('online_platforms', 'is_active',
                existing_type=sa.BOOLEAN(),
                nullable=False)
-    op.drop_index('ix_online_platforms_branch_id', table_name='online_platforms')
-    op.drop_constraint('online_platforms_branch_id_fkey', 'online_platforms', type_='foreignkey')
+    safe_drop_index('ix_online_platforms_branch_id', table_name='online_platforms')
+    safe_drop_constraint('online_platforms_branch_id_fkey', 'online_platforms', type_='foreignkey')
     op.create_foreign_key(None, 'online_platforms', 'branches', ['branch_id'], ['id'])
     op.alter_column('online_sales', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
@@ -162,20 +183,20 @@ def upgrade() -> None:
                existing_type=postgresql.TIMESTAMP(),
                nullable=False,
                existing_server_default=sa.text('now()'))
-    op.drop_constraint('organizations_code_key', 'organizations', type_='unique')
-    op.drop_index('ix_purchase_product_groups_branch_id', table_name='purchase_product_groups')
-    op.drop_constraint('purchase_product_groups_branch_id_fkey', 'purchase_product_groups', type_='foreignkey')
+    safe_drop_constraint('organizations_code_key', 'organizations', type_='unique')
+    safe_drop_index('ix_purchase_product_groups_branch_id', table_name='purchase_product_groups')
+    safe_drop_constraint('purchase_product_groups_branch_id_fkey', 'purchase_product_groups', type_='foreignkey')
     op.create_foreign_key(None, 'purchase_product_groups', 'branches', ['branch_id'], ['id'])
-    op.drop_index('ix_purchase_products_branch_id', table_name='purchase_products')
-    op.drop_constraint('purchase_products_branch_id_fkey', 'purchase_products', type_='foreignkey')
+    safe_drop_index('ix_purchase_products_branch_id', table_name='purchase_products')
+    safe_drop_constraint('purchase_products_branch_id_fkey', 'purchase_products', type_='foreignkey')
     op.create_foreign_key(None, 'purchase_products', 'branches', ['branch_id'], ['id'])
     op.alter_column('user_branches', 'created_at',
                existing_type=postgresql.TIMESTAMP(),
                nullable=False,
                existing_server_default=sa.text('now()'))
-    op.drop_constraint('uq_user_branch', 'user_branches', type_='unique')
-    op.drop_index('ix_users_google_id', table_name='users')
-    op.drop_index('ix_users_organization_id', table_name='users')
+    safe_drop_constraint('uq_user_branch', 'user_branches', type_='unique')
+    safe_drop_index('ix_users_google_id', table_name='users')
+    safe_drop_index('ix_users_organization_id', table_name='users')
     # ### end Alembic commands ###
 
 
