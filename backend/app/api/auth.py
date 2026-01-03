@@ -52,7 +52,7 @@ def login_json(data: LoginRequest, db: DBSession):
             # For simplicity, we assume seeds ran, but if not, we might fail or need to create them.
             # Let's try to just create the user. Models might require org/branch.
             # Assuming seed data exists or nullable
-            from app.core.security import get_password_hash
+            # Note: get_password_hash already imported at top of file from app.api.deps
             new_user = User(
                 email=data.email,
                 name="Test Admin",

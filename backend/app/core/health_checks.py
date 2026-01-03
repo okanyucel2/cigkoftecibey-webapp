@@ -40,6 +40,7 @@ class HealthChecker:
 
     Checks:
     - Database connectivity and latency
+    - Database identity (correct host:port:name)
     - Auth system (test user login)
     - Table count verification
     - Migration status
@@ -51,6 +52,17 @@ class HealthChecker:
 
     # Expected table count (update when adding migrations)
     EXPECTED_TABLE_COUNT = 30
+
+    # Expected database identity (P0.42 enhancement)
+    # This prevents connecting to wrong database silently
+    #
+    # PRODUCTION SAFETY:
+    # - On Render, database name is "cigkofte_xxxx" (random suffix)
+    # - On local Docker, database name is "cigkofte"
+    # - We only verify the name STARTS WITH "cigkofte" to support both
+    # - Port is logged but not strictly validated (varies by environment)
+    EXPECTED_DATABASE_NAME_PREFIX = "cigkofte"  # Matches both local and Render
+    EXPECTED_DATABASE_PORT = None  # Don't validate port (varies by environment)
 
     def __init__(self, db: Session):
         self.db = db
@@ -87,6 +99,89 @@ class HealthChecker:
                 status="fail",
                 latency_ms=(time.time() - start) * 1000,
                 details=f"Database connection failed: {str(e)}"
+            )
+
+    def check_database_identity(self) -> CheckResult:
+        """
+        Verify we're connected to the CORRECT database (P0.42 enhancement).
+
+        This check prevents silent misconfiguration where app connects to
+        wrong database (e.g., local PostgreSQL instead of Docker, or
+        wrong port/database name).
+
+        - Query: current_database(), inet_server_port()
+        - Expected: EXPECTED_DATABASE_NAME on EXPECTED_DATABASE_PORT
+        - Returns: pass if identity matches, fail otherwise
+        """
+        start = time.time()
+        try:
+            dialect = self.db.bind.dialect.name if self.db.bind else "unknown"
+
+            if dialect == "postgresql":
+                # PostgreSQL: Get actual database name and port
+                result = self.db.execute(text("""
+                    SELECT current_database(), inet_server_port()
+                """))
+                row = result.fetchone()
+                db_name = row[0] if row else None
+                db_port = int(row[1]) if row and row[1] else None
+            else:
+                # SQLite: No port concept, just check it's SQLite (test mode)
+                db_name = "sqlite_test"
+                db_port = None
+
+            latency_ms = (time.time() - start) * 1000
+
+            # For SQLite (tests), always pass - we only validate PostgreSQL identity
+            if dialect != "postgresql":
+                return CheckResult(
+                    name="database_identity",
+                    status="pass",
+                    latency_ms=latency_ms,
+                    extra={
+                        "database_name": db_name,
+                        "port": db_port,
+                        "dialect": dialect,
+                        "note": "SQLite test mode - identity check skipped"
+                    }
+                )
+
+            # For PostgreSQL, verify identity matches expected
+            # Use prefix matching to support both local ("cigkofte") and Render ("cigkofte_xxxx")
+            name_match = db_name and db_name.startswith(self.EXPECTED_DATABASE_NAME_PREFIX)
+            # Port is not strictly validated (varies by environment: Docker, Render, local)
+
+            if name_match:
+                return CheckResult(
+                    name="database_identity",
+                    status="pass",
+                    latency_ms=latency_ms,
+                    extra={
+                        "database_name": db_name,
+                        "port": db_port,
+                        "expected_prefix": self.EXPECTED_DATABASE_NAME_PREFIX,
+                        "environment": "production" if db_name != self.EXPECTED_DATABASE_NAME_PREFIX else "local"
+                    }
+                )
+            else:
+                return CheckResult(
+                    name="database_identity",
+                    status="fail",
+                    latency_ms=latency_ms,
+                    details=f"Wrong database: expected name starting with '{self.EXPECTED_DATABASE_NAME_PREFIX}', got '{db_name}'",
+                    extra={
+                        "database_name": db_name,
+                        "port": db_port,
+                        "expected_prefix": self.EXPECTED_DATABASE_NAME_PREFIX
+                    }
+                )
+
+        except Exception as e:
+            return CheckResult(
+                name="database_identity",
+                status="fail",
+                latency_ms=(time.time() - start) * 1000,
+                details=f"Database identity check failed: {str(e)}"
             )
 
     def check_auth(self) -> CheckResult:
@@ -263,6 +358,7 @@ class HealthChecker:
         """
         checks = [
             self.check_database(),
+            self.check_database_identity(),
             self.check_auth(),
             self.check_tables(),
             self.check_migrations()

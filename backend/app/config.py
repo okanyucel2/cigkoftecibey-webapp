@@ -7,8 +7,9 @@ class Settings(BaseSettings):
     APP_NAME: str = "Çiğ Köfte Yönetim Sistemi"
     DEBUG: bool = False
 
-    # Database
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/cigkofte"
+    # Database (Docker PostgreSQL on port 5433)
+    # IMPORTANT: Use Docker PostgreSQL, not local. See docs/DATABASE_ARCHITECTURE.md
+    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5433/cigkofte"
 
     # Auth
     SECRET_KEY: str = "your-secret-key-change-in-production"
