@@ -1,0 +1,37 @@
+# Pre-commit configuration for cigkoftecibey-webapp
+# P0.45 Application Integration Verification
+#
+# Install: pip install pre-commit && pre-commit install --hook-type pre-push
+# Run: pre-commit run --all-files
+
+repos:
+  # Local hooks
+  - repo: local
+    hooks:
+      # Pre-push: Run smoke tests (P0.45)
+      - id: smoke-tests
+        name: Smoke Tests (P0.45)
+        entry: ./scripts/pre-push-smoke.sh --quick
+        language: script
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+        verbose: true
+
+      # Pre-commit: TypeScript check (frontend)
+      - id: typescript-check
+        name: TypeScript Check
+        entry: bash -c 'cd frontend && npx vue-tsc --noEmit'
+        language: system
+        files: '\.(ts|vue)$'
+        stages: [pre-commit]
+        pass_filenames: false
+
+      # Pre-commit: Python lint (backend)
+      - id: python-lint
+        name: Python Ruff Check
+        entry: bash -c 'cd backend && ruff check app/ tests/'
+        language: system
+        files: '\.py$'
+        stages: [pre-commit]
+        pass_filenames: false
