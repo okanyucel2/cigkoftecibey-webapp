@@ -17,6 +17,7 @@ const branchSelectorOpen = ref(false)
  */
 const menuItems = [
   { path: '/', name: 'Bilanco', icon: '📊' },
+  { path: '/dashboard-v2', name: 'Bilanco V2 (Beta)', icon: '🚀' },
   { path: '/import', name: 'Ice Aktar', icon: '📥' },
   { path: '/sales', name: 'Ciro', icon: '💰' },
   { path: '/operations', name: 'Operasyon', icon: '🏭' },

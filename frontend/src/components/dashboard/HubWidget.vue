@@ -68,7 +68,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, type Component } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted, type Component } from 'vue'
 import { ChevronDown } from 'lucide-vue-next'
 
 export interface HubAction {
@@ -121,10 +121,13 @@ const ringColorClass = computed(() => {
 })
 
 function toggleExpanded() {
+  console.log('Hub clicked:', props.testId)
   isExpanded.value = !isExpanded.value
+  console.log('Dropdown state:', isExpanded.value)
 }
 
 function handleActionClick(action: HubAction) {
+  console.log('Action clicked:', action.id)
   isExpanded.value = false
   emit('action-selected', action)
 }
@@ -132,16 +135,25 @@ function handleActionClick(action: HubAction) {
 // Close dropdown when clicking outside
 function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement
-  if (!target.closest(`[data-testid="${props.testId}"]`)) {
+  const isInside = target.closest(`[data-testid="${props.testId}"]`)
+  console.log('Outside click detected, isInside:', !!isInside, 'testId:', props.testId)
+  if (!isInside) {
     isExpanded.value = false
   }
 }
 
-// Add/remove click outside listener
-import { onMounted, onUnmounted } from 'vue'
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
+// Add/remove click outside listener only when dropdown is open
+watch(isExpanded, (newVal) => {
+  if (newVal) {
+    // Use nextTick to add listener AFTER current click event completes
+    nextTick(() => {
+      document.addEventListener('click', handleClickOutside)
+      console.log('Added outside click listener for:', props.testId)
+    })
+  } else {
+    document.removeEventListener('click', handleClickOutside)
+    console.log('Removed outside click listener for:', props.testId)
+  }
 })
 
 onUnmounted(() => {
