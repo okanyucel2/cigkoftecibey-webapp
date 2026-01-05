@@ -106,7 +106,7 @@
       >
         <!-- Satış Hub -->
         <HubWidget
-          data-testid="hub-satis"
+          test-id="hub-satis"
           label="Satış"
           :value="netCiro"
           :icon="Wallet"
@@ -117,7 +117,7 @@
 
         <!-- Gider Hub -->
         <HubWidget
-          data-testid="hub-gider"
+          test-id="hub-gider"
           label="Gider"
           :value="totalExpenses"
           :icon="Receipt"
@@ -128,7 +128,7 @@
 
         <!-- Ekip Hub -->
         <HubWidget
-          data-testid="hub-ekip"
+          test-id="hub-ekip"
           label="Ekip"
           :value="0"
           :icon="Users"
@@ -139,7 +139,7 @@
 
         <!-- Üretim Hub -->
         <HubWidget
-          data-testid="hub-uretim"
+          test-id="hub-uretim"
           label="Üretim"
           :value="0"
           :icon="Factory"
