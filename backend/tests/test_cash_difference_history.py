@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.main import app
-from app.database import get_db, SessionLocal
+from app.database import get_db
 from app.models import (
     User, Branch, CashDifference, Expense, ExpenseCategory,
     OnlineSale, OnlinePlatform, ImportHistory, ImportHistoryItem
@@ -17,15 +17,7 @@ from app.api.deps import get_current_user, get_branch_context
 from app.schemas import CashDifferenceImportRequest, ExpenseItem
 
 
-@pytest.fixture
-def db():
-    """Get a database session for tests"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
+# NOTE: Uses db fixture from conftest.py (in-memory SQLite)
 
 @pytest.fixture
 def test_branch(db: Session):
@@ -114,8 +106,14 @@ def online_platforms(db: Session):
 
 
 @pytest.fixture
-def client(test_user, test_branch):
-    """Create test client with auth mocked"""
+def client(db, test_user, test_branch):
+    """Create test client with auth mocked and using test db"""
+
+    def override_get_db():
+        try:
+            yield db
+        finally:
+            pass
 
     def override_get_current_user():
         return test_user
@@ -130,6 +128,7 @@ def client(test_user, test_branch):
             is_super_admin=False
         )
 
+    app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_current_user] = override_get_current_user
     app.dependency_overrides[get_branch_context] = override_get_branch_context
 
