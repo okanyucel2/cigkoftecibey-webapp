@@ -24,9 +24,12 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
 
     # CORS
+    # Include both default Vite port (5173) and GENESIS dynamic port (19049)
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        "http://localhost:19049",
+        "http://127.0.0.1:19049",
         "https://genesis-cigkoftecibey-webapp-frontend-qlyp.onrender.com"
     ]
 
