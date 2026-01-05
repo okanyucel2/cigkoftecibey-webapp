@@ -1,10 +1,11 @@
 from datetime import datetime, timedelta
 from typing import Annotated, Optional
 from dataclasses import dataclass
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status, Header, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
@@ -14,6 +15,14 @@ from app.schemas import TokenData
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+
+@dataclass
+class TenantContext:
+    """Context object containing tenant information for multi-tenant isolation"""
+    tenant_id: int
+    source: str  # "user", "header", or "query"
+    user: User
 
 
 @dataclass
@@ -174,6 +183,67 @@ def get_branch_context(
     )
 
 
+def get_current_tenant(
+    request: Request,
+    db: Session,
+    user: User
+) -> TenantContext:
+    """
+    Extract tenant context for multi-tenant isolation.
+
+    Priority for super_admin:
+    1. X-Tenant-ID header (API/dev use)
+    2. ?tenant= query param (dev only)
+    3. User's organization_id
+
+    Regular users always use their organization_id.
+
+    Also sets PostgreSQL session variable for RLS policies.
+    """
+    tenant_id: Optional[int] = None
+    source: str = "user"
+
+    # Super admins can override tenant via header or query param
+    if user.is_super_admin:
+        # Try header first
+        header_val = request.headers.get("x-tenant-id")
+        if header_val and header_val.isdigit():
+            tenant_id = int(header_val)
+            source = "header"
+
+        # Try query param if no header
+        if tenant_id is None:
+            query_val = request.query_params.get("tenant")
+            if query_val and query_val.isdigit():
+                tenant_id = int(query_val)
+                source = "query"
+
+    # Default to user's organization
+    if tenant_id is None:
+        tenant_id = user.organization_id
+        source = "user"
+
+    # Validate tenant exists
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant context missing. User has no organization."
+        )
+
+    # Set PostgreSQL session variable for RLS
+    db.execute(
+        text("SELECT set_config('app.current_tenant', :tid, false)"),
+        {"tid": str(tenant_id)}
+    )
+
+    return TenantContext(
+        tenant_id=tenant_id,
+        source=source,
+        user=user
+    )
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
 DBSession = Annotated[Session, Depends(get_db)]
 CurrentBranchContext = Annotated[BranchContext, Depends(get_branch_context)]
+CurrentTenantContext = Annotated[TenantContext, Depends(get_current_tenant)]
