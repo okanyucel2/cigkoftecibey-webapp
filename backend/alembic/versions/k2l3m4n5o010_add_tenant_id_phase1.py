@@ -148,9 +148,42 @@ def upgrade() -> None:
         """)
         # Note: Records with branch_id = NULL remain tenant_id = NULL (system records)
 
+    # Step 7: Create composite indexes for common date-filtered queries
+    # These indexes optimize tenant-scoped queries filtered by date
+    op.create_index(
+        'ix_purchases_tenant_date',
+        'purchases',
+        ['tenant_id', 'purchase_date'],
+        unique=False
+    )
+    op.create_index(
+        'ix_online_sales_tenant_date',
+        'online_sales',
+        ['tenant_id', 'sale_date'],
+        unique=False
+    )
+    op.create_index(
+        'ix_expenses_tenant_date',
+        'expenses',
+        ['tenant_id', 'expense_date'],
+        unique=False
+    )
+    op.create_index(
+        'ix_daily_summaries_tenant_date',
+        'daily_summaries',
+        ['tenant_id', 'summary_date'],
+        unique=False
+    )
+
 
 def downgrade() -> None:
-    # Remove tenant_id from all tables in reverse order
+    # Step 1: Remove composite indexes first
+    op.drop_index('ix_purchases_tenant_date', 'purchases')
+    op.drop_index('ix_online_sales_tenant_date', 'online_sales')
+    op.drop_index('ix_expenses_tenant_date', 'expenses')
+    op.drop_index('ix_daily_summaries_tenant_date', 'daily_summaries')
+
+    # Step 2: Remove tenant_id from all tables in reverse order
     all_tables = GLOBAL_TABLES + list(ITEMS_TABLE_MAPPING.keys()) + TABLES_WITH_BRANCH_ID
 
     for table in all_tables:

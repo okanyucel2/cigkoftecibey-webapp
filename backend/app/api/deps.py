@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Annotated, Optional
 from dataclasses import dataclass
@@ -11,6 +12,9 @@ from app.config import settings
 from app.database import get_db
 from app.models import User, Branch, UserBranch
 from app.schemas import TokenData
+
+
+logger = logging.getLogger(__name__)
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -210,6 +214,12 @@ def get_current_tenant(
         if header_val and header_val.isdigit():
             tenant_id = int(header_val)
             source = "header"
+            # AUDIT: Log tenant override for security monitoring
+            logger.warning(
+                "Tenant override via X-Tenant-ID header: user=%s (id=%d) "
+                "accessing tenant_id=%d (original org=%s)",
+                user.email, user.id, tenant_id, user.organization_id
+            )
 
         # Try query param if no header
         if tenant_id is None:
@@ -217,6 +227,12 @@ def get_current_tenant(
             if query_val and query_val.isdigit():
                 tenant_id = int(query_val)
                 source = "query"
+                # AUDIT: Log tenant override for security monitoring
+                logger.warning(
+                    "Tenant override via query param: user=%s (id=%d) "
+                    "accessing tenant_id=%d (original org=%s)",
+                    user.email, user.id, tenant_id, user.organization_id
+                )
 
     # Default to user's organization
     if tenant_id is None:
@@ -231,8 +247,10 @@ def get_current_tenant(
         )
 
     # Set PostgreSQL session variable for RLS
+    # CRITICAL: Use 'true' for transaction-scoped (resets at transaction end)
+    # Using 'false' would leak tenant context across pooled connections!
     db.execute(
-        text("SELECT set_config('app.current_tenant', :tid, false)"),
+        text("SELECT set_config('app.current_tenant', :tid, true)"),
         {"tid": str(tenant_id)}
     )
 

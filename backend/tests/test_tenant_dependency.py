@@ -4,7 +4,7 @@ Tests for get_current_tenant dependency - Multi-tenant context extraction.
 TDD: RED -> GREEN -> REFACTOR
 """
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch, MagicMock, call
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
@@ -143,6 +143,30 @@ class TestGetCurrentTenant:
         assert "set_config" in sql_text
         assert "app.current_tenant" in sql_text
 
+    def test_set_config_is_transaction_scoped(self, mock_db, mock_user):
+        """
+        CRITICAL: set_config must use 'true' (transaction-scoped), not 'false' (session-scoped).
+
+        With 'false': Config persists across transactions → connection pool leak
+        With 'true': Config resets at transaction end → proper isolation
+        """
+        mock_request = Mock()
+        mock_request.headers = {}
+        mock_request.query_params = {}
+
+        get_current_tenant(
+            request=mock_request,
+            db=mock_db,
+            user=mock_user
+        )
+
+        # Verify the SQL uses 'true' for transaction-scoped config
+        call_args = mock_db.execute.call_args
+        sql_text = str(call_args[0][0])
+        # The third parameter to set_config must be 'true' for transaction scope
+        assert "true" in sql_text.lower(), \
+            "set_config must use 'true' (transaction-scoped) to prevent connection pool leak"
+
     def test_tenant_context_dataclass(self, mock_db, mock_user):
         """TenantContext should contain all required fields"""
         mock_request = Mock()
@@ -159,6 +183,27 @@ class TestGetCurrentTenant:
         assert hasattr(result, 'source')
         assert hasattr(result, 'user')
         assert result.user == mock_user
+
+
+    def test_tenant_override_logs_warning(self, mock_db, mock_user):
+        """Should log warning when super admin uses X-Tenant-ID header"""
+        mock_request = Mock()
+        mock_request.headers = {"x-tenant-id": "99"}
+        mock_request.query_params = {}
+        mock_user.is_super_admin = True
+        mock_user.email = "admin@test.com"
+
+        with patch('app.api.deps.logger') as mock_logger:
+            get_current_tenant(
+                request=mock_request,
+                db=mock_db,
+                user=mock_user
+            )
+
+            # Verify warning was logged
+            mock_logger.warning.assert_called_once()
+            call_args = str(mock_logger.warning.call_args)
+            assert "tenant" in call_args.lower() or "override" in call_args.lower()
 
 
 class TestTenantContextDataclass:
