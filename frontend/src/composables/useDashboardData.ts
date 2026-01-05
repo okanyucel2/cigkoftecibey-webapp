@@ -46,14 +46,14 @@ export function useDashboardData() {
     error.value = null
 
     try {
-      // Fetch main dashboard data
-      const dashboardRes = await api.get('/api/reports/dashboard')
+      // Fetch main dashboard data (api.ts baseURL already includes /api)
+      const dashboardRes = await api.get('/reports/dashboard')
       const dashboardData = dashboardRes.data
 
       // Fetch cash difference
       let cashDiff = 0
       try {
-        const cashRes = await api.get('/api/cash-difference', {
+        const cashRes = await api.get('/cash-difference', {
           params: { date: new Date().toISOString().split('T')[0] }
         })
         cashDiff = cashRes.data?.difference ?? 0
@@ -64,7 +64,7 @@ export function useDashboardData() {
       // Fetch production (legen count)
       let legenCount = 0
       try {
-        const productionRes = await api.get('/api/production', {
+        const productionRes = await api.get('/production', {
           params: { date: new Date().toISOString().split('T')[0] }
         })
         legenCount = productionRes.data?.reduce(
