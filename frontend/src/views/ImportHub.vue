@@ -1,8 +1,8 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6" data-testid="import-hub-page">
     <!-- Header -->
     <div class="flex justify-between items-center">
-      <h1 class="text-2xl font-bold">Import Hub</h1>
+      <h1 class="text-2xl font-bold" data-testid="import-hub-title">Import Hub</h1>
       <div class="flex gap-2">
         <button
           @click="activeTab = 'import'"
@@ -32,7 +32,8 @@
         <h2 class="text-lg font-semibold mb-4">Kasa Raporu</h2>
         <p class="text-gray-600 mb-4">Excel dosyasi ve POS resmi yukleyerek gunluk kasa verilerini import edin.</p>
         <router-link
-          to="/kasa-farki"
+          to="/gelirler/kasa-farki"
+          data-testid="import-hub-kasa-raporu-btn"
           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           Import Et
