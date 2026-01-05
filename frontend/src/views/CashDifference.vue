@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import type { CashDifference, CashDifferenceSummary } from '@/types'
 import { cashDifferenceApi } from '@/services/api'
 import type { DateRangeValue } from '@/types/filters'
 import { useFormatters, useConfirmModal } from '@/composables'
 import { ConfirmModal, ErrorAlert, LoadingState, UnifiedFilterBar, PageModal, SummaryCard } from '@/components/ui'
 import CashDifferenceImport from './CashDifferenceImport.vue'
+
+// Router for query param detection (Import Hub auto-open modal)
+const route = useRoute()
+const router = useRouter()
 
 // Use composables
 const { formatCurrency, formatDate } = useFormatters()
@@ -55,6 +60,21 @@ const filterYear = computed(() => new Date(dateRangeFilter.value.start).getFullY
 
 onMounted(async () => {
   await loadData()
+
+  // Auto-open import modal when coming from Import Hub with ?import=true
+  if (route.query.import === 'true') {
+    showImportModal.value = true
+    // Clean up URL to prevent re-opening on refresh
+    router.replace({ path: route.path, query: {} })
+  }
+})
+
+// Watch for route query changes (SPA navigation)
+watch(() => route.query.import, (newVal) => {
+  if (newVal === 'true') {
+    showImportModal.value = true
+    router.replace({ path: route.path, query: {} })
+  }
 })
 
 watch(() => dateRangeFilter.value, () => {

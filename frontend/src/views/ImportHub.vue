@@ -32,7 +32,7 @@
         <h2 class="text-lg font-semibold mb-4">Kasa Raporu</h2>
         <p class="text-gray-600 mb-4">Excel dosyasi ve POS resmi yukleyerek gunluk kasa verilerini import edin.</p>
         <router-link
-          to="/gelirler/kasa-farki"
+          to="/gelirler/kasa-farki?import=true"
           data-testid="import-hub-kasa-raporu-btn"
           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
