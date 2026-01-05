@@ -12,6 +12,9 @@ import CashDifferenceImport from './CashDifferenceImport.vue'
 const route = useRoute()
 const router = useRouter()
 
+// DEBUG: Verify component loads
+console.log('🔵 CashDifference.vue SCRIPT EXECUTED')
+
 // Use composables
 const { formatCurrency, formatDate } = useFormatters()
 const confirmModal = useConfirmModal()
@@ -59,13 +62,22 @@ const filterMonth = computed(() => new Date(dateRangeFilter.value.start).getMont
 const filterYear = computed(() => new Date(dateRangeFilter.value.start).getFullYear())
 
 onMounted(async () => {
+  console.log('🟢 CashDifference onMounted CALLED')
+  console.log('🟢 route.path =', route.path)
+  console.log('🟢 route.query =', JSON.stringify(route.query))
+  console.log('🟢 route.query.import =', route.query.import)
+
   await loadData()
 
   // Auto-open import modal when coming from Import Hub with ?import=true
   if (route.query.import === 'true') {
+    console.log('🟢 CONDITION MET - Opening modal')
     showImportModal.value = true
+    console.log('🟢 showImportModal.value =', showImportModal.value)
     // Clean up URL to prevent re-opening on refresh
     router.replace({ path: route.path, query: {} })
+  } else {
+    console.log('🔴 CONDITION NOT MET - import query param:', route.query.import)
   }
 })
 

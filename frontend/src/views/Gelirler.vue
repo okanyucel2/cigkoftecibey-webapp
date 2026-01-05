@@ -26,10 +26,17 @@ const navItems: NavItem[] = [
 ]
 
 // Active tab with bidirectional binding to route
+// Uses route.meta.defaultPath as fallback for routes like /sales/verify
 const activeTab = computed({
   get: () => {
     const path = route.path.replace('/gelirler/', '')
-    return path || 'kasa'
+    // Known tabs - if path matches, use it directly
+    const knownTabs = ['kasa', 'kasa-farki']
+    if (knownTabs.includes(path)) {
+      return path
+    }
+    // Fallback to meta.defaultPath (for routes like /sales/verify)
+    return (route.meta.defaultPath as string) || 'kasa'
   },
   set: (value) => {
     router.push(`/gelirler/${value}`)
