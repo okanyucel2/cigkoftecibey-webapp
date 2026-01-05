@@ -254,6 +254,13 @@ def get_current_tenant(
         {"tid": str(tenant_id)}
     )
 
+    # Set super admin bypass flag for RLS policies
+    # Phase 2 RLS policies will check this flag to allow full access
+    if user.is_super_admin:
+        db.execute(
+            text("SELECT set_config('app.is_superuser', 'on', true)")
+        )
+
     return TenantContext(
         tenant_id=tenant_id,
         source=source,

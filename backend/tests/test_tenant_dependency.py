@@ -205,6 +205,44 @@ class TestGetCurrentTenant:
             call_args = str(mock_logger.warning.call_args)
             assert "tenant" in call_args.lower() or "override" in call_args.lower()
 
+    def test_super_admin_sets_bypass_flag(self, mock_db, mock_user):
+        """Super admin should set app.is_superuser flag for RLS bypass"""
+        mock_request = Mock()
+        mock_request.headers = {}
+        mock_request.query_params = {}
+        mock_user.is_super_admin = True
+
+        get_current_tenant(
+            request=mock_request,
+            db=mock_db,
+            user=mock_user
+        )
+
+        # Verify set_config was called twice (tenant + superuser flag)
+        assert mock_db.execute.call_count == 2
+        # Check the SQL text of each call
+        sql_texts = [str(c[0][0]) for c in mock_db.execute.call_args_list]
+        assert any('is_superuser' in sql for sql in sql_texts), \
+            f"Super admin should set app.is_superuser flag for RLS bypass. Got: {sql_texts}"
+
+    def test_regular_user_no_bypass_flag(self, mock_db, mock_user):
+        """Regular user should NOT set app.is_superuser flag"""
+        mock_request = Mock()
+        mock_request.headers = {}
+        mock_request.query_params = {}
+        mock_user.is_super_admin = False
+
+        get_current_tenant(
+            request=mock_request,
+            db=mock_db,
+            user=mock_user
+        )
+
+        # Verify set_config was called only once (tenant only, no superuser)
+        assert mock_db.execute.call_count == 1
+        call_text = str(mock_db.execute.call_args)
+        assert 'is_superuser' not in call_text
+
 
 class TestTenantContextDataclass:
     """Test TenantContext dataclass"""
