@@ -46,6 +46,14 @@ const router = createRouter({
           component: () => import('@/views/Bilanco.vue')
         },
 
+        // 📊 Dashboard V2 (Command Center)
+        {
+          path: 'dashboard-v2',
+          name: 'dashboard-v2',
+          component: () => import('@/views/DashboardV2.vue'),
+          meta: { title: 'Dashboard V2' }
+        },
+
         // 📥 İçe Aktar (Import Hub)
         {
           path: 'import',
