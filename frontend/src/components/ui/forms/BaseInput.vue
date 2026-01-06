@@ -12,9 +12,17 @@
 
     <!-- Input Container -->
     <div class="relative">
-      <!-- Left Icon -->
+      <!-- Prefix -->
       <div
-        v-if="$slots.icon || icon"
+        v-if="prefix"
+        class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+      >
+        <span class="text-slate-500 text-sm">{{ prefix }}</span>
+      </div>
+
+      <!-- Left Icon (only if no prefix) -->
+      <div
+        v-else-if="$slots.icon || icon"
         class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
       >
         <slot name="icon">
@@ -38,14 +46,14 @@
           'focus:outline-none focus:ring-1',
           // Size
           sizeClasses,
-          // Icon padding
-          { 'pl-10': $slots.icon || icon },
+          // Prefix/Icon padding
+          { 'pl-10': prefix || $slots.icon || icon },
           // States
           errorClasses,
           { 'bg-slate-50 cursor-not-allowed': disabled },
         ]"
         @input="$emit('update:modelValue', ($event.target as HTMLInputElement).value)"
-        v-bind="$attrs"
+        v-bind="filteredAttrs"
       />
 
       <!-- Right Icon (Error or Custom) -->
@@ -78,8 +86,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, useAttrs } from 'vue'
 import type { Component } from 'vue'
+
+// Prevent Vue from auto-passing attrs like 'prefix' to the input element
+defineOptions({
+  inheritAttrs: false
+})
 
 interface Props {
   modelValue?: string | number
@@ -93,6 +106,7 @@ interface Props {
   required?: boolean
   size?: 'sm' | 'md' | 'lg' | 'pos'
   icon?: Component
+  prefix?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -106,6 +120,13 @@ const props = withDefaults(defineProps<Props>(), {
 defineEmits<{
   'update:modelValue': [value: string]
 }>()
+
+// Filter out non-HTML attributes from $attrs
+const attrs = useAttrs()
+const filteredAttrs = computed(() => {
+  const { class: _, style: __, ...rest } = attrs
+  return rest
+})
 
 const inputId = computed(() => `input-${Math.random().toString(36).substr(2, 9)}`)
 

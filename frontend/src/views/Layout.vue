@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -7,9 +7,34 @@ const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 
+// Mobile breakpoint (lg = 1024px in Tailwind)
+const MOBILE_BREAKPOINT = 1024
+
 // Start closed on mobile, open on desktop
-const sidebarOpen = ref(window.innerWidth >= 1024)
+const sidebarOpen = ref(window.innerWidth >= MOBILE_BREAKPOINT)
 const branchSelectorOpen = ref(false)
+
+// Close sidebar on mobile when route changes
+watch(() => route.path, () => {
+  if (window.innerWidth < MOBILE_BREAKPOINT) {
+    sidebarOpen.value = false
+  }
+})
+
+// Handle window resize - close sidebar if resizing to mobile
+function handleResize() {
+  if (window.innerWidth < MOBILE_BREAKPOINT) {
+    sidebarOpen.value = false
+  }
+}
+
+onMounted(() => {
+  window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', handleResize)
+})
 
 /**
  * Phase 1 Navigation Structure (Platform Evolution Roadmap)
