@@ -373,6 +373,128 @@
         </div>
       </template>
     </SlideOver>
+
+    <!-- Slide-over Panel for Ekip Entry -->
+    <SlideOver
+      v-model="showEkipPanel"
+      :title="currentEkipAction === 'personel-yemegi' ? 'Personel Yemeği' : 'Maaş Ödemesi'"
+      subtitle="Dashboard'u izleyerek kaydet"
+      :icon="currentEkipAction === 'personel-yemegi' ? Coffee : Wallet"
+      icon-color="emerald"
+    >
+      <div class="space-y-4">
+        <!-- Personel Yemeği Form -->
+        <template v-if="currentEkipAction === 'personel-yemegi'">
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Kişi Sayısı</label>
+            <BaseInput
+              v-model="ekipForm.employeeCount"
+              type="number"
+              placeholder="0"
+            />
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Toplam Tutar</label>
+            <BaseInput
+              v-model="ekipForm.amount"
+              type="number"
+              placeholder="0,00"
+              prefix="₺"
+            />
+          </div>
+        </template>
+        <!-- Maaş Ödemesi Form -->
+        <template v-else>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Tutar</label>
+            <BaseInput
+              v-model="ekipForm.amount"
+              type="number"
+              placeholder="0,00"
+              prefix="₺"
+            />
+          </div>
+        </template>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Not (opsiyonel)</label>
+          <BaseInput
+            v-model="ekipForm.note"
+            placeholder="Notlar..."
+          />
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <button
+            type="button"
+            class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            @click="showEkipPanel = false"
+          >
+            İptal
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
+            @click="handleEkipSave"
+          >
+            💾 Kaydet
+          </button>
+        </div>
+      </template>
+    </SlideOver>
+
+    <!-- Slide-over Panel for Üretim Entry -->
+    <SlideOver
+      v-model="showUretimPanel"
+      title="Üretim Girişi"
+      subtitle="Dashboard'u izleyerek kaydet"
+      :icon="Factory"
+      icon-color="purple"
+    >
+      <div class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Legen Sayısı</label>
+          <BaseInput
+            v-model="uretimForm.legenCount"
+            type="number"
+            placeholder="0"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Fire Miktarı (kg)</label>
+          <BaseInput
+            v-model="uretimForm.fireAmount"
+            type="number"
+            placeholder="0,00"
+          />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Not (opsiyonel)</label>
+          <BaseInput
+            v-model="uretimForm.note"
+            placeholder="Notlar..."
+          />
+        </div>
+      </div>
+      <template #footer>
+        <div class="flex justify-end gap-3">
+          <button
+            type="button"
+            class="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            @click="showUretimPanel = false"
+          >
+            İptal
+          </button>
+          <button
+            type="button"
+            class="px-4 py-2 text-white bg-purple-600 rounded-lg hover:bg-purple-700"
+            @click="handleUretimSave"
+          >
+            💾 Kaydet
+          </button>
+        </div>
+      </template>
+    </SlideOver>
   </div>
 </template>
 
@@ -403,9 +525,15 @@ import HubWidget, { type HubAction } from '@/components/dashboard/HubWidget.vue'
 import SlideOver from '@/components/dashboard/SlideOver.vue'
 import { BaseInput, BaseTagSelect } from '@/components/ui'
 import { useDashboardData } from '@/composables/useDashboardData'
+import { useToast } from '@/composables/useToast'
+// TODO: Enable API calls when ready
+// import { onlineSalesApi, expensesApi, staffMealsApi, productionApi } from '@/services/api'
 
 // Dashboard data composable
 const { data, loading, error, refresh } = useDashboardData()
+
+// Toast notifications
+const toast = useToast()
 
 // Computed values
 const netCiro = computed(() => data.value?.todaySales.total ?? 0)
@@ -499,6 +627,12 @@ const uretimActions: HubAction[] = [
 // Slide-over panels
 const showSalesPanel = ref(false)
 const showExpensePanel = ref(false)
+const showEkipPanel = ref(false)
+const showUretimPanel = ref(false)
+
+// Current action context (for panel titles)
+const currentEkipAction = ref<string>('')
+const currentUretimAction = ref<string>('')
 
 // Forms
 const salesForm = ref({
@@ -511,6 +645,19 @@ const expenseForm = ref({
   category: [] as (string | number)[],
   amount: '',
   description: ''
+})
+
+const ekipForm = ref({
+  type: '' as string,
+  amount: '',
+  employeeCount: '',
+  note: ''
+})
+
+const uretimForm = ref({
+  legenCount: '',
+  fireAmount: '',
+  note: ''
 })
 
 // Payment options for BaseTagSelect
@@ -541,25 +688,105 @@ function handleGiderAction(action: HubAction) {
   // TODO: Handle other actions
 }
 
-function handleEkipAction(_action: HubAction) {
-  // TODO: Implement
+function handleEkipAction(action: HubAction) {
+  console.log('Ekip action:', action.id)
+  currentEkipAction.value = action.id
+  showEkipPanel.value = true
 }
 
-function handleUretimAction(_action: HubAction) {
-  // TODO: Implement
+function handleUretimAction(action: HubAction) {
+  console.log('Uretim action:', action.id)
+  currentUretimAction.value = action.id
+  showUretimPanel.value = true
 }
 
 // Save handlers
-function handleSalesSave() {
-  // TODO: Implement optimistic UI save
-  console.log('Saving sales:', salesForm.value)
+async function handleSalesSave() {
+  const amount = parseFloat(salesForm.value.amount) || 0
+  if (amount <= 0) {
+    toast.warning('Lütfen geçerli bir tutar girin')
+    return
+  }
+
+  // Optimistic UI update
+  if (data.value) {
+    data.value.todaySales.salon += amount
+    data.value.todaySales.total += amount
+  }
+
+  // Close panel and show success (MVP: API integration later)
+  toast.success(`₺${amount.toLocaleString('tr-TR')} satış kaydedildi`)
   showSalesPanel.value = false
+  salesForm.value = { amount: '', paymentMethods: [], note: '' }
+
+  // TODO: Implement proper API call with platform_id lookup
+  // const today = new Date().toISOString().split('T')[0]
+  // await onlineSalesApi.saveDailySales({ sale_date: today, entries: [{platform_id: SALON_ID, amount}] })
 }
 
-function handleExpenseSave() {
-  // TODO: Implement optimistic UI save
-  console.log('Saving expense:', expenseForm.value)
+async function handleExpenseSave() {
+  const amount = parseFloat(expenseForm.value.amount) || 0
+  if (amount <= 0) {
+    toast.warning('Lütfen geçerli bir tutar girin')
+    return
+  }
+
+  // Optimistic UI update
+  if (data.value) {
+    data.value.todayExpenses.expenses += amount
+  }
+
+  // Close panel and show success (MVP: API integration later)
+  toast.success(`₺${amount.toLocaleString('tr-TR')} gider kaydedildi`)
   showExpensePanel.value = false
+  expenseForm.value = { category: [], amount: '', description: '' }
+
+  // TODO: Implement proper API call
+  // await expensesApi.create({ date, category_id, amount, description })
+}
+
+async function handleEkipSave() {
+  const amount = parseFloat(ekipForm.value.amount) || 0
+  if (amount <= 0) {
+    toast.warning('Lütfen geçerli bir tutar girin')
+    return
+  }
+
+  if (currentEkipAction.value === 'personel-yemegi') {
+    // Optimistic UI update
+    if (data.value) {
+      data.value.todayExpenses.staffMeals += amount
+    }
+    toast.success(`₺${amount.toLocaleString('tr-TR')} personel yemeği kaydedildi`)
+  } else {
+    toast.success(`₺${amount.toLocaleString('tr-TR')} maaş ödemesi kaydedildi`)
+  }
+
+  showEkipPanel.value = false
+  ekipForm.value = { type: '', amount: '', employeeCount: '', note: '' }
+
+  // TODO: Implement proper API call
+  // await staffMealsApi.create({ date, total_cost, employee_count, notes })
+}
+
+async function handleUretimSave() {
+  const legenCount = parseInt(uretimForm.value.legenCount) || 0
+  if (legenCount <= 0) {
+    toast.warning('Lütfen geçerli bir legen sayısı girin')
+    return
+  }
+
+  // Optimistic UI update
+  if (data.value) {
+    data.value.legenCount += legenCount
+  }
+
+  toast.success(`${legenCount} legen üretim kaydedildi`)
+  showUretimPanel.value = false
+  uretimForm.value = { legenCount: '', fireAmount: '', note: '' }
+
+  // TODO: Implement proper API call
+  // await productionApi.create({ date, legen_count, fire_amount, notes })
 }
 
 // Alerts
