@@ -1,7 +1,7 @@
-from datetime import datetime, date, UTC
+from datetime import datetime, date, time, UTC
 from decimal import Decimal
 from typing import Optional
-from sqlalchemy import String, Integer, Numeric, Boolean, DateTime, Date, ForeignKey, Text, JSON
+from sqlalchemy import String, Integer, Numeric, Boolean, DateTime, Date, Time, ForeignKey, Text, JSON
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -594,6 +594,46 @@ class ImportHistoryItem(Base):
 
     # Relationships
     import_history: Mapped["ImportHistory"] = relationship(back_populates="items")
+
+
+class MenuCategory(Base):
+    """Menu category for organizing menu items (hybrid tenant isolation)"""
+    __tablename__ = "menu_categories"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    branch_id: Mapped[Optional[int]] = mapped_column(ForeignKey("branches.id"), nullable=True)  # NULL = global
+    name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False)  # System categories cannot be deleted
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    # Relationships
+    branch: Mapped[Optional["Branch"]] = relationship()
+    creator: Mapped["User"] = relationship()
+
+
+class BranchOperatingHours(Base):
+    """Operating hours per day for branches (hybrid tenant isolation).
+
+    - branch_id=NULL: Global defaults (apply to all branches without override)
+    - branch_id=X: Branch-specific hours (override global defaults)
+    """
+    __tablename__ = "branch_operating_hours"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    branch_id: Mapped[Optional[int]] = mapped_column(ForeignKey("branches.id"), nullable=True)  # NULL = global
+    day_of_week: Mapped[int] = mapped_column(Integer)  # 0=Monday, 6=Sunday
+    open_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)  # NULL if closed
+    close_time: Mapped[Optional[time]] = mapped_column(Time, nullable=True)  # NULL if closed
+    is_closed: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, onupdate=datetime.utcnow)
+
+    # Relationships
+    branch: Mapped[Optional["Branch"]] = relationship()
 
 
 # Import Supplier AR (Accounts Receivable) models

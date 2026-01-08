@@ -1,7 +1,7 @@
-from datetime import datetime, date
+from datetime import datetime, date, time
 from decimal import Decimal
 from typing import Optional
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, Field
 
 
 # Auth
@@ -1000,6 +1000,74 @@ class ComparisonRequest(BaseModel):
     left_end: str    # ISO date string
     right_start: str  # ISO date string
     right_end: str   # ISO date string
+
+
+# Dashboard Comparison (for trend badges)
+class ComparisonMetric(BaseModel):
+    """Single metric comparison data"""
+    current: float
+    previous: float
+    diff: float
+    diff_percent: float
+
+
+class DashboardComparisonResponse(BaseModel):
+    """Dashboard comparison response for trend badges"""
+    current_date: str
+    compare_date: str
+    sales: ComparisonMetric
+    expenses: ComparisonMetric
+
+
+# Menu Category
+class MenuCategoryCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = None
+    display_order: int = 0
+    is_global: bool = False  # True = branch_id=NULL (all branches)
+
+
+class MenuCategoryResponse(BaseModel):
+    id: int
+    name: str
+    description: Optional[str]
+    display_order: int
+    is_active: bool
+    is_system: bool
+    branch_id: Optional[int]
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+# Branch Operating Hours
+class BranchOperatingHoursCreate(BaseModel):
+    """Create/Update operating hours for a single day"""
+    day_of_week: int = Field(..., ge=0, le=6, description="0=Monday, 6=Sunday")
+    open_time: Optional[time] = Field(None, description="Opening time (null if closed)")
+    close_time: Optional[time] = Field(None, description="Closing time (null if closed)")
+    is_closed: bool = False
+
+
+class BranchOperatingHoursBatchCreate(BaseModel):
+    """Batch create/update operating hours for multiple days"""
+    hours: list[BranchOperatingHoursCreate]
+
+
+class BranchOperatingHoursResponse(BaseModel):
+    """Operating hours response"""
+    id: int
+    branch_id: Optional[int]
+    day_of_week: int
+    open_time: Optional[time]
+    close_time: Optional[time]
+    is_closed: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
 
 
 # Supplier AR (Supplier Accounts Receivable)
