@@ -1070,6 +1070,35 @@ class BranchOperatingHoursResponse(BaseModel):
         from_attributes = True
 
 
+# Branch Holiday
+class BranchHolidayCreate(BaseModel):
+    """Create a branch holiday"""
+    date: date
+    name: str = Field(..., min_length=1, max_length=100)
+    is_closed: bool = True
+
+
+class BranchHolidayUpdate(BaseModel):
+    """Update a branch holiday"""
+    date: Optional[date] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    is_closed: Optional[bool] = None
+
+
+class BranchHolidayResponse(BaseModel):
+    """Branch holiday response"""
+    id: int
+    branch_id: Optional[int]
+    date: date
+    name: str
+    is_closed: bool
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
 # Supplier AR (Supplier Accounts Receivable)
 from .supplier_ar import (
     SupplierARSummary,

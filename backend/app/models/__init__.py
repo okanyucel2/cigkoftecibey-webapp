@@ -636,6 +636,26 @@ class BranchOperatingHours(Base):
     branch: Mapped[Optional["Branch"]] = relationship()
 
 
+class BranchHoliday(Base):
+    """Branch holidays (hybrid tenant isolation).
+
+    - branch_id=NULL: Global holiday (applies to all branches)
+    - branch_id=X: Branch-specific holiday (can override global)
+    """
+    __tablename__ = "branch_holidays"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    branch_id: Mapped[Optional[int]] = mapped_column(ForeignKey("branches.id"), nullable=True)  # NULL = global
+    date: Mapped[date] = mapped_column(Date, index=True)
+    name: Mapped[str] = mapped_column(String(100))
+    is_closed: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, onupdate=datetime.utcnow)
+
+    # Relationships
+    branch: Mapped[Optional["Branch"]] = relationship()
+
+
 # Import Supplier AR (Accounts Receivable) models
 from .supplier_ar import (
     SupplierPayment,
