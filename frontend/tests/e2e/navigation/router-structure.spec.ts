@@ -293,21 +293,34 @@ test.describe('🛣️ Router Structure - Phase 1', () => {
       await page.goto(config.frontendUrl + '/')
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-      const salesNav = page.locator('nav a[href="/sales"], nav button:has-text("Ciro")').first()
+      // Ciro has subItems, so clicking it expands the submenu first
+      const salesNav = page.locator('.nav-button:has(.nav-label:text("Ciro"))').first()
+      await expect(salesNav).toBeVisible({ timeout: 5000 })
       await salesNav.click()
 
-      await expect(page).toHaveURL(config.frontendUrl + '/sales')
+      // Wait for submenu to expand, then click "Kasa" to navigate to /sales
+      const kasaSubitem = page.locator('.nav-subitems .nav-button:has(.nav-label:text("Kasa"))').first()
+      await expect(kasaSubitem).toBeVisible({ timeout: 5000 })
+      await kasaSubitem.click()
+
+      await expect(page).toHaveURL(config.frontendUrl + '/sales', { timeout: 5000 })
     })
 
     test('Clicking Operasyon expands submenu or navigates', async ({ page }) => {
       await page.goto(config.frontendUrl + '/')
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-      const operationsNav = page.locator('nav a[href="/operations"], nav button:has-text("Operasyon")').first()
+      // Operasyon has subItems, so clicking it expands the submenu first
+      const operationsNav = page.locator('.nav-button:has(.nav-label:text("Operasyon"))').first()
+      await expect(operationsNav).toBeVisible({ timeout: 5000 })
       await operationsNav.click()
 
-      // Should either show submenu or navigate to /operations/production
-      await expect(page).toHaveURL(/\/operations/)
+      // Wait for submenu to expand, then click "Üretim" to navigate
+      const uretimSubitem = page.locator('.nav-subitems .nav-button:has(.nav-label:text("Üretim"))').first()
+      await expect(uretimSubitem).toBeVisible({ timeout: 5000 })
+      await uretimSubitem.click()
+
+      await expect(page).toHaveURL(/\/operations\/production/, { timeout: 5000 })
     })
   })
 })
