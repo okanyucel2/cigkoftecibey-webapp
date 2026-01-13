@@ -11,12 +11,17 @@ const authStore = useAuthStore()
 const sidebarOpen = ref(window.innerWidth >= 1024)
 const branchSelectorOpen = ref(false)
 
+/**
+ * Phase 1 Navigation Structure (Platform Evolution Roadmap)
+ * Target: 6 main navigation groups
+ */
 const menuItems = [
-  { path: '/', name: 'Bilanço', icon: '📊' },
-  { path: '/giderler', name: 'Giderler', icon: '💸' },
-  { path: '/gelirler', name: 'Gelirler', icon: '💰' },
-  { path: '/odemeler', name: 'Ödemeler', icon: '💳' },
-  { path: '/personnel', name: 'Personel', icon: '👥' }
+  { path: '/', name: 'Bilanco', icon: '📊' },
+  { path: '/import', name: 'Ice Aktar', icon: '📥' },
+  { path: '/sales', name: 'Ciro', icon: '💰' },
+  { path: '/operations', name: 'Operasyon', icon: '🏭' },
+  { path: '/personnel', name: 'Personel', icon: '👥' },
+  { path: '/expenses', name: 'Giderler', icon: '💸' }
 ]
 
 // Versiyon bilgileri (build sirasinda enjekte edilir)

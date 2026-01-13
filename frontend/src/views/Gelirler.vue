@@ -26,10 +26,17 @@ const navItems: NavItem[] = [
 ]
 
 // Active tab with bidirectional binding to route
+// Uses route.meta.defaultPath as fallback for routes like /sales/verify
 const activeTab = computed({
   get: () => {
     const path = route.path.replace('/gelirler/', '')
-    return path || 'kasa'
+    // Known tabs - if path matches, use it directly
+    const knownTabs = ['kasa', 'kasa-farki']
+    if (knownTabs.includes(path)) {
+      return path
+    }
+    // Fallback to meta.defaultPath (for routes like /sales/verify)
+    return (route.meta.defaultPath as string) || 'kasa'
   },
   set: (value) => {
     router.push(`/gelirler/${value}`)
@@ -50,7 +57,7 @@ const currentView = computed(() => {
 </script>
 
 <template>
-  <div class="gelirler-view">
+  <div class="gelirler-view" data-testid="gelirler-page">
     <div class="gelirler-header">
       <h1 class="page-title">💰 Gelirler</h1>
       <p class="page-description">Kasa hareketleri ve kasa farkı analizi</p>
@@ -58,12 +65,12 @@ const currentView = computed(() => {
 
     <div class="gelirler-content">
       <!-- Vertical Navigation -->
-      <aside class="gelirler-nav">
+      <aside class="gelirler-nav" data-testid="gelirler-nav">
         <VerticalNav v-model="activeTab" :items="navItems" />
       </aside>
 
       <!-- Content Area -->
-      <main class="gelirler-main">
+      <main class="gelirler-main" :data-testid="`gelirler-tab-${activeTab}`">
         <component :is="currentView" :key="activeTab" />
       </main>
     </div>
