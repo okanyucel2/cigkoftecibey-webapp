@@ -1027,6 +1027,13 @@ class MenuCategoryCreate(BaseModel):
     is_global: bool = False  # True = branch_id=NULL (all branches)
 
 
+class MenuCategoryUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = None
+    display_order: Optional[int] = None
+    is_active: Optional[bool] = None
+
+
 class MenuCategoryResponse(BaseModel):
     id: int
     name: str
