@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { CourierExpense, CourierExpenseSummary } from '@/types'
+import { extractErrorMessage } from '@/types'
 import { courierExpensesApi } from '@/services/api'
 import type { DateRangeValue } from '@/types/filters'
 
@@ -136,8 +137,8 @@ async function submitForm() {
 
     showModal.value = false
     await loadData()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     submitting.value = false
   }
@@ -230,8 +231,8 @@ async function submitBulkForm() {
 
     showBulkModal.value = false
     await loadData()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Toplu kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Toplu kayit basarisiz')
   } finally {
     submitting.value = false
   }

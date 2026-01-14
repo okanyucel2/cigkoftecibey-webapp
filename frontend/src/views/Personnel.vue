@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { Employee, MonthlyPayroll, PayrollSummary, PartTimeCost, PartTimeCostSummary, DateRangeValue } from '@/types'
+import { extractErrorMessage } from '@/types'
 import { personnelApi } from '@/services/api'
 
 // Composables
@@ -164,8 +165,8 @@ async function loadEmployees() {
   try {
     const res = await personnelApi.getEmployees()
     employees.value = res.data
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Personel listesi yuklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Personel listesi yuklenemedi')
   } finally {
     loading.value = false
   }
@@ -216,8 +217,8 @@ async function submitEmployeeForm() {
     }
     showEmployeeForm.value = false
     await loadEmployees()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     submitting.value = false
   }
@@ -228,8 +229,8 @@ async function deleteEmployee(id: number) {
     try {
       await personnelApi.deleteEmployee(id)
       await loadEmployees()
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme basarisiz')
     }
   })
 }
@@ -257,8 +258,8 @@ async function loadPayrolls() {
     ])
     payrolls.value = payrollRes.data
     payrollSummary.value = summaryRes.data
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Bordro yuklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Bordro yuklenemedi')
   } finally {
     loading.value = false
   }
@@ -384,8 +385,8 @@ async function submitPayrollForm() {
     }
     showPayrollForm.value = false
     await loadPayrolls()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     submitting.value = false
   }
@@ -396,8 +397,8 @@ async function deletePayroll(id: number) {
     try {
       await personnelApi.deletePayroll(id)
       await loadPayrolls()
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme basarisiz')
     }
   })
 }
@@ -420,8 +421,8 @@ async function loadPartTimeCosts() {
     ])
     partTimeCosts.value = costsRes.data
     partTimeSummary.value = summaryRes.data
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Part-time giderleri yuklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Part-time giderleri yuklenemedi')
   } finally {
     loading.value = false
   }
@@ -462,8 +463,8 @@ async function submitPartTimeForm() {
     }
     showPartTimeForm.value = false
     await loadPartTimeCosts()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     submitting.value = false
   }
@@ -474,8 +475,8 @@ async function deletePartTimeCost(id: number) {
     try {
       await personnelApi.deletePartTimeCost(id)
       await loadPartTimeCosts()
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme basarisiz')
     }
   })
 }

@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { authApi } from '@/services/api'
+import { extractErrorMessage } from '@/types'
 
 declare global {
   interface Window {
@@ -66,8 +67,8 @@ async function handleGoogleCallback(response: { credential: string }) {
       await authStore.fetchUser()
       router.push('/')
     }
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Google giris basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Google giris basarisiz')
   } finally {
     googleLoading.value = false
   }

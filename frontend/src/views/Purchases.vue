@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, watch } from 'vue'
 import type { Purchase, Supplier, PurchaseProductGroup, PurchaseProduct } from '@/types'
+import { extractErrorMessage } from '@/types'
 import { purchasesApi, suppliersApi, purchaseProductsApi } from '@/services/api'
 import type { DateRangeValue } from '@/types/filters'
 
@@ -190,8 +191,8 @@ async function savePurchase() {
     })
     showPurchaseModal.value = false
     await loadPurchases()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     purchaseLoading.value = false
   }
@@ -218,8 +219,8 @@ async function loadData() {
     ])
     suppliers.value = suppliersRes.data
     await loadPurchases()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Veri yuklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Veri yuklenemedi')
   } finally {
     loading.value = false
   }
@@ -236,8 +237,8 @@ async function loadPurchases() {
     }
     const { data } = await purchasesApi.getAll(params)
     purchases.value = data
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Mal alimlari yuklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Mal alimlari yuklenemedi')
   }
 }
 
@@ -245,8 +246,8 @@ async function loadSuppliers() {
   try {
     const { data } = await suppliersApi.getAll()
     suppliers.value = data
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Tedarikciler yuklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Tedarikciler yuklenemedi')
   }
 }
 
@@ -254,8 +255,8 @@ async function loadProductGroups() {
   try {
     const { data } = await purchaseProductsApi.getGroups()
     productGroups.value = data
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Urun gruplari yuklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Urun gruplari yuklenemedi')
   }
 }
 
@@ -290,8 +291,8 @@ async function saveSupplier() {
     }
     await loadSuppliers()
     closeSupplierForm()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     supplierLoading.value = false
   }
@@ -305,8 +306,8 @@ async function deleteSupplier(id: number) {
       await suppliersApi.delete(id)
       suppliers.value = suppliers.value.filter(s => s.id !== id)
       await loadSuppliers()
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme basarisiz')
     } finally {
       supplierLoading.value = false
     }
@@ -346,8 +347,8 @@ async function saveGroup() {
     }
     await loadProductGroups()
     closeGroupForm()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Grup kaydedilemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Grup kaydedilemedi')
   } finally {
     productGroupsLoading.value = false
   }
@@ -360,8 +361,8 @@ async function deleteGroup(id: number) {
     try {
       await purchaseProductsApi.deleteGroup(id)
       await loadProductGroups()
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme basarisiz')
     } finally {
       productGroupsLoading.value = false
     }
@@ -408,8 +409,8 @@ async function saveProduct() {
     }
     await loadProductGroups()
     closeProductForm()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Urun kaydedilemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Urun kaydedilemedi')
   } finally {
     productGroupsLoading.value = false
   }
@@ -422,8 +423,8 @@ async function deleteProduct(id: number) {
     try {
       await purchaseProductsApi.deleteProduct(id)
       await loadProductGroups()
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme basarisiz')
     } finally {
       productGroupsLoading.value = false
     }
@@ -441,8 +442,8 @@ async function deletePurchase(id: number) {
       await purchasesApi.delete(id)
       purchases.value = purchases.value.filter(p => p.id !== id)
       await loadPurchases()
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme basarisiz')
     }
   })
 }

@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { authApi, invitationCodesApi } from '@/services/api'
 import type { InvitationCodeValidation } from '@/types'
+import { extractErrorMessage } from '@/types'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -37,8 +38,8 @@ async function validateCode() {
     if (!data.valid) {
       error.value = data.message
     }
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kod dogrulanamadi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kod dogrulanamadi')
     validation.value = null
   } finally {
     validating.value = false
@@ -67,8 +68,8 @@ async function handleSubmit() {
     sessionStorage.removeItem('google_credential')
     await authStore.fetchUser()
     router.push('/')
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit tamamlanamadi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit tamamlanamadi')
   } finally {
     loading.value = false
   }

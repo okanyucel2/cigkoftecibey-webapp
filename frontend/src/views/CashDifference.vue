@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { CashDifference, CashDifferenceSummary } from '@/types'
+import { extractErrorMessage } from '@/types'
 import { cashDifferenceApi } from '@/services/api'
 import type { DateRangeValue } from '@/types/filters'
 import { useFormatters, useConfirmModal } from '@/composables'
@@ -91,9 +92,8 @@ async function loadData() {
     ])
     records.value = recordsRes.data
     summary.value = summaryRes.data
-  } catch (e: any) {
-    console.error('Failed to load cash differences:', e)
-    error.value = e.response?.data?.detail || 'Veriler yuklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Veriler yuklenemedi')
   } finally {
     loading.value = false
   }
@@ -129,8 +129,8 @@ async function updateStatus() {
 
     closeDetailModal()
     await loadData() // Reload to update summary
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Guncelleme basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Guncelleme basarisiz')
   } finally {
     updatingStatus.value = false
   }
@@ -189,12 +189,12 @@ async function deleteRecord(id: number) {
           }
         }
         // Show notification or toast here if available
-      } catch (e: any) {
-        error.value = e.response?.data?.detail || 'Silme başarısız'
+      } catch (e: unknown) {
+        error.value = extractErrorMessage(e, 'Silme başarısız')
       }
     })
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Önizleme yüklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Önizleme yüklenemedi')
   }
 }
 

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { paymentsApi } from '@/services'
 import type { SupplierARSummary } from '@/types'
+import { extractErrorMessage } from '@/types'
 
 // Expose refresh function for parent component
 defineExpose({
@@ -49,8 +50,8 @@ async function loadData() {
   try {
     const response = await paymentsApi.getSupplierAR()
     suppliers.value = response.data
-  } catch (e: any) {
-    error.value = e.message || 'Veri yüklenirken hata oluştu'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Veri yüklenirken hata oluştu')
   } finally {
     loading.value = false
   }

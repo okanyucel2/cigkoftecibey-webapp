@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { ChannelsGrouped, OnlineSale, OnlineSalesSummary } from '@/types'
+import { extractErrorMessage } from '@/types'
 import { unifiedSalesApi, onlineSalesApi } from '@/services/api'
 import type { DateRangeValue } from '@/types/filters'
 
@@ -250,8 +251,8 @@ async function submitSaleForm() {
 
     showModal.value = false
     await loadData()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     submitting.value = false
   }
@@ -304,8 +305,8 @@ async function submitPlatformForm() {
     }
     showPlatformForm.value = false
     await loadChannels()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     submitting.value = false
   }
@@ -317,8 +318,8 @@ async function deletePlatform(id: number) {
     try {
       await onlineSalesApi.deletePlatform(id)
       channels.value.online = channels.value.online.filter(c => c.id !== id) // Optimistic
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme basarisiz')
     }
   })
 }
@@ -412,8 +413,8 @@ async function submitBulkDailyForm() {
 
     showBulkModal.value = false
     await loadData()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Toplu kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Toplu kayit basarisiz')
   } finally {
     submitting.value = false
   }
@@ -541,8 +542,8 @@ async function submitBulkPeriodForm() {
 
     showBulkModal.value = false
     await loadData()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Toplu kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Toplu kayit basarisiz')
   } finally {
     submitting.value = false
   }

@@ -749,3 +749,6 @@ export interface AnalyticsEnvelope {
   data: AnalyticsData
   summary: AnalyticsSummary
 }
+
+// Error handling utilities
+export * from './errors'

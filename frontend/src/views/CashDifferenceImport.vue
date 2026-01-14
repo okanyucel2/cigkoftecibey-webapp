@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import type { ExcelParseResult, POSParseResult, ExpenseCategory } from '@/types'
+import { extractErrorMessage } from '@/types'
 import { cashDifferenceApi, categorizationApi, expenseCategoriesApi } from '@/services/api'
 import { useFormatters } from '@/composables'
 import { ErrorAlert, LoadingState } from '@/components/ui'
@@ -138,8 +139,8 @@ async function loadCategories() {
   try {
     const { data } = await expenseCategoriesApi.getAll()
     categories.value = data
-  } catch (e: any) {
-    console.error('Failed to load categories:', e)
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kategoriler yuklenemedi')
   } finally {
     loadingCategories.value = false
   }
@@ -193,9 +194,8 @@ async function parseExcel() {
     if (excelData.value.expenses && excelData.value.expenses.length > 0) {
       await getCategorizationSuggestions()
     }
-  } catch (e: any) {
-    console.error('Excel parse error:', e)
-    error.value = e.response?.data?.detail || 'Excel dosyasi okunamadi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Excel dosyasi okunamadi')
   } finally {
     parsingExcel.value = false
   }
@@ -214,9 +214,8 @@ async function parseHasilatExcel() {
   try {
     const response = await cashDifferenceApi.parseHasilatExcel(hasilatExcelFile.value)
     posData.value = response.data
-  } catch (e: any) {
-    console.error('Hasılat parse error:', e)
-    error.value = e.response?.data?.detail || 'Hasılat Excel okunamadi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Hasılat Excel okunamadi')
   } finally {
     parsingPOS.value = false
   }
@@ -256,9 +255,8 @@ async function submitImport() {
 
     // Emit success and let parent handle the rest
     emit('success')
-  } catch (e: any) {
-    console.error('Import error:', e)
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     loading.value = false
   }

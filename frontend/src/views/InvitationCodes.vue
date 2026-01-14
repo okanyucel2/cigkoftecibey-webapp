@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { invitationCodesApi, branchesApi } from '@/services/api'
 import type { InvitationCode, Branch } from '@/types'
+import { extractErrorMessage } from '@/types'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
 const codes = ref<InvitationCode[]>([])
@@ -46,8 +47,8 @@ async function loadData() {
     ])
     codes.value = codesRes.data
     branches.value = branchesRes.data
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Veri yuklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Veri yuklenemedi')
   } finally {
     loading.value = false
   }
@@ -83,8 +84,8 @@ async function createCode() {
     await invitationCodesApi.create(data)
     showModal.value = false
     await loadData()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kod olusturulamadi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kod olusturulamadi')
   } finally {
     modalLoading.value = false
   }
@@ -114,8 +115,8 @@ async function deactivateCode(code: InvitationCode) {
       await invitationCodesApi.delete(code.id)
       codes.value = codes.value.filter(c => c.id !== code.id) // Optimistic
       await loadData()
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Kod devre disi birakilamadi'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Kod devre disi birakilamadi')
     }
   })
 }

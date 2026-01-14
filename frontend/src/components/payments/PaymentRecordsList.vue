@@ -5,6 +5,7 @@ import { suppliersApi } from '@/services/api'
 import { useConfirmModal } from '@/composables'
 import { ConfirmModal } from '@/components/ui'
 import type { SupplierPayment, PaymentFilters, PaymentType, Supplier } from '@/types'
+import { extractErrorMessage } from '@/types'
 
 // Emits for parent component to refresh AR list
 const emit = defineEmits<{
@@ -124,8 +125,8 @@ async function loadData() {
     ])
     payments.value = paymentsRes.data
     suppliers.value = suppliersRes.data.sort((a, b) => a.name.localeCompare(b.name, 'tr'))
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Veri yüklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Veri yüklenemedi')
   } finally {
     loading.value = false
   }
@@ -137,8 +138,8 @@ async function loadPayments() {
   try {
     const { data } = await paymentsApi.getPayments(filters.value)
     payments.value = data
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Veri yüklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Veri yüklenemedi')
   } finally {
     loading.value = false
   }
@@ -200,8 +201,8 @@ async function deletePayment(id: number) {
       setTimeout(() => {
         successMessage.value = ''
       }, 3000)
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme başarısız'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme başarısız')
     } finally {
       loading.value = false
     }
@@ -270,8 +271,8 @@ async function savePayment() {
     setTimeout(() => {
       successMessage.value = ''
     }, 5000)
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || (editingId.value ? 'Güncelleme başarısız' : 'Ödeme oluşturulamadı')
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, editingId.value ? 'Güncelleme başarısız' : 'Ödeme oluşturulamadı')
   } finally {
     modalLoading.value = false
   }

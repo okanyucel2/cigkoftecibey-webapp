@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { Expense, ExpenseCategory, DateRangeValue } from '@/types'
+import { extractErrorMessage } from '@/types'
 import { expensesApi, expenseCategoriesApi } from '@/services/api'
 
 // Composables
@@ -136,8 +137,8 @@ async function submitCategoryForm() {
     }
     showCategoryForm.value = false
     await loadCategories()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     categorySubmitting.value = false
   }
@@ -149,8 +150,8 @@ async function deleteCategory(id: number) {
     try {
       await expenseCategoriesApi.delete(id)
       await loadCategories()
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme basarisiz')
     }
   })
 }
@@ -225,8 +226,8 @@ async function saveExpense() {
     })
     showExpenseModal.value = false
     await loadExpenses()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     expenseLoading.value = false
   }

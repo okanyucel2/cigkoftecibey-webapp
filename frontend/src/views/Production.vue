@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { productionApi } from '@/services/api'
 import type { DailyProduction, ProductionSummary } from '@/types'
 import type { DateRangeValue } from '@/types/filters'
+import { extractErrorMessage } from '@/types'
 
 // Composables
 import { useFormatters, useConfirmModal } from '@/composables'
@@ -78,8 +79,8 @@ async function loadData() {
     ])
     productions.value = prodRes.data
     summary.value = summaryRes.data
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Veri yuklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Veri yuklenemedi')
   } finally {
     loading.value = false
   }
@@ -127,8 +128,8 @@ async function saveProduction() {
     }
     showForm.value = false
     await loadData()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     loading.value = false
   }
@@ -143,8 +144,8 @@ async function deleteProduction(id: number) {
       if (index > -1) {
         productions.value.splice(index, 1)
       }
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme basarisiz')
     } finally {
       loading.value = false
     }

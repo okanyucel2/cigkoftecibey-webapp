@@ -3,6 +3,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import type { StaffMeal, StaffMealSummary } from '@/types'
+import { extractErrorMessage } from '@/types'
 import { staffMealsApi } from '@/services/api'
 import type { DateRangeValue } from '@/types/filters'
 
@@ -69,8 +70,8 @@ async function loadData() {
     if (mealsRes.data.length > 0) {
       lastUnitPrice.value = Number(mealsRes.data[0].unit_price)
     }
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Veri yuklenemedi'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Veri yuklenemedi')
   } finally {
     loading.value = false
   }
@@ -128,8 +129,8 @@ async function handleSubmit() {
     lastUnitPrice.value = form.value.unit_price
     closeForm()
     await loadData()
-  } catch (e: any) {
-    error.value = e.response?.data?.detail || 'Kayit basarisiz'
+  } catch (e: unknown) {
+    error.value = extractErrorMessage(e, 'Kayit basarisiz')
   } finally {
     submitting.value = false
   }
@@ -143,8 +144,8 @@ async function deleteMeal(id: number) {
       if (index > -1) {
         meals.value.splice(index, 1)
       }
-    } catch (e: any) {
-      error.value = e.response?.data?.detail || 'Silme basarisiz'
+    } catch (e: unknown) {
+      error.value = extractErrorMessage(e, 'Silme basarisiz')
     }
   })
 }

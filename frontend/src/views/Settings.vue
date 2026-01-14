@@ -2,6 +2,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import type { Branch } from '@/types'
+import { extractErrorMessage } from '@/types'
 import { branchesApi, usersApi, type UserWithBranches } from '@/services/api'
 import ConfirmModal from '@/components/ui/ConfirmModal.vue'
 
@@ -109,8 +110,8 @@ async function saveBranch() {
     await loadData()
     // Refresh auth to update accessible branches
     await authStore.fetchUser()
-  } catch (error: any) {
-    alert(error.response?.data?.detail || 'Bir hata olustu')
+  } catch (error: unknown) {
+    alert(extractErrorMessage(error, 'Bir hata olustu'))
   }
 }
 
@@ -123,8 +124,8 @@ async function toggleBranchActive(branch: Branch) {
     }
     await loadData()
     await authStore.fetchUser()
-  } catch (error: any) {
-    alert(error.response?.data?.detail || 'Bir hata olustu')
+  } catch (error: unknown) {
+    alert(extractErrorMessage(error, 'Bir hata olustu'))
   }
 }
 
@@ -168,8 +169,8 @@ async function saveUser() {
     }
     showUserModal.value = false
     await loadData()
-  } catch (error: any) {
-    alert(error.response?.data?.detail || 'Bir hata olustu')
+  } catch (error: unknown) {
+    alert(extractErrorMessage(error, 'Bir hata olustu'))
   }
 }
 
@@ -177,8 +178,8 @@ async function toggleUserActive(user: UserWithBranches) {
   try {
     await usersApi.update(user.id, { is_active: !user.is_active })
     await loadData()
-  } catch (error: any) {
-    alert(error.response?.data?.detail || 'Bir hata olustu')
+  } catch (error: unknown) {
+    alert(extractErrorMessage(error, 'Bir hata olustu'))
   }
 }
 
@@ -186,8 +187,8 @@ async function toggleUserSuperAdmin(user: UserWithBranches) {
   try {
     await usersApi.update(user.id, { is_super_admin: !user.is_super_admin })
     await loadData()
-  } catch (error: any) {
-    alert(error.response?.data?.detail || 'Bir hata olustu')
+  } catch (error: unknown) {
+    alert(extractErrorMessage(error, 'Bir hata olustu'))
   }
 }
 
@@ -223,8 +224,8 @@ async function assignBranch() {
     })
     showAssignModal.value = false
     await loadData()
-  } catch (error: any) {
-    alert(error.response?.data?.detail || 'Bir hata olustu')
+  } catch (error: unknown) {
+    alert(extractErrorMessage(error, 'Bir hata olustu'))
   }
 }
 
@@ -253,8 +254,8 @@ async function removeBranchAssignment(user: UserWithBranches, branchId: number) 
       // Optimistic
       user.branches = user.branches.filter(b => b.branch_id !== branchId)
       await loadData()
-    } catch (error: any) {
-      alert(error.response?.data?.detail || 'Bir hata olustu')
+    } catch (error: unknown) {
+      alert(extractErrorMessage(error, 'Bir hata olustu'))
     }
   })
 }
