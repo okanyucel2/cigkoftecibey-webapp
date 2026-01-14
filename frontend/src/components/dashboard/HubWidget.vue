@@ -125,15 +125,12 @@ const ringColorClass = computed(() => {
 })
 
 function toggleExpanded() {
-  console.log('Hub clicked:', props.testId)
   isExpanded.value = !isExpanded.value
-  console.log('Dropdown state:', isExpanded.value)
 }
 
 const router = useRouter()
 
 function handleActionClick(action: HubAction) {
-  console.log('Action clicked:', action.id)
   isExpanded.value = false
 
   // If action has a link, navigate directly
@@ -150,7 +147,6 @@ function handleActionClick(action: HubAction) {
 function handleClickOutside(event: MouseEvent) {
   const target = event.target as HTMLElement
   const isInside = target.closest(`[data-testid="${props.testId}"]`)
-  console.log('Outside click detected, isInside:', !!isInside, 'testId:', props.testId)
   if (!isInside) {
     isExpanded.value = false
   }
@@ -162,11 +158,9 @@ watch(isExpanded, (newVal) => {
     // Use nextTick to add listener AFTER current click event completes
     nextTick(() => {
       document.addEventListener('click', handleClickOutside)
-      console.log('Added outside click listener for:', props.testId)
     })
   } else {
     document.removeEventListener('click', handleClickOutside)
-    console.log('Removed outside click listener for:', props.testId)
   }
 })
 
