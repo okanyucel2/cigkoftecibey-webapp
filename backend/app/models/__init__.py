@@ -1,7 +1,7 @@
 from datetime import datetime, date, time, UTC
 from decimal import Decimal
 from typing import Optional
-from sqlalchemy import String, Integer, Numeric, Boolean, DateTime, Date, Time, ForeignKey, Text, JSON
+from sqlalchemy import String, Integer, Numeric, Boolean, DateTime, Date, Time, ForeignKey, Text, JSON, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -617,30 +617,51 @@ class MenuCategory(Base):
 
 
 class MenuItem(Base):
-    """Menu item within a category (hybrid tenant isolation)
+    """Menu item within a category
 
-    - branch_id=NULL: Global items (visible to all branches)
-    - branch_id=X: Branch-specific items (visible only to that branch)
+    Items are global (no branch_id on item itself).
+    Pricing is handled via MenuItemPrice for branch-specific prices.
     """
     __tablename__ = "menu_items"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     category_id: Mapped[int] = mapped_column(ForeignKey("menu_categories.id"))
-    branch_id: Mapped[Optional[int]] = mapped_column(ForeignKey("branches.id"), nullable=True)  # NULL = global
     name: Mapped[str] = mapped_column(String(100))
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
+    image_url: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     display_order: Mapped[int] = mapped_column(Integer, default=0)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
-    is_available: Mapped[bool] = mapped_column(Boolean, default=True)  # Can be temporarily unavailable
     created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
-    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, onupdate=lambda: datetime.now(UTC))
 
     # Relationships
     category: Mapped["MenuCategory"] = relationship(back_populates="items")
-    branch: Mapped[Optional["Branch"]] = relationship()
     creator: Mapped["User"] = relationship()
+    prices: Mapped[list["MenuItemPrice"]] = relationship(back_populates="menu_item", cascade="all, delete-orphan")
+
+
+class MenuItemPrice(Base):
+    """Branch-specific pricing for menu items
+
+    - branch_id=NULL: Default price (applies to all branches without override)
+    - branch_id=X: Branch-specific price (overrides default for that branch)
+    """
+    __tablename__ = "menu_item_prices"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    menu_item_id: Mapped[int] = mapped_column(ForeignKey("menu_items.id", ondelete="CASCADE"))
+    branch_id: Mapped[Optional[int]] = mapped_column(ForeignKey("branches.id"), nullable=True)  # NULL = default
+    price: Mapped[Decimal] = mapped_column(Numeric(10, 2))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    # Relationships
+    menu_item: Mapped["MenuItem"] = relationship(back_populates="prices")
+    branch: Mapped[Optional["Branch"]] = relationship()
+
+    __table_args__ = (
+        # Unique constraint: one price per item per branch (NULL counts as unique)
+        Index('ix_menu_item_prices_item_branch', 'menu_item_id', 'branch_id', unique=True),
+    )
 
 
 class BranchOperatingHours(Base):

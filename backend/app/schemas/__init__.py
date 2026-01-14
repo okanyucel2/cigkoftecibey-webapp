@@ -1053,20 +1053,18 @@ class MenuItemCreate(BaseModel):
     category_id: int
     name: str = Field(..., min_length=1, max_length=100)
     description: Optional[str] = None
-    price: Decimal = Decimal("0.00")
+    image_url: Optional[str] = Field(None, max_length=500)
     display_order: int = 0
-    is_available: bool = True
-    is_global: bool = False  # True = branch_id=NULL (all branches)
+    default_price: Optional[Decimal] = None  # Creates MenuItemPrice with branch_id=NULL
 
 
 class MenuItemUpdate(BaseModel):
     category_id: Optional[int] = None
     name: Optional[str] = Field(None, min_length=1, max_length=100)
     description: Optional[str] = None
-    price: Optional[Decimal] = None
+    image_url: Optional[str] = Field(None, max_length=500)
     display_order: Optional[int] = None
     is_active: Optional[bool] = None
-    is_available: Optional[bool] = None
 
 
 class MenuItemResponse(BaseModel):
@@ -1074,13 +1072,30 @@ class MenuItemResponse(BaseModel):
     category_id: int
     name: str
     description: Optional[str]
-    price: Decimal
+    image_url: Optional[str]
     display_order: int
     is_active: bool
-    is_available: bool
-    branch_id: Optional[int]
+    price: Optional[Decimal] = None  # Resolved price for current branch
+    price_is_default: Optional[bool] = None  # True if using default price
     created_at: datetime
-    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
+# Menu Item Price
+class MenuItemPriceSet(BaseModel):
+    """Set price for menu item (default or branch-specific)"""
+    price: Decimal = Field(..., gt=0)
+    branch_id: Optional[int] = None  # NULL = default price
+
+
+class MenuItemPriceResponse(BaseModel):
+    id: int
+    menu_item_id: int
+    branch_id: Optional[int]
+    price: Decimal
+    created_at: datetime
 
     class Config:
         from_attributes = True
