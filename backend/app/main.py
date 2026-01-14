@@ -17,7 +17,7 @@ except Exception as e:
 from app.config import settings
 from app.middleware import RequestLoggingMiddleware
 from app.logging_config import setup_logging
-from app.api import auth, purchases, expenses, reports, production, staff_meals, personnel, online_sales, branches, users, invitation_codes, courier_expenses, ai_insights, cash_difference, import_history, categorization, payments, health
+from app.api import auth, purchases, expenses, reports, production, staff_meals, personnel, online_sales, branches, users, invitation_codes, courier_expenses, ai_insights, cash_difference, import_history, categorization, payments, health, menu_categories, branch_hours, branch_holidays
 
 # Startup Configuration Validation (P0.43)
 def validate_configuration():
@@ -114,6 +114,9 @@ app.include_router(import_history.router, prefix="/api")
 app.include_router(categorization.router, prefix="/api")
 app.include_router(payments.router, prefix="/api")
 app.include_router(health.router, prefix="/api")
+app.include_router(menu_categories.router, prefix="/api")
+app.include_router(branch_hours.router, prefix="/api")
+app.include_router(branch_holidays.router, prefix="/api")
 
 
 @app.get("/")

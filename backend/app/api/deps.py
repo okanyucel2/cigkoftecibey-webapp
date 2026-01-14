@@ -1,10 +1,12 @@
+import logging
 from datetime import datetime, timedelta
 from typing import Annotated, Optional
 from dataclasses import dataclass
-from fastapi import Depends, HTTPException, status, Header
+from fastapi import Depends, HTTPException, status, Header, Request
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
@@ -12,8 +14,19 @@ from app.models import User, Branch, UserBranch
 from app.schemas import TokenData
 
 
+logger = logging.getLogger(__name__)
+
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/auth/login")
+
+
+@dataclass
+class TenantContext:
+    """Context object containing tenant information for multi-tenant isolation"""
+    tenant_id: int
+    source: str  # "user", "header", or "query"
+    user: User
 
 
 @dataclass
@@ -174,6 +187,88 @@ def get_branch_context(
     )
 
 
+def get_current_tenant(
+    request: Request,
+    db: Session,
+    user: User
+) -> TenantContext:
+    """
+    Extract tenant context for multi-tenant isolation.
+
+    Priority for super_admin:
+    1. X-Tenant-ID header (API/dev use)
+    2. ?tenant= query param (dev only)
+    3. User's organization_id
+
+    Regular users always use their organization_id.
+
+    Also sets PostgreSQL session variable for RLS policies.
+    """
+    tenant_id: Optional[int] = None
+    source: str = "user"
+
+    # Super admins can override tenant via header or query param
+    if user.is_super_admin:
+        # Try header first
+        header_val = request.headers.get("x-tenant-id")
+        if header_val and header_val.isdigit():
+            tenant_id = int(header_val)
+            source = "header"
+            # AUDIT: Log tenant override for security monitoring
+            logger.warning(
+                "Tenant override via X-Tenant-ID header: user=%s (id=%d) "
+                "accessing tenant_id=%d (original org=%s)",
+                user.email, user.id, tenant_id, user.organization_id
+            )
+
+        # Try query param if no header
+        if tenant_id is None:
+            query_val = request.query_params.get("tenant")
+            if query_val and query_val.isdigit():
+                tenant_id = int(query_val)
+                source = "query"
+                # AUDIT: Log tenant override for security monitoring
+                logger.warning(
+                    "Tenant override via query param: user=%s (id=%d) "
+                    "accessing tenant_id=%d (original org=%s)",
+                    user.email, user.id, tenant_id, user.organization_id
+                )
+
+    # Default to user's organization
+    if tenant_id is None:
+        tenant_id = user.organization_id
+        source = "user"
+
+    # Validate tenant exists
+    if tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Tenant context missing. User has no organization."
+        )
+
+    # Set PostgreSQL session variable for RLS
+    # CRITICAL: Use 'true' for transaction-scoped (resets at transaction end)
+    # Using 'false' would leak tenant context across pooled connections!
+    db.execute(
+        text("SELECT set_config('app.current_tenant', :tid, true)"),
+        {"tid": str(tenant_id)}
+    )
+
+    # Set super admin bypass flag for RLS policies
+    # Phase 2 RLS policies will check this flag to allow full access
+    if user.is_super_admin:
+        db.execute(
+            text("SELECT set_config('app.is_superuser', 'on', true)")
+        )
+
+    return TenantContext(
+        tenant_id=tenant_id,
+        source=source,
+        user=user
+    )
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
 DBSession = Annotated[Session, Depends(get_db)]
 CurrentBranchContext = Annotated[BranchContext, Depends(get_branch_context)]
+CurrentTenantContext = Annotated[TenantContext, Depends(get_current_tenant)]

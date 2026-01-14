@@ -1,11 +1,16 @@
 from datetime import date, timedelta, datetime
 from decimal import Decimal
 from calendar import monthrange
-from fastapi import APIRouter, HTTPException
+from enum import Enum
+import csv
+import io
+from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, and_, case
+from openpyxl import Workbook
 from app.api.deps import DBSession, CurrentBranchContext
-from app.models import Purchase, Expense, DailyProduction, StaffMeal, OnlineSale, OnlinePlatform, CourierExpense, PartTimeCost
-from app.schemas import DashboardStats, BilancoStats, DaySummary, ComparisonResponse, BilancoPeriodData, RevenueBreakdown, ExpenseBreakdown
+from app.models import Purchase, Expense, DailyProduction, StaffMeal, OnlineSale, OnlinePlatform, CourierExpense, PartTimeCost, CashDifference
+from app.schemas import DashboardStats, BilancoStats, DaySummary, ComparisonResponse, BilancoPeriodData, RevenueBreakdown, ExpenseBreakdown, DashboardComparisonResponse, ComparisonMetric, AnalyticsEnvelope, AnalyticsMeta, AnalyticsSummary, AnalyticsData, DailySalesRecord
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -1097,3 +1102,336 @@ def bilanco_compare(
     )
 
     return ComparisonResponse(left=left_data, right=right_data)
+
+
+@router.get("/dashboard/comparison", response_model=DashboardComparisonResponse)
+def get_dashboard_comparison(
+    db: DBSession,
+    ctx: CurrentBranchContext,
+    target_date: str | None = None,
+    compare_to: str = "yesterday"  # yesterday, last_week, last_month
+):
+    """
+    Dashboard comparison for trend badges.
+
+    Returns sales and expense comparison between target date and previous period.
+
+    Query Parameters:
+    - target_date: ISO date string (default: today)
+    - compare_to: 'yesterday' | 'last_week' | 'last_month' (default: yesterday)
+    """
+    branch_id = ctx.current_branch_id
+
+    # Parse target date
+    if target_date:
+        try:
+            current_date = date.fromisoformat(target_date)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid date format: {target_date}")
+    else:
+        current_date = date.today()
+
+    # Calculate compare date based on compare_to parameter
+    if compare_to == "yesterday":
+        compare_date = current_date - timedelta(days=1)
+    elif compare_to == "last_week":
+        compare_date = current_date - timedelta(days=7)
+    elif compare_to == "last_month":
+        compare_date = current_date - timedelta(days=30)
+    else:
+        raise HTTPException(status_code=400, detail=f"Invalid compare_to value: {compare_to}")
+
+    # Get current date sales (all channels: pos_visa, pos_nakit, online)
+    # NOTE: OnlineSale table contains ALL sales channels, not just "online" ones.
+    # The name is historical - it stores Salon (pos_visa), Nakit (pos_nakit), and Online sales.
+    current_sales = db.query(func.coalesce(func.sum(OnlineSale.amount), 0)).filter(
+        OnlineSale.branch_id == branch_id,
+        OnlineSale.sale_date == current_date
+    ).scalar()
+    current_sales = float(current_sales or 0)
+
+    # Get compare date sales (same unified table)
+    compare_sales = db.query(func.coalesce(func.sum(OnlineSale.amount), 0)).filter(
+        OnlineSale.branch_id == branch_id,
+        OnlineSale.sale_date == compare_date
+    ).scalar()
+    compare_sales = float(compare_sales or 0)
+
+    # Calculate sales diff
+    sales_diff = current_sales - compare_sales
+    if compare_sales > 0:
+        sales_diff_percent = round((sales_diff / compare_sales) * 100, 1)
+    else:
+        sales_diff_percent = 0.0 if current_sales == 0 else 100.0
+
+    # Get current date expenses (purchases + expenses + courier + parttime + staff meals)
+    current_purchases = db.query(func.coalesce(func.sum(Purchase.total), 0)).filter(
+        Purchase.branch_id == branch_id,
+        Purchase.purchase_date == current_date
+    ).scalar()
+
+    current_expenses = db.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
+        Expense.branch_id == branch_id,
+        Expense.expense_date == current_date
+    ).scalar()
+
+    current_courier = db.query(
+        func.coalesce(func.sum(CourierExpense.amount + CourierExpense.amount * CourierExpense.vat_rate / 100), 0)
+    ).filter(
+        CourierExpense.branch_id == branch_id,
+        CourierExpense.expense_date == current_date
+    ).scalar()
+
+    current_parttime = db.query(func.coalesce(func.sum(PartTimeCost.amount), 0)).filter(
+        PartTimeCost.branch_id == branch_id,
+        PartTimeCost.cost_date == current_date
+    ).scalar()
+
+    current_staff = db.query(func.coalesce(func.sum(StaffMeal.unit_price * StaffMeal.staff_count), 0)).filter(
+        StaffMeal.branch_id == branch_id,
+        StaffMeal.meal_date == current_date
+    ).scalar()
+
+    current_total_expenses = float(current_purchases or 0) + float(current_expenses or 0) + \
+                             float(current_courier or 0) + float(current_parttime or 0) + float(current_staff or 0)
+
+    # Get compare date expenses
+    compare_purchases = db.query(func.coalesce(func.sum(Purchase.total), 0)).filter(
+        Purchase.branch_id == branch_id,
+        Purchase.purchase_date == compare_date
+    ).scalar()
+
+    compare_expenses = db.query(func.coalesce(func.sum(Expense.amount), 0)).filter(
+        Expense.branch_id == branch_id,
+        Expense.expense_date == compare_date
+    ).scalar()
+
+    compare_courier = db.query(
+        func.coalesce(func.sum(CourierExpense.amount + CourierExpense.amount * CourierExpense.vat_rate / 100), 0)
+    ).filter(
+        CourierExpense.branch_id == branch_id,
+        CourierExpense.expense_date == compare_date
+    ).scalar()
+
+    compare_parttime = db.query(func.coalesce(func.sum(PartTimeCost.amount), 0)).filter(
+        PartTimeCost.branch_id == branch_id,
+        PartTimeCost.cost_date == compare_date
+    ).scalar()
+
+    compare_staff = db.query(func.coalesce(func.sum(StaffMeal.unit_price * StaffMeal.staff_count), 0)).filter(
+        StaffMeal.branch_id == branch_id,
+        StaffMeal.meal_date == compare_date
+    ).scalar()
+
+    compare_total_expenses = float(compare_purchases or 0) + float(compare_expenses or 0) + \
+                             float(compare_courier or 0) + float(compare_parttime or 0) + float(compare_staff or 0)
+
+    # Calculate expenses diff
+    expenses_diff = current_total_expenses - compare_total_expenses
+    if compare_total_expenses > 0:
+        expenses_diff_percent = round((expenses_diff / compare_total_expenses) * 100, 1)
+    else:
+        expenses_diff_percent = 0.0 if current_total_expenses == 0 else 100.0
+
+    return DashboardComparisonResponse(
+        current_date=current_date.isoformat(),
+        compare_date=compare_date.isoformat(),
+        sales=ComparisonMetric(
+            current=current_sales,
+            previous=compare_sales,
+            diff=sales_diff,
+            diff_percent=sales_diff_percent
+        ),
+        expenses=ComparisonMetric(
+            current=current_total_expenses,
+            previous=compare_total_expenses,
+            diff=expenses_diff,
+            diff_percent=expenses_diff_percent
+        )
+    )
+
+
+@router.get("/daily-sales-analytics", response_model=AnalyticsEnvelope)
+def get_daily_sales_analytics(
+    db: DBSession,
+    ctx: CurrentBranchContext,
+    start_date: date,
+    end_date: date
+):
+    """
+    Get daily sales analytics with AnalyticsEnvelope response.
+
+    Returns aggregated cash difference data for the specified date range,
+    filtered by tenant (branch_id).
+
+    Query optimized by idx_cash_diff_tenant_date composite index.
+    """
+    branch_id = ctx.current_branch_id
+
+    # Query cash differences for the date range
+    records = db.query(CashDifference).filter(
+        CashDifference.branch_id == branch_id,
+        CashDifference.difference_date >= start_date,
+        CashDifference.difference_date <= end_date
+    ).order_by(CashDifference.difference_date).all()
+
+    # Build daily breakdown
+    daily_breakdown = []
+    total_kasa = Decimal("0")
+    total_pos = Decimal("0")
+
+    for record in records:
+        daily_breakdown.append(DailySalesRecord(
+            date=record.difference_date,
+            kasa_visa=record.kasa_visa,
+            kasa_nakit=record.kasa_nakit,
+            kasa_trendyol=record.kasa_trendyol,
+            kasa_getir=record.kasa_getir,
+            kasa_yemeksepeti=record.kasa_yemeksepeti,
+            kasa_migros=record.kasa_migros,
+            kasa_total=record.kasa_total,
+            pos_visa=record.pos_visa,
+            pos_nakit=record.pos_nakit,
+            pos_trendyol=record.pos_trendyol,
+            pos_getir=record.pos_getir,
+            pos_yemeksepeti=record.pos_yemeksepeti,
+            pos_migros=record.pos_migros,
+            pos_total=record.pos_total,
+            diff_total=record.pos_total - record.kasa_total,
+            status=record.status
+        ))
+        total_kasa += record.kasa_total
+        total_pos += record.pos_total
+
+    # Calculate summary
+    record_count = len(records)
+    total_diff = total_pos - total_kasa
+    avg_daily_kasa = total_kasa / record_count if record_count > 0 else Decimal("0")
+    avg_daily_pos = total_pos / record_count if record_count > 0 else Decimal("0")
+
+    return AnalyticsEnvelope(
+        meta=AnalyticsMeta(
+            period_start=start_date,
+            period_end=end_date,
+            branch_id=branch_id,
+            generated_at=datetime.utcnow(),
+            record_count=record_count
+        ),
+        data=AnalyticsData(
+            daily_breakdown=daily_breakdown
+        ),
+        summary=AnalyticsSummary(
+            total_kasa=total_kasa,
+            total_pos=total_pos,
+            total_diff=total_diff,
+            avg_daily_kasa=avg_daily_kasa,
+            avg_daily_pos=avg_daily_pos
+        )
+    )
+
+
+class ExportFormat(str, Enum):
+    csv = "csv"
+    excel = "excel"
+
+
+@router.get("/daily-sales-analytics/export")
+def export_daily_sales_analytics(
+    db: DBSession,
+    ctx: CurrentBranchContext,
+    start_date: date,
+    end_date: date,
+    format: ExportFormat = Query(default=ExportFormat.csv)
+):
+    """
+    Export daily sales analytics as CSV or Excel file.
+
+    Supports:
+    - CSV: text/csv with UTF-8 encoding
+    - Excel: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
+
+    Returns StreamingResponse with Content-Disposition for file download.
+    """
+    branch_id = ctx.current_branch_id
+
+    # Query cash differences for the date range (same as analytics endpoint)
+    records = db.query(CashDifference).filter(
+        CashDifference.branch_id == branch_id,
+        CashDifference.difference_date >= start_date,
+        CashDifference.difference_date <= end_date
+    ).order_by(CashDifference.difference_date).all()
+
+    # Prepare data rows
+    headers = [
+        "date", "kasa_visa", "kasa_nakit", "kasa_trendyol", "kasa_getir",
+        "kasa_yemeksepeti", "kasa_migros", "kasa_total",
+        "pos_visa", "pos_nakit", "pos_trendyol", "pos_getir",
+        "pos_yemeksepeti", "pos_migros", "pos_total", "diff_total", "status"
+    ]
+
+    rows = []
+    for record in records:
+        rows.append([
+            str(record.difference_date),
+            str(record.kasa_visa or 0),
+            str(record.kasa_nakit or 0),
+            str(record.kasa_trendyol or 0),
+            str(record.kasa_getir or 0),
+            str(record.kasa_yemeksepeti or 0),
+            str(record.kasa_migros or 0),
+            str(record.kasa_total or 0),
+            str(record.pos_visa or 0),
+            str(record.pos_nakit or 0),
+            str(record.pos_trendyol or 0),
+            str(record.pos_getir or 0),
+            str(record.pos_yemeksepeti or 0),
+            str(record.pos_migros or 0),
+            str(record.pos_total or 0),
+            str((record.pos_total or 0) - (record.kasa_total or 0)),
+            record.status or ""
+        ])
+
+    filename_base = f"analytics_{start_date}_{end_date}"
+
+    if format == ExportFormat.csv:
+        # Generate CSV
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(headers)
+        writer.writerows(rows)
+
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename_base}.csv"
+            }
+        )
+
+    elif format == ExportFormat.excel:
+        # Generate Excel
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Daily Sales Analytics"
+
+        # Write headers
+        for col, header in enumerate(headers, 1):
+            ws.cell(row=1, column=col, value=header)
+
+        # Write data
+        for row_idx, row in enumerate(rows, 2):
+            for col_idx, value in enumerate(row, 1):
+                ws.cell(row=row_idx, column=col_idx, value=value)
+
+        # Save to bytes
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        return StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename={filename_base}.xlsx"
+            }
+        )

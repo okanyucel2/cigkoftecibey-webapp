@@ -13,6 +13,29 @@ from sqlalchemy.orm import Session
 
 from app.models import User
 
+# App version and start time for uptime tracking
+APP_VERSION = "1.0.0"
+APP_START_TIME = datetime.utcnow()
+
+
+def get_uptime() -> str:
+    """Calculate human-readable uptime string."""
+    delta = datetime.utcnow() - APP_START_TIME
+    total_seconds = int(delta.total_seconds())
+
+    days = total_seconds // 86400
+    hours = (total_seconds % 86400) // 3600
+    minutes = (total_seconds % 3600) // 60
+
+    parts = []
+    if days > 0:
+        parts.append(f"{days}d")
+    if hours > 0:
+        parts.append(f"{hours}h")
+    parts.append(f"{minutes}m")
+
+    return " ".join(parts)
+
 
 @dataclass
 class CheckResult:
@@ -347,6 +370,8 @@ class HealthChecker:
         Returns:
         {
             "status": "healthy|degraded|unhealthy",
+            "version": "1.0.0",
+            "uptime": "2h 34m",
             "timestamp": "ISO-8601",
             "checks": {
                 "database": {...},
@@ -377,6 +402,8 @@ class HealthChecker:
 
         return {
             "status": status,
+            "version": APP_VERSION,
+            "uptime": get_uptime(),
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "checks": {c.name: c.to_dict() for c in checks}
         }

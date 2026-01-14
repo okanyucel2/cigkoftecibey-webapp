@@ -1,11 +1,19 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import type { CashDifference, CashDifferenceSummary } from '@/types'
 import { cashDifferenceApi } from '@/services/api'
 import type { DateRangeValue } from '@/types/filters'
 import { useFormatters, useConfirmModal } from '@/composables'
 import { ConfirmModal, ErrorAlert, LoadingState, UnifiedFilterBar, PageModal, SummaryCard } from '@/components/ui'
 import CashDifferenceImport from './CashDifferenceImport.vue'
+
+// Router for query param detection (Import Hub auto-open modal)
+const route = useRoute()
+const router = useRouter()
+
+// DEBUG: Verify component loads
+console.log('🔵 CashDifference.vue SCRIPT EXECUTED')
 
 // Use composables
 const { formatCurrency, formatDate } = useFormatters()
@@ -54,7 +62,31 @@ const filterMonth = computed(() => new Date(dateRangeFilter.value.start).getMont
 const filterYear = computed(() => new Date(dateRangeFilter.value.start).getFullYear())
 
 onMounted(async () => {
+  console.log('🟢 CashDifference onMounted CALLED')
+  console.log('🟢 route.path =', route.path)
+  console.log('🟢 route.query =', JSON.stringify(route.query))
+  console.log('🟢 route.query.import =', route.query.import)
+
   await loadData()
+
+  // Auto-open import modal when coming from Import Hub with ?import=true
+  if (route.query.import === 'true') {
+    console.log('🟢 CONDITION MET - Opening modal')
+    showImportModal.value = true
+    console.log('🟢 showImportModal.value =', showImportModal.value)
+    // Clean up URL to prevent re-opening on refresh
+    router.replace({ path: route.path, query: {} })
+  } else {
+    console.log('🔴 CONDITION NOT MET - import query param:', route.query.import)
+  }
+})
+
+// Watch for route query changes (SPA navigation)
+watch(() => route.query.import, (newVal) => {
+  if (newVal === 'true') {
+    showImportModal.value = true
+    router.replace({ path: route.path, query: {} })
+  }
 })
 
 watch(() => dateRangeFilter.value, () => {

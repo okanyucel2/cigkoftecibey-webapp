@@ -41,6 +41,13 @@ htmlcov/
 .coverage
 coverage.xml
 
+# Storybook
+storybook-static/
+
+# Test artifacts
+tests/e2e/screenshots/
+ux-audit/
+
 # Local env
 .env.local
 .env.*.local

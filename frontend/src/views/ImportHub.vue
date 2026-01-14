@@ -1,8 +1,19 @@
 <template>
-  <div class="space-y-6">
+  <div class="space-y-6" data-testid="import-hub-page">
     <!-- Header -->
     <div class="flex justify-between items-center">
-      <h1 class="text-2xl font-bold">Import Hub</h1>
+      <div class="flex items-center gap-3">
+        <h1 class="text-2xl font-bold" data-testid="import-hub-title">Import Hub</h1>
+        <!-- Polling indicator -->
+        <span
+          v-if="isPolling"
+          class="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800"
+          data-testid="polling-indicator"
+        >
+          <span class="animate-pulse mr-1">●</span>
+          Guncelleniyor
+        </span>
+      </div>
       <div class="flex gap-2">
         <button
           @click="activeTab = 'import'"
@@ -32,7 +43,8 @@
         <h2 class="text-lg font-semibold mb-4">Kasa Raporu</h2>
         <p class="text-gray-600 mb-4">Excel dosyasi ve POS resmi yukleyerek gunluk kasa verilerini import edin.</p>
         <router-link
-          to="/kasa-farki"
+          to="/sales/verify?import=true"
+          data-testid="import-hub-kasa-raporu-btn"
           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
         >
           Import Et
@@ -91,13 +103,16 @@
               <td class="px-4 py-3 text-sm">
                 <span
                   :class="[
-                    'px-2 py-1 rounded text-xs',
+                    'px-2 py-1 rounded text-xs inline-flex items-center',
                     h.status === 'completed' ? 'bg-green-100 text-green-800' :
+                    h.status === 'failed' ? 'bg-red-100 text-red-800' :
                     h.status === 'undone' ? 'bg-gray-100 text-gray-800' :
-                    'bg-yellow-100 text-yellow-800'
+                    h.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
                   ]"
                 >
-                  {{ h.status }}
+                  <span v-if="h.status === 'pending'" class="animate-spin mr-1 w-3 h-3 border-2 border-yellow-600 border-t-transparent rounded-full"></span>
+                  {{ getStatusText(h.status) }}
                 </span>
               </td>
               <td class="px-4 py-3 text-sm">
@@ -123,39 +138,39 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { importHistoryApi } from '@/services/api'
+/**
+ * ImportHub.vue - Central Import Hub Dashboard
+ *
+ * TASK-bb5b30d3: Create Import Dashboard Vue component
+ *
+ * Features:
+ * - Import history with filters
+ * - Status polling for pending imports (5s intervals)
+ * - Undo functionality
+ * - Optimistic UI feedback
+ */
+import { ref, onMounted, watch } from 'vue'
+import { useImportHub } from '@/composables/useImportHub'
 
 const activeTab = ref<'import' | 'history'>('import')
-const history = ref<any[]>([])
-const historyFilter = ref({
-  import_type: '',
-  start_date: '',
-  end_date: ''
-})
 
-const loadHistory = async () => {
-  try {
-    const params: Record<string, string> = {}
-    if (historyFilter.value.import_type) params.import_type = historyFilter.value.import_type
-    if (historyFilter.value.start_date) params.start_date = historyFilter.value.start_date
-    if (historyFilter.value.end_date) params.end_date = historyFilter.value.end_date
+// Use the composable for all import hub functionality
+const {
+  history,
+  filters: historyFilter,
+  isPolling,
+  hasPendingImports,
+  loadHistory,
+  startPolling,
+  undoImport: doUndoImport
+} = useImportHub()
 
-    const response = await importHistoryApi.getAll(params)
-    history.value = response.data
-  } catch (error) {
-    console.error('Failed to load history:', error)
-  }
-}
-
+// Wrap undo with confirmation
 const undoImport = async (id: number) => {
   if (!confirm('Bu import geri alinacak. Emin misiniz?')) return
 
-  try {
-    await importHistoryApi.undo(id)
-    await loadHistory()
-  } catch (error) {
-    console.error('Failed to undo import:', error)
+  const success = await doUndoImport(id)
+  if (!success) {
     alert('Import geri alinamadi')
   }
 }
@@ -164,7 +179,29 @@ const formatDate = (dateStr: string) => {
   return new Date(dateStr).toLocaleDateString('tr-TR')
 }
 
-onMounted(() => {
-  loadHistory()
+// Get status display text
+const getStatusText = (status: string) => {
+  const statusMap: Record<string, string> = {
+    pending: 'Isleniyor...',
+    completed: 'Tamamlandi',
+    failed: 'Basarisiz',
+    undone: 'Geri Alindi'
+  }
+  return statusMap[status] || status
+}
+
+// Start polling when there are pending imports
+watch(hasPendingImports, (hasPending) => {
+  if (hasPending && !isPolling.value) {
+    startPolling()
+  }
+}, { immediate: true })
+
+// Load history on mount and start polling if needed
+onMounted(async () => {
+  await loadHistory()
+  if (hasPendingImports.value) {
+    startPolling()
+  }
 })
 </script>

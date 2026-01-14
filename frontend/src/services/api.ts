@@ -8,7 +8,8 @@ import type {
   OnlinePlatform, OnlineSale, DailySalesEntry, DailySalesResponse, OnlineSalesSummary,
   InvitationCode, InvitationCodeValidation, GoogleAuthResponse,
   CourierExpense, CourierExpenseSummary,
-  CashDifference, CashDifferenceSummary, CashDifferencePreviewDelete, ExcelParseResult, POSParseResult
+  CashDifference, CashDifferenceSummary, CashDifferencePreviewDelete, ExcelParseResult, POSParseResult,
+  DashboardComparison
 } from '@/types'
 import type { ComparisonResponse } from '@/types/comparison'
 
@@ -230,7 +231,13 @@ export const reportsApi = {
     left_end: string
     right_start: string
     right_end: string
-  }) => api.get<ComparisonResponse>('/reports/bilanco-compare', { params })
+  }) => api.get<ComparisonResponse>('/reports/bilanco-compare', { params }),
+
+  // Dashboard comparison for trend badges
+  getComparison: (targetDate?: string, compareTo: 'yesterday' | 'last_week' | 'last_month' = 'yesterday') =>
+    api.get<DashboardComparison>('/reports/dashboard/comparison', {
+      params: { target_date: targetDate, compare_to: compareTo }
+    })
 }
 
 // Production (Günlük Üretim/Legen Takibi)
@@ -598,6 +605,18 @@ export const categorizationApi = {
 
   suggestBatch: (expenses: Array<{ description: string; amount?: number }>) =>
     api.post('/categorization/suggest-batch', { expenses }),
+}
+
+// Analytics API
+export const analyticsApi = {
+  getDailySalesAnalytics: (params: { start_date: string; end_date: string }) =>
+    api.get<import('@/types').AnalyticsEnvelope>('/reports/daily-sales-analytics', { params }),
+
+  exportDailySalesAnalytics: (params: { start_date: string; end_date: string; format: 'csv' | 'excel' }) =>
+    api.get('/reports/daily-sales-analytics/export', {
+      params,
+      responseType: 'blob'
+    }),
 }
 
 export default api
