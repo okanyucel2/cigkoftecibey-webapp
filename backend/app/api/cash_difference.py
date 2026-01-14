@@ -13,7 +13,8 @@ from app.schemas import (
     CashDifferenceSummary, ExcelParseResult, POSParseResult,
     CashDifferenceImportRequest
 )
-from app.utils.excel_parser import parse_kasa_raporu, parse_hasilat_raporu
+# TASK-1125b771: Use async parsers to avoid blocking event loop
+from app.utils.async_excel_parser import async_parse_kasa_raporu, async_parse_hasilat_raporu
 from app.idempotency import check_idempotency, save_idempotency
 
 router = APIRouter(prefix="/cash-difference", tags=["cash-difference"])
@@ -41,7 +42,7 @@ async def parse_excel_file(
     content = await file.read()
 
     try:
-        data = parse_kasa_raporu(content)
+        data = await async_parse_kasa_raporu(content)
         return ExcelParseResult(
             date=data["date"],
             visa=data["visa"],
@@ -69,7 +70,7 @@ async def parse_hasilat_excel_file(
     content = await file.read()
 
     try:
-        data = parse_hasilat_raporu(content)
+        data = await async_parse_hasilat_raporu(content)
         return POSParseResult(
             date=data["date"],
             visa=data["visa"],

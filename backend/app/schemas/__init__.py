@@ -1099,6 +1099,65 @@ class BranchHolidayResponse(BaseModel):
         from_attributes = True
 
 
+# Daily Sales Analytics - AnalyticsEnvelope Schema
+class AnalyticsMeta(BaseModel):
+    """Metadata for analytics queries."""
+    period_start: date
+    period_end: date
+    branch_id: int
+    generated_at: datetime
+    record_count: int
+
+
+class AnalyticsSummary(BaseModel):
+    """Summary aggregates for analytics data."""
+    total_kasa: Decimal = Decimal("0")
+    total_pos: Decimal = Decimal("0")
+    total_diff: Decimal = Decimal("0")
+    avg_daily_kasa: Decimal = Decimal("0")
+    avg_daily_pos: Decimal = Decimal("0")
+
+
+class DailySalesRecord(BaseModel):
+    """Single day sales record."""
+    date: date
+    kasa_visa: Decimal = Decimal("0")
+    kasa_nakit: Decimal = Decimal("0")
+    kasa_trendyol: Decimal = Decimal("0")
+    kasa_getir: Decimal = Decimal("0")
+    kasa_yemeksepeti: Decimal = Decimal("0")
+    kasa_migros: Decimal = Decimal("0")
+    kasa_total: Decimal = Decimal("0")
+    pos_visa: Decimal = Decimal("0")
+    pos_nakit: Decimal = Decimal("0")
+    pos_trendyol: Decimal = Decimal("0")
+    pos_getir: Decimal = Decimal("0")
+    pos_yemeksepeti: Decimal = Decimal("0")
+    pos_migros: Decimal = Decimal("0")
+    pos_total: Decimal = Decimal("0")
+    diff_total: Decimal = Decimal("0")
+    status: str = "pending"
+
+
+class AnalyticsData(BaseModel):
+    """Analytics data container."""
+    daily_breakdown: list[DailySalesRecord] = []
+
+
+class AnalyticsEnvelope(BaseModel):
+    """
+    Envelope wrapper for analytics responses.
+
+    Structure:
+    - meta: Query metadata (period, branch, timestamp)
+    - data: Actual analytics data
+    - summary: Quick-reference aggregates
+    """
+    meta: AnalyticsMeta
+    data: AnalyticsData
+    summary: AnalyticsSummary
+
+
 # Supplier AR (Supplier Accounts Receivable)
 from .supplier_ar import (
     SupplierARSummary,
