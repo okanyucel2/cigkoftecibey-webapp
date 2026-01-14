@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, watch, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import VerticalNav, { type NavItem } from '@/components/ui/VerticalNav.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -38,17 +39,60 @@ onUnmounted(() => {
 
 /**
  * Phase 1 Navigation Structure (Platform Evolution Roadmap)
- * Target: 6 main navigation groups
+ * Target: 6 main navigation groups with submenu support
+ *
+ * Structure uses VerticalNav component with collapsible subItems
  */
-const menuItems = [
-  { path: '/', name: 'Bilanco', icon: '📊' },
-  { path: '/dashboard-v2', name: 'Bilanco V2 (Beta)', icon: '🚀' },
-  { path: '/import', name: 'Ice Aktar', icon: '📥' },
-  { path: '/sales', name: 'Ciro', icon: '💰' },
-  { path: '/operations', name: 'Operasyon', icon: '🏭' },
-  { path: '/personnel', name: 'Personel', icon: '👥' },
-  { path: '/expenses', name: 'Giderler', icon: '💸' }
-]
+const navItems = computed<NavItem[]>(() => [
+  { id: '/', label: 'Bilanço', icon: '📊' },
+  { id: '/dashboard-v2', label: 'Bilanço V2 (Beta)', icon: '🚀' },
+  { id: '/import', label: 'İçe Aktar', icon: '📥' },
+  {
+    id: '/sales',
+    label: 'Ciro',
+    icon: '💰',
+    subItems: [
+      { id: '/sales', label: 'Kasa' },
+      { id: '/sales/verify', label: 'Kasa Farkı' }
+    ]
+  },
+  {
+    id: '/operations',
+    label: 'Operasyon',
+    icon: '🏭',
+    subItems: [
+      { id: '/operations/production', label: 'Üretim' },
+      { id: '/operations/purchases', label: 'Mal Alım' }
+    ]
+  },
+  {
+    id: '/personnel',
+    label: 'Personel',
+    icon: '👥',
+    subItems: [
+      { id: '/personnel', label: 'Personel Listesi' },
+      { id: '/personnel/meals', label: 'Personel İaşe' },
+      { id: '/personnel/payroll', label: 'Bordro' }
+    ]
+  },
+  {
+    id: '/expenses',
+    label: 'Giderler',
+    icon: '💸',
+    subItems: [
+      { id: '/expenses', label: 'Genel Giderler' },
+      { id: '/expenses/courier', label: 'Kurye' }
+    ]
+  }
+])
+
+// Current active nav item based on route
+const activeNavId = computed(() => route.path)
+
+// Handle navigation from VerticalNav
+function handleNavSelect(id: string) {
+  router.push(id)
+}
 
 // Versiyon bilgileri (build sirasinda enjekte edilir)
 const appVersion = __APP_VERSION__
@@ -145,21 +189,12 @@ async function handleBranchSwitch(branchId: number) {
       </div>
 
       <!-- Menu - scrollable if needed -->
-      <nav class="flex-1 overflow-y-auto py-4 px-3">
-        <router-link
-          v-for="item in menuItems"
-          :key="item.path"
-          :to="item.path"
-          :class="[
-            'flex items-center px-4 py-3 mb-1 rounded-lg transition-colors',
-            route.path === item.path
-              ? 'bg-brand-red text-white'
-              : 'text-gray-300 hover:bg-gray-700'
-          ]"
-        >
-          <span class="text-xl mr-3">{{ item.icon }}</span>
-          <span class="font-medium">{{ item.name }}</span>
-        </router-link>
+      <nav class="flex-1 overflow-y-auto py-4 px-3 sidebar-nav">
+        <VerticalNav
+          :items="navItems"
+          :model-value="activeNavId"
+          @update:model-value="handleNavSelect"
+        />
 
         <!-- Owner Menu (Owner or Super Admin) -->
         <template v-if="authStore.user?.role === 'owner' || authStore.isSuperAdmin">
@@ -263,3 +298,54 @@ async function handleBranchSwitch(branchId: number) {
     />
   </div>
 </template>
+
+<style scoped>
+/* Override VerticalNav styles for dark sidebar */
+.sidebar-nav :deep(.vertical-nav) {
+  gap: 4px;
+}
+
+.sidebar-nav :deep(.nav-button) {
+  color: #d1d5db; /* gray-300 */
+  background: transparent;
+}
+
+.sidebar-nav :deep(.nav-button:hover) {
+  background: #374151; /* gray-700 */
+  color: white;
+}
+
+.sidebar-nav :deep(.nav-button.active) {
+  background: #dc2626; /* brand-red */
+  color: white;
+}
+
+.sidebar-nav :deep(.nav-button.subitem.active) {
+  background: #b91c1c; /* darker red for subitem */
+}
+
+.sidebar-nav :deep(.expand-icon) {
+  color: #9ca3af; /* gray-400 */
+}
+
+.sidebar-nav :deep(.nav-button.active .expand-icon) {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.sidebar-nav :deep(.nav-subitems) {
+  border-left: 2px solid #374151;
+  margin-left: 12px;
+  padding-left: 8px;
+}
+
+/* Mobile dropdown styles override */
+@media (max-width: 640px) {
+  .sidebar-nav :deep(.nav-subitems) {
+    background: #1f2937; /* gray-800 */
+    border: 1px solid #374151;
+    border-left: none;
+    margin-left: 0;
+    padding-left: 0;
+  }
+}
+</style>

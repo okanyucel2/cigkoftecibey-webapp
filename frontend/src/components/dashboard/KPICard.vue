@@ -4,8 +4,10 @@
     class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 transition-all duration-300"
     :class="{
       'ring-2 ring-primary-500 scale-[1.02]': isHighlighted,
-      'hover:shadow-md': !isHighlighted
+      'hover:shadow-md': !isHighlighted,
+      'cursor-pointer hover:border-gray-300': clickable
     }"
+    @click="handleClick"
   >
     <!-- Header -->
     <div class="flex items-center justify-between mb-2">
@@ -75,7 +77,12 @@ interface Props {
   target?: string
   formatAsCurrency?: boolean
   formatAsPercent?: boolean
+  clickable?: boolean
 }
+
+const emit = defineEmits<{
+  click: []
+}>()
 
 const props = withDefaults(defineProps<Props>(), {
   testId: 'kpi-card',
@@ -86,8 +93,15 @@ const props = withDefaults(defineProps<Props>(), {
   progressPercent: 0,
   progressColor: 'bg-primary-500',
   formatAsCurrency: false,
-  formatAsPercent: false
+  formatAsPercent: false,
+  clickable: false
 })
+
+function handleClick() {
+  if (props.clickable) {
+    emit('click')
+  }
+}
 
 const formattedValue = computed(() => {
   if (props.formatAsPercent) {

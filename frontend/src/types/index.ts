@@ -687,3 +687,65 @@ export interface PaymentSummary {
   thisMonth: number
   total: number
 }
+
+// Dashboard Comparison (for trend badges)
+export interface ComparisonMetric {
+  current: number
+  previous: number
+  diff: number
+  diff_percent: number
+}
+
+export interface DashboardComparison {
+  current_date: string
+  compare_date: string
+  sales: ComparisonMetric
+  expenses: ComparisonMetric
+}
+
+// Daily Sales Analytics - AnalyticsEnvelope
+export interface AnalyticsMeta {
+  period_start: string
+  period_end: string
+  branch_id: number
+  generated_at: string
+  record_count: number
+}
+
+export interface AnalyticsSummary {
+  total_kasa: number
+  total_pos: number
+  total_diff: number
+  avg_daily_kasa: number
+  avg_daily_pos: number
+}
+
+export interface DailySalesRecord {
+  date: string
+  kasa_visa: number
+  kasa_nakit: number
+  kasa_trendyol: number
+  kasa_getir: number
+  kasa_yemeksepeti: number
+  kasa_migros: number
+  kasa_total: number
+  pos_visa: number
+  pos_nakit: number
+  pos_trendyol: number
+  pos_getir: number
+  pos_yemeksepeti: number
+  pos_migros: number
+  pos_total: number
+  diff_total: number
+  status: string
+}
+
+export interface AnalyticsData {
+  daily_breakdown: DailySalesRecord[]
+}
+
+export interface AnalyticsEnvelope {
+  meta: AnalyticsMeta
+  data: AnalyticsData
+  summary: AnalyticsSummary
+}

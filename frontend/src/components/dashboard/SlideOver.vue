@@ -30,8 +30,7 @@
         >
           <div
             v-if="modelValue"
-            class="fixed inset-y-0 right-0 w-full max-w-md bg-white shadow-xl flex flex-col"
-            :class="{ 'sm:max-w-md': true }"
+            class="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:max-w-md bg-white shadow-xl flex flex-col"
           >
             <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">

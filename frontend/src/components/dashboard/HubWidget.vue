@@ -60,7 +60,8 @@
             :is="action.icon"
             class="w-5 h-5 text-gray-500"
           />
-          <span class="text-gray-700">{{ action.label }}</span>
+          <span class="flex-1 text-gray-700">{{ action.label }}</span>
+          <ChevronRight v-if="action.link" class="w-4 h-4 text-gray-400" />
         </button>
       </div>
     </Transition>
@@ -69,12 +70,15 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onUnmounted, type Component } from 'vue'
-import { ChevronDown } from 'lucide-vue-next'
+import { useRouter } from 'vue-router'
+import { ChevronDown, ChevronRight } from 'lucide-vue-next'
 
 export interface HubAction {
   id: string
   label: string
   icon?: Component
+  link?: string      // External navigation (router-link)
+  preset?: string    // Pre-fill form with preset value
 }
 
 interface Props {
@@ -126,9 +130,19 @@ function toggleExpanded() {
   console.log('Dropdown state:', isExpanded.value)
 }
 
+const router = useRouter()
+
 function handleActionClick(action: HubAction) {
   console.log('Action clicked:', action.id)
   isExpanded.value = false
+
+  // If action has a link, navigate directly
+  if (action.link) {
+    router.push(action.link)
+    return
+  }
+
+  // Otherwise emit for parent to handle
   emit('action-selected', action)
 }
 

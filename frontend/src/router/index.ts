@@ -128,6 +128,14 @@ const router = createRouter({
           meta: { defaultPath: 'hizmet-alim/kurye' }
         },
 
+        // 📈 Analitik (Analytics)
+        {
+          path: 'analytics/daily-sales',
+          name: 'analytics-daily-sales',
+          component: () => import('@/views/analytics/DailySalesDashboard.vue'),
+          meta: { title: 'Gunluk Satis Analizi' }
+        },
+
         // ⚙️ Ayarlar (Settings) - Admin only
         {
           path: 'settings',

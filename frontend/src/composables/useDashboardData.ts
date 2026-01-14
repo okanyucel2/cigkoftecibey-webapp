@@ -1,5 +1,7 @@
 import { ref, computed, onMounted } from 'vue'
 import api from '@/services/api'
+import { reportsApi } from '@/services/api'
+import type { DashboardComparison } from '@/types'
 
 export interface DashboardData {
   todaySales: {
@@ -20,6 +22,7 @@ export interface DashboardData {
   laborCostPercent: number
   legenCount: number
   onlineBreakdown: Record<string, number>
+  comparison: DashboardComparison | null
 }
 
 export function useDashboardData() {
@@ -75,6 +78,15 @@ export function useDashboardData() {
         // Production may not exist for today
       }
 
+      // Fetch comparison data for trend badges
+      let comparison: DashboardComparison | null = null
+      try {
+        const comparisonRes = await reportsApi.getComparison()
+        comparison = comparisonRes.data
+      } catch {
+        // Comparison may fail if no previous data exists
+      }
+
       // Calculate labor cost percentage
       // Labor = (Part-time + Monthly Payroll/30) / Revenue
       const partTimeCost = dashboardData.today_expenses?.part_time ?? 0
@@ -99,7 +111,8 @@ export function useDashboardData() {
         cashDifference: cashDiff,
         laborCostPercent,
         legenCount,
-        onlineBreakdown: dashboardData.online_breakdown ?? {}
+        onlineBreakdown: dashboardData.online_breakdown ?? {},
+        comparison
       }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to load dashboard data'
