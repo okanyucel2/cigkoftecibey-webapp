@@ -613,6 +613,34 @@ class MenuCategory(Base):
     # Relationships
     branch: Mapped[Optional["Branch"]] = relationship()
     creator: Mapped["User"] = relationship()
+    items: Mapped[list["MenuItem"]] = relationship(back_populates="category")
+
+
+class MenuItem(Base):
+    """Menu item within a category (hybrid tenant isolation)
+
+    - branch_id=NULL: Global items (visible to all branches)
+    - branch_id=X: Branch-specific items (visible only to that branch)
+    """
+    __tablename__ = "menu_items"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    category_id: Mapped[int] = mapped_column(ForeignKey("menu_categories.id"))
+    branch_id: Mapped[Optional[int]] = mapped_column(ForeignKey("branches.id"), nullable=True)  # NULL = global
+    name: Mapped[str] = mapped_column(String(100))
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    price: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=Decimal("0.00"))
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_available: Mapped[bool] = mapped_column(Boolean, default=True)  # Can be temporarily unavailable
+    created_by: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True, onupdate=lambda: datetime.now(UTC))
+
+    # Relationships
+    category: Mapped["MenuCategory"] = relationship(back_populates="items")
+    branch: Mapped[Optional["Branch"]] = relationship()
+    creator: Mapped["User"] = relationship()
 
 
 class BranchOperatingHours(Base):

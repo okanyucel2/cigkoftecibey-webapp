@@ -1048,6 +1048,44 @@ class MenuCategoryResponse(BaseModel):
         from_attributes = True
 
 
+# Menu Item
+class MenuItemCreate(BaseModel):
+    category_id: int
+    name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = None
+    price: Decimal = Decimal("0.00")
+    display_order: int = 0
+    is_available: bool = True
+    is_global: bool = False  # True = branch_id=NULL (all branches)
+
+
+class MenuItemUpdate(BaseModel):
+    category_id: Optional[int] = None
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = None
+    price: Optional[Decimal] = None
+    display_order: Optional[int] = None
+    is_active: Optional[bool] = None
+    is_available: Optional[bool] = None
+
+
+class MenuItemResponse(BaseModel):
+    id: int
+    category_id: int
+    name: str
+    description: Optional[str]
+    price: Decimal
+    display_order: int
+    is_active: bool
+    is_available: bool
+    branch_id: Optional[int]
+    created_at: datetime
+    updated_at: Optional[datetime]
+
+    class Config:
+        from_attributes = True
+
+
 # Branch Operating Hours
 class BranchOperatingHoursCreate(BaseModel):
     """Create/Update operating hours for a single day"""
