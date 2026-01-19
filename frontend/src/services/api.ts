@@ -620,3 +620,58 @@ export const analyticsApi = {
 }
 
 export default api
+
+// Menu Categories
+export const menuCategoriesApi = {
+  getAll: () => api.get<import('@/types').MenuCategory[]>('/v1/menu-categories'),
+  
+  getById: (id: number) => api.get<import('@/types').MenuCategory>(`/v1/menu-categories/${id}`),
+  
+  create: (data: { name: string; description?: string; display_order?: number; is_global?: boolean }) =>
+    api.post<import('@/types').MenuCategory>('/v1/menu-categories', data),
+  
+  update: (id: number, data: { name?: string; description?: string; display_order?: number; is_active?: boolean }) =>
+    api.put<import('@/types').MenuCategory>(`/v1/menu-categories/${id}`, data),
+  
+  delete: (id: number) => api.delete(`/v1/menu-categories/${id}`)
+}
+
+// Menu Items
+export const menuItemsApi = {
+  getAll: (categoryId?: number) => 
+    api.get<import('@/types').MenuItem[]>('/v1/menu-items', { 
+      params: categoryId ? { category_id: categoryId } : undefined 
+    }),
+  
+  getById: (id: number) => api.get<import('@/types').MenuItem>(`/v1/menu-items/${id}`),
+  
+  create: (data: { 
+    name: string
+    category_id: number
+    description?: string
+    image_url?: string
+    display_order?: number
+    default_price?: number
+  }) => api.post<import('@/types').MenuItem>('/v1/menu-items', data),
+  
+  update: (id: number, data: { 
+    name?: string
+    category_id?: number
+    description?: string
+    image_url?: string
+    display_order?: number
+    is_active?: boolean
+  }) => api.put<import('@/types').MenuItem>(`/v1/menu-items/${id}`, data),
+  
+  delete: (id: number) => api.delete(`/v1/menu-items/${id}`),
+  
+  // Price Management
+  getPrices: (itemId: number) => 
+    api.get<import('@/types').MenuItemPrice[]>(`/v1/menu-items/${itemId}/prices`),
+  
+  setPrice: (itemId: number, data: { price: number; branch_id?: number }) =>
+    api.put<import('@/types').MenuItemPrice>(`/v1/menu-items/${itemId}/prices`, data),
+  
+  deletePrice: (itemId: number, branchId: number) =>
+    api.delete(`/v1/menu-items/${itemId}/prices/${branchId}`)
+}

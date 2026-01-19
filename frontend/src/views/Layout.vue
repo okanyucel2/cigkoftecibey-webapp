@@ -83,7 +83,8 @@ const navItems = computed<NavItem[]>(() => [
       { id: '/expenses', label: 'Genel Giderler' },
       { id: '/expenses/courier', label: 'Kurye' }
     ]
-  }
+  },
+  { id: '/menu', label: 'Menu', icon: '🍽️' }
 ])
 
 // Current active nav item based on route

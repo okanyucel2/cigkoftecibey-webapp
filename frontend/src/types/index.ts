@@ -752,3 +752,36 @@ export interface AnalyticsEnvelope {
 
 // Error handling utilities
 export * from './errors'
+
+// ============ Menu Types ============
+export interface MenuCategory {
+  id: number
+  name: string
+  description?: string
+  display_order: number
+  is_active: boolean
+  branch_id: number | null  // null = global
+  created_at: string
+  updated_at?: string
+}
+
+export interface MenuItem {
+  id: number
+  category_id: number
+  name: string
+  description?: string
+  image_url?: string
+  display_order: number
+  is_active: boolean
+  price?: number
+  price_is_default?: boolean
+  created_at: string
+  updated_at?: string
+}
+
+export interface MenuItemPrice {
+  id: number
+  menu_item_id: number
+  branch_id: number | null  // null = default price
+  price: number
+}

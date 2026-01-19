@@ -136,6 +136,14 @@ const router = createRouter({
           meta: { title: 'Gunluk Satis Analizi' }
         },
 
+        // 🍽️ Menu Yonetimi
+        {
+          path: 'menu',
+          name: 'menu-management',
+          component: () => import('@/views/MenuManagement.vue'),
+          meta: { title: 'Menu Yonetimi' }
+        },
+
         // ⚙️ Ayarlar (Settings) - Admin only
         {
           path: 'settings',
