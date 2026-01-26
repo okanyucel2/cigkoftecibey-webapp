@@ -47,22 +47,27 @@
         v-if="isExpanded"
         class="absolute z-10 mt-2 w-full bg-white rounded-lg shadow-lg border border-gray-100 py-1 overflow-hidden"
       >
-        <button
-          v-for="action in actions"
-          :key="action.id"
-          :data-testid="`action-${action.id}`"
-          type="button"
-          class="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 transition-colors"
-          @click="handleActionClick(action)"
-        >
-          <component
-            v-if="action.icon"
-            :is="action.icon"
-            class="w-5 h-5 text-gray-500"
+        <template v-for="action in actions" :key="action.id">
+          <!-- Divider line -->
+          <div
+            v-if="action.divider"
+            class="my-1 border-t border-gray-100"
           />
-          <span class="flex-1 text-gray-700">{{ action.label }}</span>
-          <ChevronRight v-if="action.link" class="w-4 h-4 text-gray-400" />
-        </button>
+          <button
+            :data-testid="`action-${action.id}`"
+            type="button"
+            class="w-full px-4 py-3 text-left hover:bg-gray-50 flex items-center gap-3 transition-colors"
+            @click="handleActionClick(action)"
+          >
+            <component
+              v-if="action.icon"
+              :is="action.icon"
+              class="w-5 h-5 text-gray-500"
+            />
+            <span class="flex-1 text-gray-700">{{ action.label }}</span>
+            <ChevronRight v-if="action.link || action.isListView" class="w-4 h-4 text-gray-400" />
+          </button>
+        </template>
       </div>
     </Transition>
   </div>
@@ -79,6 +84,8 @@ export interface HubAction {
   icon?: Component
   link?: string      // External navigation (router-link)
   preset?: string    // Pre-fill form with preset value
+  divider?: boolean  // Show divider line before this action
+  isListView?: boolean // Opens wide panel for list display
 }
 
 interface Props {

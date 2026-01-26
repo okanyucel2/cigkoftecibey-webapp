@@ -1,0 +1,8 @@
+export { default as StaffMealsListEmbedded } from './StaffMealsListEmbedded.vue'
+export { default as CashDifferenceListEmbedded } from './CashDifferenceListEmbedded.vue'
+export { default as SalesListEmbedded } from './SalesListEmbedded.vue'
+export { default as ExpensesListEmbedded } from './ExpensesListEmbedded.vue'
+export { default as PurchasesListEmbedded } from './PurchasesListEmbedded.vue'
+export { default as PersonnelListEmbedded } from './PersonnelListEmbedded.vue'
+export { default as PayrollListEmbedded } from './PayrollListEmbedded.vue'
+export { default as ProductionListEmbedded } from './ProductionListEmbedded.vue'

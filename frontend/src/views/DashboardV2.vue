@@ -1514,6 +1514,104 @@
       @complete="handleEndOfDayComplete"
     />
 
+    <!-- List View Panels (Wide SlideOvers) -->
+
+    <!-- Kasa Farkı Listesi -->
+    <SlideOver
+      v-model="showCashDifferenceListPanel"
+      title="Kasa Farkı"
+      subtitle="Bu ayki kasa farkları"
+      :icon="AlertCircle"
+      icon-color="blue"
+      size="2xl"
+    >
+      <CashDifferenceListEmbedded embedded @action="handleCashDifferenceListAction" />
+    </SlideOver>
+
+    <!-- Satış Listesi -->
+    <SlideOver
+      v-model="showSalesListPanel"
+      title="Satış Listesi"
+      subtitle="Bu ayki satışlar"
+      :icon="Wallet"
+      icon-color="blue"
+      size="2xl"
+    >
+      <SalesListEmbedded embedded @action="handleSalesListAction" />
+    </SlideOver>
+
+    <!-- Gider Listesi -->
+    <SlideOver
+      v-model="showExpensesListPanel"
+      title="Gider Listesi"
+      subtitle="Bu ayki giderler"
+      :icon="Receipt"
+      icon-color="amber"
+      size="2xl"
+    >
+      <ExpensesListEmbedded embedded @action="handleExpensesListAction" />
+    </SlideOver>
+
+    <!-- Alım Listesi -->
+    <SlideOver
+      v-model="showPurchasesListPanel"
+      title="Alım Listesi"
+      subtitle="Bu ayki alımlar"
+      :icon="ShoppingCart"
+      icon-color="amber"
+      size="full"
+    >
+      <PurchasesListEmbedded embedded @action="handlePurchasesListAction" />
+    </SlideOver>
+
+    <!-- Personel Listesi -->
+    <SlideOver
+      v-model="showPersonnelListPanel"
+      title="Personel Listesi"
+      subtitle="Tüm personel"
+      :icon="Users"
+      icon-color="emerald"
+      size="2xl"
+    >
+      <PersonnelListEmbedded embedded @action="handlePersonnelListAction" />
+    </SlideOver>
+
+    <!-- Bordro Listesi -->
+    <SlideOver
+      v-model="showPayrollListPanel"
+      title="Bordro Listesi"
+      subtitle="Bu ayki ödemeler"
+      :icon="Wallet"
+      icon-color="emerald"
+      size="2xl"
+    >
+      <PayrollListEmbedded embedded @action="handlePayrollListAction" />
+    </SlideOver>
+
+    <!-- İaşe Listesi -->
+    <SlideOver
+      v-model="showStaffMealsListPanel"
+      title="Personel Yemekleri"
+      subtitle="Bu ayki yemekler"
+      :icon="Coffee"
+      icon-color="emerald"
+      size="xl"
+    >
+      <StaffMealsListEmbedded embedded @action="handleStaffMealsListAction" />
+    </SlideOver>
+
+    <!-- Üretim Listesi -->
+    <SlideOver
+      v-model="showProductionListPanel"
+      title="Üretim Listesi"
+      subtitle="Bu ayki üretimler"
+      :icon="Factory"
+      icon-color="purple"
+      size="2xl"
+    >
+      <ProductionListEmbedded embedded @action="handleProductionListAction" />
+    </SlideOver>
+
     <!-- KPI Drilldown Panel (Panic Button) -->
     <KPIDrilldownPanel
       :show="showDrilldownPanel"
@@ -1555,12 +1653,23 @@ import {
   Clock,
   Grid,
   Plus,
-  Trash2
+  Trash2,
+  List
 } from 'lucide-vue-next'
 
 import KPICard from '@/components/dashboard/KPICard.vue'
 import HubWidget, { type HubAction } from '@/components/dashboard/HubWidget.vue'
 import SlideOver from '@/components/dashboard/SlideOver.vue'
+import {
+  StaffMealsListEmbedded,
+  CashDifferenceListEmbedded,
+  SalesListEmbedded,
+  ExpensesListEmbedded,
+  PurchasesListEmbedded,
+  PersonnelListEmbedded,
+  PayrollListEmbedded,
+  ProductionListEmbedded
+} from '@/components/embedded'
 import KPIDrilldownPanel, { type DrilldownItem } from '@/components/dashboard/KPIDrilldownPanel.vue'
 import ActivityStreamWidget, { type ActivityItem } from '@/components/dashboard/ActivityStreamWidget.vue'
 import { BaseInput, BaseTagSelect } from '@/components/ui'
@@ -1704,24 +1813,36 @@ const lastUpdateText = computed(() => {
 const satisActions: HubAction[] = [
   { id: 'kasa-satisi', label: 'Kasa Satışı', icon: Store },
   { id: 'toplu-satis', label: 'Toplu Satış', icon: Grid },
-  { id: 'kasa-sayimi', label: 'Kasa Sayımı', icon: Calculator }
+  { id: 'kasa-sayimi', label: 'Kasa Sayımı', icon: Calculator },
+  // Liste görünümleri
+  { id: 'kasa-farki-liste', label: 'Kasa Farkı', icon: AlertCircle, divider: true, isListView: true },
+  { id: 'satis-liste', label: 'Satış Listesi', icon: List, isListView: true }
 ]
 
 const giderActions: HubAction[] = [
   { id: 'mal-alimi', label: 'Mal Alımı', icon: ShoppingCart },
   { id: 'kurye-gideri', label: 'Kurye Gideri', icon: Truck },
-  { id: 'genel-gider', label: 'Genel Gider', icon: CreditCard }
+  { id: 'genel-gider', label: 'Genel Gider', icon: CreditCard },
+  // Liste görünümleri
+  { id: 'gider-liste', label: 'Gider Listesi', icon: List, divider: true, isListView: true },
+  { id: 'alim-liste', label: 'Alım Listesi', icon: List, isListView: true }
 ]
 
 const ekipActions: HubAction[] = [
   { id: 'personel-yemegi', label: 'Personel Yemeği', icon: Coffee },
   { id: 'part-time-odeme', label: 'Part-time Ödeme', icon: Clock },
-  { id: 'maas-odemesi', label: 'Maaş Ödemesi', icon: Wallet }
+  { id: 'maas-odemesi', label: 'Maaş Ödemesi', icon: Wallet },
+  // Liste görünümleri
+  { id: 'personel-liste', label: 'Personel Listesi', icon: Users, divider: true, isListView: true },
+  { id: 'bordro-liste', label: 'Bordro Listesi', icon: List, isListView: true },
+  { id: 'iase-liste', label: 'İaşe Listesi', icon: Coffee, isListView: true }
 ]
 
 const uretimActions: HubAction[] = [
   { id: 'legen-girisi', label: 'Legen Girişi', icon: Factory },
-  { id: 'fire-girisi', label: 'Fire Bildir', icon: AlertTriangle }
+  { id: 'fire-girisi', label: 'Fire Bildir', icon: AlertTriangle },
+  // Liste görünümü
+  { id: 'uretim-liste', label: 'Üretim Listesi', icon: List, divider: true, isListView: true }
 ]
 
 // Session-based activity stream - populated by user actions during session
@@ -1740,6 +1861,16 @@ const showPartTimePanel = ref(false)
 const showLegenPanel = ref(false)
 const showFirePanel = ref(false)
 const showEndOfDayWizard = ref(false)
+
+// List View Panels (wide SlideOvers)
+const showCashDifferenceListPanel = ref(false)
+const showSalesListPanel = ref(false)
+const showExpensesListPanel = ref(false)
+const showPurchasesListPanel = ref(false)
+const showPersonnelListPanel = ref(false)
+const showPayrollListPanel = ref(false)
+const showStaffMealsListPanel = ref(false)
+const showProductionListPanel = ref(false)
 
 // Zen Mode - hides non-essential widgets during busy service hours
 const zenMode = ref(false)
@@ -2222,6 +2353,10 @@ function handleSatisAction(action: HubAction) {
     showSalesPanel.value = true
   } else if (action.id === 'kasa-sayimi') {
     showCashCountPanel.value = true
+  } else if (action.id === 'kasa-farki-liste') {
+    showCashDifferenceListPanel.value = true
+  } else if (action.id === 'satis-liste') {
+    showSalesListPanel.value = true
   }
 }
 
@@ -2232,12 +2367,22 @@ function handleGiderAction(action: HubAction) {
     showCourierPanel.value = true
   } else if (action.id === 'genel-gider') {
     showExpensePanel.value = true
+  } else if (action.id === 'gider-liste') {
+    showExpensesListPanel.value = true
+  } else if (action.id === 'alim-liste') {
+    showPurchasesListPanel.value = true
   }
 }
 
 function handleEkipAction(action: HubAction) {
   if (action.id === 'part-time-odeme') {
     showPartTimePanel.value = true
+  } else if (action.id === 'personel-liste') {
+    showPersonnelListPanel.value = true
+  } else if (action.id === 'bordro-liste') {
+    showPayrollListPanel.value = true
+  } else if (action.id === 'iase-liste') {
+    showStaffMealsListPanel.value = true
   } else {
     currentEkipAction.value = action.id
     showEkipPanel.value = true
@@ -2249,6 +2394,64 @@ function handleUretimAction(action: HubAction) {
     showLegenPanel.value = true
   } else if (action.id === 'fire-girisi') {
     showFirePanel.value = true
+  } else if (action.id === 'uretim-liste') {
+    showProductionListPanel.value = true
+  }
+}
+
+// List panel action handlers
+function handleCashDifferenceListAction(type: string) {
+  showCashDifferenceListPanel.value = false
+  if (type === 'import') {
+    // Navigate to import or open import modal
+  }
+}
+
+function handleSalesListAction(type: string) {
+  showSalesListPanel.value = false
+  if (type === 'add') {
+    showSalesPanel.value = true
+  }
+}
+
+function handleExpensesListAction(type: string) {
+  showExpensesListPanel.value = false
+  if (type === 'add') {
+    showExpensePanel.value = true
+  }
+}
+
+function handlePurchasesListAction(type: string) {
+  showPurchasesListPanel.value = false
+  if (type === 'add') {
+    showPurchasePanel.value = true
+  }
+}
+
+function handlePersonnelListAction() {
+  showPersonnelListPanel.value = false
+}
+
+function handlePayrollListAction(type: string) {
+  showPayrollListPanel.value = false
+  if (type === 'add') {
+    currentEkipAction.value = 'maas-odemesi'
+    showEkipPanel.value = true
+  }
+}
+
+function handleStaffMealsListAction(type: string) {
+  showStaffMealsListPanel.value = false
+  if (type === 'add') {
+    currentEkipAction.value = 'personel-yemegi'
+    showEkipPanel.value = true
+  }
+}
+
+function handleProductionListAction(type: string) {
+  showProductionListPanel.value = false
+  if (type === 'add') {
+    showLegenPanel.value = true
   }
 }
 

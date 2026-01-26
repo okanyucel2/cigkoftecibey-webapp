@@ -30,7 +30,8 @@
         >
           <div
             v-if="modelValue"
-            class="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full sm:max-w-md bg-white shadow-xl flex flex-col"
+            class="fixed inset-0 sm:inset-y-0 sm:right-0 sm:left-auto w-full bg-white shadow-xl flex flex-col"
+            :class="sizeClass"
           >
             <!-- Header -->
             <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
@@ -86,10 +87,24 @@ interface Props {
   subtitle?: string
   icon?: Component
   iconColor?: 'blue' | 'amber' | 'emerald' | 'purple'
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full'
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  iconColor: 'blue'
+  iconColor: 'blue',
+  size: 'md'
+})
+
+const sizeClass = computed(() => {
+  const sizes: Record<string, string> = {
+    sm: 'sm:max-w-sm',      // 384px
+    md: 'sm:max-w-md',      // 448px
+    lg: 'sm:max-w-lg',      // 512px
+    xl: 'sm:max-w-xl',      // 576px
+    '2xl': 'sm:max-w-2xl',  // 672px - tables
+    full: 'sm:max-w-4xl'    // 896px - full list
+  }
+  return sizes[props.size] || sizes.md
 })
 
 const emit = defineEmits<{
