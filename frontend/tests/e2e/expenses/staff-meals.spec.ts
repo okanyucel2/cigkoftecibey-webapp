@@ -45,29 +45,29 @@ test.describe('🍽️ Personel Yemek', () => {
     }, token)
 
     // Navigate to staff meals page
-    await page.goto(config.frontendUrl + '/staff-meals')
+    await page.goto(config.frontendUrl + '/personnel/meals')
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
   })
 
   test('Navigate to Staff Meals page and verify page loads', async ({ page }) => {
-    // Verify we're on the correct page
-    await expect(page).toHaveURL(/staff-meals/)
+    // Verify we're on the correct page (new route structure)
+    await expect(page).toHaveURL(/personnel\/meals/)
 
     // Wait for page to fully load
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-    // Verify page heading is visible as indicator that page loaded
-    await expect(page.locator('[data-testid="heading-staff-meals"]')).toBeVisible({ timeout: 15000 })
+    // Verify page loaded - check for table or heading
+    await expect(page.locator('[data-testid="staff-meals-table"], h1:has-text("İaşe"), h2:has-text("İaşe")').first()).toBeVisible({ timeout: 15000 })
 
     // Check if table exists - if no data exists, empty state is acceptable
     const tableExists = await page.locator('[data-testid="staff-meals-table"]').isVisible({ timeout: 5000 }).catch(() => false)
 
     if (tableExists) {
-      // Table is visible, verify summary cards
+      // Table is visible
       await expect(page.locator('[data-testid="staff-meals-table"]')).toBeVisible({ timeout: 10000 })
     } else {
       // No data yet - verify empty state message instead
-      await expect(page.locator('text=/no.*meal|empty|kayit bulunamadi/i')).toBeVisible({ timeout: 10000 }).catch(() => {
+      await expect(page.locator('text=/no.*meal|empty|kayit.*yok|bulunamadi/i')).toBeVisible({ timeout: 10000 }).catch(() => {
         console.log('No empty state message found - table may load after data fetch completes')
       })
     }
@@ -86,14 +86,14 @@ test.describe('🍽️ Personel Yemek', () => {
     const staffCount = '5'
 
     // Navigate to the page
-    await page.goto(config.frontendUrl + '/staff-meals')
+    await page.goto(config.frontendUrl + '/personnel/meals')
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
     // Wait for heading to confirm page loaded
-    await expect(page.locator('[data-testid="heading-staff-meals"]')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('[data-testid="staff-meals-table"]')).toBeVisible({ timeout: 10000 })
 
     // Click add button to open form
-    await page.click('[data-testid="btn-add-staff-meal"]')
+    await page.click('button:has-text("Yeni Kayıt"), button:has-text("Yeni Kayit")')
     await page.waitForTimeout(500)
 
     // Fill in the form fields
@@ -176,11 +176,11 @@ test.describe('🍽️ Personel Yemek', () => {
 
   test('Edit existing staff meal record', async ({ page }) => {
     // Navigate to the page
-    await page.goto(config.frontendUrl + '/staff-meals')
+    await page.goto(config.frontendUrl + '/personnel/meals')
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
     // Wait for table and find first editable record
-    await expect(page.locator('[data-testid="heading-staff-meals"]')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('[data-testid="staff-meals-table"]')).toBeVisible({ timeout: 10000 })
     const table = page.locator('[data-testid="staff-meals-table"]')
     await expect(table).toBeVisible({ timeout: 10000 })
 
@@ -253,11 +253,11 @@ test.describe('🍽️ Personel Yemek', () => {
 
   test('Delete staff meal with confirmation modal', async ({ page }) => {
     // Navigate to the page
-    await page.goto(config.frontendUrl + '/staff-meals')
+    await page.goto(config.frontendUrl + '/personnel/meals')
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
     // Wait for table
-    await expect(page.locator('[data-testid="heading-staff-meals"]')).toBeVisible({ timeout: 10000 })
+    await expect(page.locator('[data-testid="staff-meals-table"]')).toBeVisible({ timeout: 10000 })
     const table = page.locator('[data-testid="staff-meals-table"]')
     await expect(table).toBeVisible({ timeout: 10000 })
 

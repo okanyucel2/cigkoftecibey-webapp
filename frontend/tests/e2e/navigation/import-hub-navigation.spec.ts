@@ -64,9 +64,8 @@ test.describe('📥 Import Hub Navigation', () => {
   // ==========================================
 
   test.describe('🔴 CRITICAL: Kasa Raporu Navigation', () => {
-    test('Clicking "Import Et" navigates to /gelirler/kasa-farki (NOT /kasa-farki)', async ({ page }) => {
-      // This test catches the exact bug: ImportHub.vue was linking to /kasa-farki
-      // which redirected to /sales/verify (wrong) instead of /gelirler/kasa-farki (correct)
+    test('Clicking "Import Et" navigates to /sales/verify', async ({ page }) => {
+      // ImportHub.vue links to /sales/verify?import=true (Phase 1 route structure)
 
       await page.goto(config.frontendUrl + '/import')
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
@@ -79,8 +78,8 @@ test.describe('📥 Import Hub Navigation', () => {
       // Wait for navigation
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-      // CRITICAL: Should navigate to /gelirler/kasa-farki (query param gets cleaned up)
-      await expect(page).toHaveURL(config.frontendUrl + '/gelirler/kasa-farki')
+      // Should navigate to /sales/verify (query param gets cleaned up after modal opens)
+      await expect(page).toHaveURL(config.frontendUrl + '/sales/verify')
     })
 
     test('Gelirler page shows Kasa Farkı tab when navigating from Import Hub', async ({ page }) => {
@@ -91,16 +90,16 @@ test.describe('📥 Import Hub Navigation', () => {
       await page.locator('[data-testid="import-hub-kasa-raporu-btn"]').click()
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-      // Verify Gelirler page loaded with correct tab
+      // Verify Gelirler page loaded with Kasa Farkı tab
       await expect(page.locator('[data-testid="gelirler-page"]')).toBeVisible()
       await expect(page.locator('[data-testid="gelirler-tab-kasa-farki"]')).toBeVisible()
     })
 
-    test('Direct navigation to /gelirler/kasa-farki shows Kasa Farkı content', async ({ page }) => {
-      await page.goto(config.frontendUrl + '/gelirler/kasa-farki')
+    test('Direct navigation to /sales/verify shows Kasa Farkı content', async ({ page }) => {
+      await page.goto(config.frontendUrl + '/sales/verify')
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-      await expect(page).toHaveURL(config.frontendUrl + '/gelirler/kasa-farki')
+      await expect(page).toHaveURL(config.frontendUrl + '/sales/verify')
       await expect(page.locator('[data-testid="gelirler-page"]')).toBeVisible()
       await expect(page.locator('[data-testid="gelirler-tab-kasa-farki"]')).toBeVisible()
     })
@@ -119,7 +118,7 @@ test.describe('📥 Import Hub Navigation', () => {
       await page.locator('[data-testid="import-hub-kasa-raporu-btn"]').click()
 
       // Wait for navigation AND modal
-      await page.waitForURL('**/gelirler/kasa-farki**')
+      await page.waitForURL('**/sales/verify**')
       await page.waitForTimeout(500) // Allow modal animation
 
       // CRITICAL: Modal should be visible with correct title
@@ -132,7 +131,7 @@ test.describe('📥 Import Hub Navigation', () => {
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
       await page.locator('[data-testid="import-hub-kasa-raporu-btn"]').click()
-      await page.waitForURL('**/gelirler/kasa-farki**')
+      await page.waitForURL('**/sales/verify**')
       await page.waitForTimeout(500)
 
       // Modal should have Excel upload section
@@ -142,7 +141,7 @@ test.describe('📥 Import Hub Navigation', () => {
 
     test('Direct navigation with ?import=true opens modal', async ({ page }) => {
       // Test direct URL with query param
-      await page.goto(config.frontendUrl + '/gelirler/kasa-farki?import=true')
+      await page.goto(config.frontendUrl + '/sales/verify?import=true')
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
       await page.waitForTimeout(500)
 
@@ -151,11 +150,11 @@ test.describe('📥 Import Hub Navigation', () => {
       await expect(modalTitle).toBeVisible({ timeout: 5000 })
 
       // URL should be cleaned up (no query param)
-      await expect(page).toHaveURL(config.frontendUrl + '/gelirler/kasa-farki')
+      await expect(page).toHaveURL(config.frontendUrl + '/sales/verify')
     })
 
     test('Direct navigation without ?import=true does NOT auto-open modal', async ({ page }) => {
-      await page.goto(config.frontendUrl + '/gelirler/kasa-farki')
+      await page.goto(config.frontendUrl + '/sales/verify')
       await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
       await page.waitForTimeout(500)
 
@@ -183,7 +182,7 @@ test.describe('📥 Import Hub Navigation', () => {
 
       // Click Import Et for Kasa Raporu
       await page.locator('[data-testid="import-hub-kasa-raporu-btn"]').click()
-      await page.waitForURL('**/gelirler/kasa-farki**')
+      await page.waitForURL('**/sales/verify**')
       await page.waitForTimeout(500)
 
       // Verify we're on Gelirler page with Kasa Farkı tab AND modal is open
@@ -197,11 +196,10 @@ test.describe('📥 Import Hub Navigation', () => {
 
       const importButton = page.locator('[data-testid="import-hub-kasa-raporu-btn"]')
 
-      // Verify the href includes query param for modal auto-open
+      // Verify the href includes query param for modal auto-open (Phase 1 route)
       const href = await importButton.getAttribute('href')
-      expect(href).toBe('/gelirler/kasa-farki?import=true')
+      expect(href).toBe('/sales/verify?import=true')
       expect(href).not.toBe('/kasa-farki')
-      expect(href).not.toBe('/gelirler/kasa-farki') // Should include query param
     })
   })
 
@@ -218,7 +216,7 @@ test.describe('📥 Import Hub Navigation', () => {
 
       // Step 2: After clicking Import Et
       await page.locator('[data-testid="import-hub-kasa-raporu-btn"]').click()
-      await page.waitForURL('**/gelirler/kasa-farki**')
+      await page.waitForURL('**/sales/verify**')
       await page.waitForTimeout(1000) // Allow modal animation
       await page.screenshot({ path: 'test-results/02-after-click.png', fullPage: true })
 

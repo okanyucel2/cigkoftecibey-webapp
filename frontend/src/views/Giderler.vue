@@ -43,13 +43,29 @@ const navItems: NavItem[] = [
 ]
 
 // Active tab with computed get/set
+// Supports both:
+// 1. New routes with meta.defaultPath (e.g., /expenses/courier → meta.defaultPath: 'hizmet-alim/kurye')
+// 2. Legacy /giderler/xxx routes (backwards compatibility)
 const activeTab = computed({
   get: () => {
+    // First check for meta.defaultPath (new route structure)
+    if (route.meta?.defaultPath) {
+      return route.meta.defaultPath as string
+    }
+    // Fall back to legacy path parsing
     const path = route.path.replace('/giderler/', '')
     return path || 'mal-alim'
   },
   set: (value) => {
-    router.push(`/giderler/${value}`)
+    // Map internal tab IDs to new routes
+    const routeMap: Record<string, string> = {
+      'mal-alim': '/operations/purchases',
+      'uretim': '/operations/production',
+      'genel': '/expenses',
+      'hizmet-alim/kurye': '/expenses/courier',
+      'hizmet-alim/personel-iase': '/personnel/meals'
+    }
+    router.push(routeMap[value] || `/giderler/${value}`)
   }
 })
 

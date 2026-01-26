@@ -117,22 +117,10 @@ test.describe('🧭 Submenu Navigation - Phase 1.2', () => {
   // ==========================================
 
   test.describe('Submenu Item Navigation', () => {
-    test('Clicking "İçe Aktar" submenu item navigates to /import', async ({ authenticatedPage: page }) => {
-      // Find Operasyon nav-item container
-      const operasyonItem = page.locator('.nav-item:has(.nav-button:has-text("Operasyon"))')
-      const operasyonBtn = operasyonItem.locator('.nav-button').first()
-      const operasyonSubmenu = operasyonItem.locator('.nav-subitems')
-
-      // Ensure expanded
-      const expanded = await operasyonBtn.getAttribute('aria-expanded')
-      if (expanded !== 'true') {
-        await operasyonBtn.click()
-      }
-      await expect(operasyonSubmenu).toBeVisible({ timeout: 3000 })
-
-      // Find and click İçe Aktar submenu item (Import Hub)
-      const importBtn = operasyonSubmenu.locator('.subitem:has-text("İçe Aktar")')
-      await expect(importBtn).toBeVisible()
+    test('Clicking "İçe Aktar" top-level item navigates to /import', async ({ authenticatedPage: page }) => {
+      // İçe Aktar is a top-level nav item (not under Operasyon)
+      const importBtn = page.locator('.nav-button:has-text("İçe Aktar")')
+      await expect(importBtn).toBeVisible({ timeout: 5000 })
       await importBtn.click()
 
       // Should navigate to /import

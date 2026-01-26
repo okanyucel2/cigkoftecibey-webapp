@@ -43,33 +43,30 @@ test.describe('🛵 Kurye Giderleri', () => {
       localStorage.setItem('token', t)
     }, token)
 
-    // Navigate to courier expenses page
-    await page.goto(config.frontendUrl + '/courier-expenses')
+    // Navigate to courier expenses page (using canonical route)
+    await page.goto(config.frontendUrl + '/expenses/courier')
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
   })
 
   test('Navigate to Courier Expenses page and verify page loads', async ({ page }) => {
-    // Verify we're on the correct page
-    await expect(page).toHaveURL(/courier-expenses/)
+    // Verify we're on the correct page (new route structure)
+    await expect(page).toHaveURL(/expenses\/courier/)
 
     // Wait for page to fully load
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-    // Verify page heading is visible as indicator that page loaded
-    await expect(page.locator('[data-testid="heading-courier-expenses"]')).toBeVisible({ timeout: 15000 })
-
-    // Wait for heading to confirm page loaded
-    await expect(page.locator('[data-testid="heading-courier-expenses"]')).toBeVisible({ timeout: 15000 })
+    // Verify summary cards are visible (indicates courier expenses view loaded)
+    await expect(page.locator('[data-testid="total-expenses-card"]')).toBeVisible({ timeout: 15000 })
 
     // Check if table exists - if no data exists, empty state is acceptable
     const tableExists = await page.locator('[data-testid="courier-expenses-table"]').isVisible({ timeout: 5000 }).catch(() => false)
-    
+
     if (tableExists) {
       // Table is visible, verify summary cards
       await expect(page.locator('[data-testid="total-expenses-card"]')).toBeVisible({ timeout: 10000 })
     } else {
       // No data yet - verify empty state message instead
-      await expect(page.locator('text=/no.*expense|empty|gider yok/i')).toBeVisible({ timeout: 10000 }).catch(() => {
+      await expect(page.locator('text=/kayit.*yok|bulunamadi|no.*expense|empty/i')).toBeVisible({ timeout: 10000 }).catch(() => {
         console.log('No empty state message found - table may load after data fetch completes')
       })
     }
@@ -91,16 +88,16 @@ test.describe('🛵 Kurye Giderleri', () => {
     const vatRate = '20'
     const notes = `Test Expense ${Date.now()}`
 
-    // Navigate to the page
-    await page.goto(config.frontendUrl + '/courier-expenses')
+    // Navigate to the page (using canonical route)
+    await page.goto(config.frontendUrl + '/expenses/courier')
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
-    // Wait for heading to confirm page loaded
-    await expect(page.locator('[data-testid="heading-courier-expenses"]')).toBeVisible({ timeout: 10000 })
+    // Wait for summary cards to confirm page loaded (indicates courier expenses view)
+    await expect(page.locator('[data-testid="total-expenses-card"]')).toBeVisible({ timeout: 10000 })
 
     // Check if table exists - if no data exists, empty state is acceptable
     const tableExists = await page.locator('[data-testid="courier-expenses-table"]').isVisible({ timeout: 5000 }).catch(() => false)
-    
+
     if (!tableExists) {
       // No table visible yet, this is expected if no data exists
       console.log('Table not visible on initial load - expected for empty state')
@@ -110,8 +107,8 @@ test.describe('🛵 Kurye Giderleri', () => {
     const initialRows = await page.locator('[data-testid="courier-expenses-table"] tbody tr').count()
     console.log(`Initial row count: ${initialRows}`)
 
-    // Click '+ Kayit Ekle' button
-    await page.click('[data-testid="btn-add-courier-expense"]')
+    // Click 'Kayıt Ekle' button (in UnifiedFilterBar primary action)
+    await page.click('button:has-text("Kayıt Ekle"), button:has-text("Kayit Ekle")')
     await page.waitForTimeout(500)
 
     // Fill expense date with unique date (API uses date-based UPSERT)
@@ -189,14 +186,14 @@ test.describe('🛵 Kurye Giderleri', () => {
     const updatedVatRate = '18'
 
     // Navigate to the page
-    await page.goto(config.frontendUrl + '/courier-expenses')
+    await page.goto(config.frontendUrl + '/expenses/courier')
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
     // Wait for table to be visible
     await expect(page.locator('[data-testid="courier-expenses-table"]')).toBeVisible({ timeout: 10000 })
 
     // FIXTURE: Create test expense first
-    await page.click('[data-testid="btn-add-courier-expense"]')
+    await page.click('button:has-text("Kayıt Ekle"), button:has-text("Kayit Ekle")')
     await page.waitForTimeout(500)
 
     const now = new Date()
@@ -277,7 +274,7 @@ test.describe('🛵 Kurye Giderleri', () => {
     const deleteTestNotes = `Delete Test ${uniqueId}`
 
     // Navigate to the page
-    await page.goto(config.frontendUrl + '/courier-expenses')
+    await page.goto(config.frontendUrl + '/expenses/courier')
     await page.waitForLoadState('networkidle', { timeout: 10000 }).catch(() => {})
 
     // Wait for table to be visible
@@ -287,7 +284,7 @@ test.describe('🛵 Kurye Giderleri', () => {
     const initialRows = await page.locator('[data-testid="courier-expenses-table"] tbody tr').count()
 
     // FIXTURE: Create test expense first
-    await page.click('[data-testid="btn-add-courier-expense"]')
+    await page.click('button:has-text("Kayıt Ekle"), button:has-text("Kayit Ekle")')
     await page.waitForTimeout(500)
 
     // Use milliseconds for high uniqueness + offset to avoid collision with Create/Edit tests
