@@ -162,13 +162,5 @@ function getRecordTypeClass(type: string) {
       </table>
     </div>
 
-    <!-- Add Button -->
-    <button
-      type="button"
-      class="w-full py-2 text-sm font-medium text-emerald-600 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors"
-      @click="emit('action', 'add')"
-    >
-      + Yeni Ödeme Ekle
-    </button>
   </div>
 </template>

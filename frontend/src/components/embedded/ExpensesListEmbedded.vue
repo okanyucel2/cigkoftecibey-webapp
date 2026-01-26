@@ -191,13 +191,5 @@ function getCategoryColor(categoryName: string) {
       </table>
     </div>
 
-    <!-- Add Button -->
-    <button
-      type="button"
-      class="w-full py-2 text-sm font-medium text-amber-600 bg-amber-50 rounded-lg hover:bg-amber-100 transition-colors"
-      @click="emit('action', 'add')"
-    >
-      + Yeni Gider Ekle
-    </button>
   </div>
 </template>

@@ -171,13 +171,5 @@ function getDifferenceClass(diff: number) {
       </table>
     </div>
 
-    <!-- Import Button -->
-    <button
-      type="button"
-      class="w-full py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-      @click="emit('action', 'import')"
-    >
-      Excel'den İçe Aktar
-    </button>
   </div>
 </template>

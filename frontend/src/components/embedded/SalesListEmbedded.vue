@@ -11,10 +11,6 @@ interface Props {
 
 defineProps<Props>()
 
-const emit = defineEmits<{
-  (e: 'action', type: 'add' | 'view', item?: OnlineSale): void
-}>()
-
 const { formatCurrency } = useFormatters()
 
 // Data
@@ -184,13 +180,5 @@ function getChannelTotal(channelName: string): number {
       </table>
     </div>
 
-    <!-- Add Button -->
-    <button
-      type="button"
-      class="w-full py-2 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-      @click="emit('action', 'add')"
-    >
-      + Satış Girişi Yap
-    </button>
   </div>
 </template>

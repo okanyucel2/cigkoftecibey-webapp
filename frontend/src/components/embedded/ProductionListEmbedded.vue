@@ -151,13 +151,5 @@ function getTypeClass(type: string) {
       </table>
     </div>
 
-    <!-- Add Button -->
-    <button
-      type="button"
-      class="w-full py-2 text-sm font-medium text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
-      @click="emit('action', 'add')"
-    >
-      + Yeni Üretim Ekle
-    </button>
   </div>
 </template>
