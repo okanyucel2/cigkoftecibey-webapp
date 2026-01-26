@@ -57,6 +57,7 @@
 import { ref, onMounted, watch } from 'vue'
 import { aiApi } from '@/services/api'
 import { useAuthStore } from '@/stores/auth'
+import { extractErrorMessage, extractErrorStatus } from '@/types/errors'
 
 const authStore = useAuthStore()
 const loading = ref(true)
@@ -72,12 +73,12 @@ async function fetchInsight(force = false) {
     const res = await aiApi.getDailyBrief(force)
     data.value = res.data
     
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err)
-    if (err.response?.status === 401) {
+    if (extractErrorStatus(err) === 401) {
        error.value = "Oturum süresi doldu."
     } else {
-       error.value = "AI analizi şu an kullanılamıyor."
+       error.value = extractErrorMessage(err, "AI analizi şu an kullanılamıyor.")
     }
   } finally {
     loading.value = false

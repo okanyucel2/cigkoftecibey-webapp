@@ -42,7 +42,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { authApi } from '@/services/api' 
+import { authApi } from '@/services/api'
+import { extractErrorMessage } from '@/types/errors' 
 
 const email = ref('')
 const password = ref('')
@@ -60,9 +61,9 @@ async function handleLogin() {
           const response = await authApi.login(email.value, password.value);
     localStorage.setItem('token', response.data.access_token)
     router.push('/')
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error('Login failed:', err)
-    error.value = err.response?.data?.detail || 'Login failed'
+    error.value = extractErrorMessage(err, 'Giriş başarısız')
   } finally {
     isLoading.value = false
   }
