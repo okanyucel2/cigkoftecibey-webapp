@@ -21,6 +21,9 @@ services:
     start: "cd backend && ./venv/bin/python -m uvicorn app.main:app --reload --host 0.0.0.0"
     stop: "pkill -f 'uvicorn.*app.main:app'"
     # health_check url will be auto-generated (expects /api/health)
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5433/cigkofte"
+      PYTHONPATH: "${PROJECT_DIR}/backend"
 
 # Note: Backend requires project-specific venv
 # To restart backend manually:
