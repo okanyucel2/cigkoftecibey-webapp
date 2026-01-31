@@ -2,6 +2,8 @@
 
 Restoran yonetim sistemi MVP - Vue 3 + FastAPI + PostgreSQL
 
+## Test PR - Genesis PR Monitor
+
 ## Hizli Baslangic (Docker)
 
 ```bash
