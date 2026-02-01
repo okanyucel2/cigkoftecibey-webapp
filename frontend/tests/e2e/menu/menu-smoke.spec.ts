@@ -1,20 +1,21 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '@playwright/test'
+import { config } from '../_config/test_config'
 
 test.describe('Menu Management E2E', () => {
   test.beforeEach(async ({ page }) => {
     // Login first with correct demo credentials
-    await page.goto('http://localhost:19049/login');
-    await page.fill('input[type="email"]', 'admin@cigkofte.com');
-    await page.fill('input[type="password"]', 'admin123');
-    await page.click('button[type="submit"]');
-    
+    await page.goto(`${config.frontendUrl}/login`)
+    await page.fill('input[type="email"]', config.auth.email)
+    await page.fill('input[type="password"]', config.auth.password)
+    await page.click('button[type="submit"]')
+
     // Wait for redirect to dashboard
-    await page.waitForURL('http://localhost:19049/', { timeout: 15000 });
-  });
+    await page.waitForURL(`${config.frontendUrl}/`, { timeout: 15000 })
+  })
 
   test('should display menu management page with tabs', async ({ page }) => {
     // Navigate to menu page
-    await page.goto('http://localhost:19049/menu');
+    await page.goto(`${config.frontendUrl}/menu`)
     
     // Wait for page to load
     await page.waitForLoadState('networkidle');
@@ -44,7 +45,7 @@ test.describe('Menu Management E2E', () => {
   });
 
   test('should open category modal', async ({ page }) => {
-    await page.goto('http://localhost:19049/menu');
+    await page.goto(`${config.frontendUrl}/menu`);
     await page.waitForLoadState('networkidle');
     
     // Click new category button
