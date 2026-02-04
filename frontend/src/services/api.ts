@@ -51,6 +51,7 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       localStorage.removeItem('token')
+      localStorage.removeItem('currentBranchId')
       // Only redirect if we are not already on the login page
       // This allows the login page to handle 401 (wrong password) natively
       if (!window.location.pathname.includes('/login')) {
@@ -65,6 +66,15 @@ api.interceptors.response.use(
 export const authApi = {
   login: (email: string, password: string) =>
     api.post<{ access_token: string }>('/auth/login-json', { email, password }),
+
+  loginJson: (data: { email: string; password: string }) =>
+    api.post<{ access_token: string }>('/auth/login-json', data),
+
+  logout: () =>
+    api.post<{ message: string }>('/auth/logout'),
+
+  logoutAll: () =>
+    api.post<{ message: string; sessions_revoked: number }>('/auth/logout-all'),
 
   me: () => api.get<User>('/auth/me'),
 
