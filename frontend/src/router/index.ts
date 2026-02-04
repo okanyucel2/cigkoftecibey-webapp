@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useAuth } from '@/composables/useAuth'
 
 /**
  * Phase 1 Router Structure (Platform Evolution Roadmap)
@@ -256,25 +257,89 @@ const router = createRouter({
   ]
 })
 
+/**
+ * Global navigation guard for authentication and authorization
+ */
 router.beforeEach(async (to, _from, next) => {
   const authStore = useAuthStore()
+  const auth = useAuth()
 
-  if (to.meta.requiresAuth !== false && !authStore.isAuthenticated) {
-    // Try to fetch user if we have a token
+  // Skip auth check for public routes
+  if (to.meta.requiresAuth === false) {
+    // If already authenticated, redirect to home
+    if (authStore.isAuthenticated) {
+      return next('/')
+    }
+    return next()
+  }
+
+  // Protected route - check authentication
+  if (!authStore.isAuthenticated) {
+    // Try to restore session from storage
     if (authStore.token && !authStore.user) {
-      await authStore.fetchUser()
+      try {
+        await authStore.fetchUser()
+      } catch (err) {
+        // Session is invalid
+        authStore.logout()
+        return next('/login')
+      }
     }
 
+    // Still not authenticated
     if (!authStore.isAuthenticated) {
       return next('/login')
     }
   }
 
-  if (to.path === '/login' && authStore.isAuthenticated) {
+  // Check permission requirements
+  if (to.meta.requiresSuperAdmin && !authStore.isSuperAdmin) {
     return next('/')
   }
 
+  if (to.meta.requiresOwner && authStore.user?.role !== 'owner') {
+    return next('/')
+  }
+
+  // Validate token with server (periodic check)
+  if (authStore.isAuthenticated) {
+    try {
+      // Check if token is still valid
+      if (!auth.isTokenValid()) {
+        // Token expired
+        await authStore.logout()
+        return next('/login')
+      }
+
+      // Refresh user info if needed
+      if (!authStore.user) {
+        await authStore.fetchUser()
+      }
+    } catch (err) {
+      console.error('Auth validation error:', err)
+      authStore.logout()
+      return next('/login')
+    }
+  }
+
   next()
+})
+
+/**
+ * Navigation guard for handling token expiry warnings
+ */
+router.afterEach((to, _from) => {
+  // Don't warn on login/onboarding pages
+  if (to.path === '/login' || to.path === '/onboarding') {
+    return
+  }
+
+  const auth = useAuth()
+
+  // Show warning if token expiring soon
+  if (auth.isTokenExpiringSoon.value && !auth.error.value) {
+    // Warning is already shown via composable
+  }
 })
 
 export default router

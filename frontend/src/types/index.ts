@@ -446,6 +446,13 @@ export interface GoogleAuthResponse {
   user?: User
 }
 
+// Auth Tokens
+export interface AuthTokens {
+  access_token: string
+  token_type: string
+  expires_in?: number
+}
+
 // Courier Expense Types
 export interface CourierExpense {
   id: number
