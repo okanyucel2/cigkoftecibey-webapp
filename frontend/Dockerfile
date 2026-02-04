@@ -25,8 +25,8 @@ ENV VITE_GIT_COMMIT=${RENDER_GIT_COMMIT}
 ENV VITE_GIT_BRANCH=${RENDER_GIT_BRANCH}
 ENV VITE_API_URL=${VITE_API_URL}
 
-# Build the Vue app
-RUN npm run build
+# Build the Vue app (skip type-check for production, run locally)
+RUN npm run build:prod
 
 # Production stage
 FROM nginx:alpine
